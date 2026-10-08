@@ -849,3 +849,4 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .ol-watch .challenge-board{width:clamp(120px,calc((100dvh - 270px)*.3),260px)}
 .ol-watch-ffa .challenge-board{width:clamp(110px,calc((100dvh - 270px)*.28),220px)}
 .ol-watch .challenge-board.eliminated{opacity:.45;filter:grayscale(.8)}
+@media (max-width:480px){.ol-tabs{gap:4px}.ol-tabs button:not(#_){font-size:13px;padding:0 4px;border-width:8px}}

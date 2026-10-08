@@ -9,6 +9,7 @@ Run `npm run dev`, then open http://127.0.0.1:4173. No dependency installation i
 - Left / Right: move.
 - Up: counterclockwise rotation. Down: clockwise rotation.
 - Hold Space: fast fall; movement and rotation remain possible before lock.
+- Each action can have up to four keys (Settings → Controls → +).
 - Escape: pause. All six bindings can be changed in Settings.
 - Duel view toggles the opponent's full board.
 
