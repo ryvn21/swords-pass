@@ -1,11 +1,12 @@
-# Builds the Windows app (an installer and a portable .exe). Run it from the Actions tab,
-# or push a tag like desktop-v1.0.0 to also attach the files to a GitHub release.
+# Builds the Windows app (an installer and a portable .exe) whenever desktop/ changes on main,
+# or from the Actions tab, and publishes them as a GitHub release (Releases, right-hand side of the repo).
 # The app opens the live site, so game updates reach it without rebuilding this.
 name: Desktop app
 on:
   workflow_dispatch:
   push:
-    tags: ['desktop-v*']
+    branches: [main]
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
 permissions:
   contents: write
 jobs:
@@ -25,7 +26,9 @@ jobs:
         with:
           name: swords-pass-windows
           path: desktop/release/*.exe
-      - if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
+          tag_name: desktop-v1.0.${{ github.run_number }}
+          name: Sword's Pass for Windows (build ${{ github.run_number }})
+          body: Download SwordsPass-Setup to install, or the portable .exe to run without installing. The app always opens the latest version of the game.
           files: desktop/release/*.exe
