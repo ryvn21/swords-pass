@@ -21,3 +21,16 @@ test('score identity separates different handling profiles and presets are valid
  assert.notEqual(handlingKey({gravityMs:800}),handlingKey({gravityMs:801}));
  for(const preset of HANDLING_PRESETS)assert.deepEqual(handlingRules(preset.rules),preset.rules);
 });
+
+test('saved setups left on the old defaults or presets move to the house setup once; hand-tuned ones stay', async () => {
+  const {migrateToHouse, HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const {DEFAULT_RULES} = await import('../dist/engine.js');
+  const old = {rules: {...DEFAULT_RULES, repeatDelayMs: 165, repeatMs: 72, dropBufferMs: 160, stallFlips: 3, wellFlip: true}};
+  const moved = migrateToHouse(old);
+  assert.equal(moved.rules.gravityMs, HOUSE_RULES.gravityMs); assert.equal(moved.rules.fastFallMs, 46); assert.equal(moved.houseVersion, 1);
+  const brisk = migrateToHouse({rules: {...DEFAULT_RULES, gravityMs: 650, fastFallMs: 150, lockMs: 300, entryMs: 50, repeatDelayMs: 155, repeatMs: 66, dropBufferMs: 140}});
+  assert.equal(brisk.rules.gravityMs, 1600);
+  const tuned = migrateToHouse({rules: {...DEFAULT_RULES, gravityMs: 900, repeatDelayMs: 165, repeatMs: 72, dropBufferMs: 160}});
+  assert.equal(tuned.rules.gravityMs, 900);
+  assert.equal(migrateToHouse({...tuned, rules: {...old.rules}}).rules.gravityMs, 800);   // runs only once
+});

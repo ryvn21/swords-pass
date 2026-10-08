@@ -34,6 +34,20 @@ export function handlingRules(input={}){
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 export const HOUSE_RULES=handlingRules({gravityMs:1600,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
 export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES}];
+// Anyone who visited before the house setup existed has the old build defaults (or one of the old
+// Relaxed / Balanced / Brisk presets) saved. Untouched ones move to the house setup once; values a
+// player changed by hand stay as they are.
+const OLD_SETUPS=[
+ {...DEFAULT_RULES,repeatDelayMs:165,repeatMs:72,dropBufferMs:160},
+ {...DEFAULT_RULES,repeatDelayMs:145,repeatMs:65,dropBufferMs:160},
+ {...DEFAULT_RULES,gravityMs:1000,fastFallMs:250,lockMs:400,entryMs:80,repeatDelayMs:185,repeatMs:80,dropBufferMs:200},
+ {...DEFAULT_RULES,gravityMs:650,fastFallMs:150,lockMs:300,entryMs:50,repeatDelayMs:155,repeatMs:66,dropBufferMs:140},
+];
+export function migrateToHouse(prefs={}){
+ if((prefs.houseVersion??0)>=1)return prefs;
+ const r=prefs.rules||{},untouched=OLD_SETUPS.some(old=>HANDLING_FIELDS.every(([k])=>r[k]===undefined||r[k]===old[k]||(k==='dropBufferMs'&&r[k]===undefined)));
+ return {...prefs,houseVersion:1,rules:untouched?{...r,...HOUSE_RULES}:r};
+}
 
 // Key bindings: each action can have several keys (e.g. fast fall on Space or G).
 export const KEY_ACTIONS={left:'Move left',right:'Move right',ccw:'Rotate counterclockwise',cw:'Rotate clockwise',drop:'Fast fall',pause:'Pause / resume'};
