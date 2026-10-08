@@ -149,3 +149,29 @@ body.tt-open{overflow:hidden}
 .tt-prompt{position:absolute;left:0;right:0;top:56%;margin:0;transform:none;text-align:center}
 .tt-gallery-open .tt-logo{opacity:0;transition:opacity .2s}
 @media (prefers-reduced-motion:reduce){.tt-logo{animation:none;transition:none}}
+
+/* the description sits just under the lit menu item and moves with it */
+.tt-menuwrap{position:relative}
+#title-screen .tt-menu{gap:calc(clamp(2px,.6vh,8px) + clamp(12px,1.6vmin,16px) * 1.15)}
+#title-screen .tt-menu button{font-size:clamp(19px,3.4vmin,38px)}
+.tt-menuwrap .tt-hint{position:absolute;left:50%;top:0;transform:translateX(-50%);width:max-content;max-width:min(92vw,560px);margin:0;
+  font-size:clamp(12px,1.6vmin,16px);line-height:1.15;pointer-events:none;transition:top .16s steps(4)}
+@media (prefers-reduced-motion:reduce){.tt-menuwrap .tt-hint{transition:none}}
+#title-screen .tt-menu button.tt-back{font-size:clamp(15px,2.4vmin,26px)}
+
+/* first visit: pick a name */
+.tt-naming .tt-menuwrap{visibility:hidden}
+.tt-namecard{position:absolute;inset:0;margin:auto;height:max-content;width:min(440px,calc(100vw - 32px));pointer-events:auto;text-align:center;
+  border-style:solid;border-width:20px;border-image:url(ui/panel.png) 10 fill/20px/0 round;image-rendering:pixelated;padding:6px 14px 10px;box-shadow:0 10px 0 #0007;animation:tt-in .32s steps(4) both}
+.tt-namecard-eyebrow{margin:0;font:600 12px var(--tt-ui);letter-spacing:.3em;color:var(--gold)}
+.tt-namecard h2{margin:6px 0 4px;font:600 clamp(20px,3vmin,28px) var(--tt-ui);color:var(--parchment);text-shadow:0 2px 0 var(--tt-ink)}
+.tt-namecard-note{margin:0 0 12px;font:400 13px var(--tt-ui);color:#bfae93}
+.tt-namecard input{all:unset;box-sizing:border-box;width:100%;text-align:center;font:600 20px var(--tt-ui);color:var(--parchment);padding:4px 8px;
+  border-style:solid;border-width:8px;border-image:url(ui/field.png) 4 fill/8px round;image-rendering:pixelated}
+.tt-namecard input::placeholder{color:#7d6a52}
+.tt-namecard-actions{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:12px}
+.tt-namecard button{all:unset;cursor:pointer;font:600 17px var(--tt-ui);color:var(--parchment);padding:0 10px;border-style:solid;border-width:10px;border-image:url(ui/btn.png) 5 fill/10px round;image-rendering:pixelated}
+.tt-namecard button.tt-namecard-go{color:var(--gold);border-image-source:url(ui/btn-primary.png)}
+.tt-namecard button:hover,.tt-namecard button:focus-visible{border-image-source:url(ui/btn-hover.png);color:var(--gold)}
+.tt-namecard button.tt-namecard-go:hover,.tt-namecard button.tt-namecard-go:focus-visible{border-image-source:url(ui/btn-primary-hover.png)}
+.tt-namecard button.tt-namecard-skip{border-image:none;padding:0 4px;font-size:14px;color:#bfae93}

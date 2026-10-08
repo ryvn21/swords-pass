@@ -3,7 +3,8 @@
 // boards are drawn from the snapshots they stream. Attack batches travel as messages and land
 // on your next lock, exactly as they would locally. The server referees who topped out first.
 import {createMatch,step,receiveBatch,pairAt,DEFAULT_RULES,H} from './engine.js';
-import {handlingRules} from './handling-profile.js';
+import {actionFor} from './handling-profile.js';
+import {handlingRules,HOUSE_RULES} from './handling-profile.js';
 import {drawBoard,drawNext} from './render.js';
 import {hazardAt,scoreClear} from './challenge.js';
 import {DEFAULT_PROGRESSION,progressionAt} from './progression.js';
@@ -22,7 +23,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   const record = read('online-record', {duel: {w: 0, l: 0}, ffa: {w: 0, played: 0}});
   const blade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
   const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1})});
-  const rules = () => handlingRules({...DEFAULT_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs, repeatMs: prefs.rules?.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? 160, stallFlips: 3, wellFlip: true});
+  const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: 3, wellFlip: true});
   const set = (q, v) => { const el = $(q); if (el && el.textContent !== String(v)) el.textContent = String(v); };
 
   // ---------- network events ----------
@@ -264,7 +265,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   addEventListener('keydown', e => {
     if (screen !== 'match' || !match || document.querySelector('dialog[open]') || document.activeElement?.matches('input,select,textarea')) return;
     if (e.code === 'Tab' && match.mode === 'ffa') { e.preventDefault(); retarget(); return; }
-    const action = Object.entries(prefs.keys).find(([, code]) => code === e.code)?.[0]; if (!action) return;
+    const action = actionFor(prefs.keys,e.code); if (!action) return;
     e.preventDefault(); if (!e.repeat) press(e.code, action);
   }, {signal: life.signal});
   addEventListener('keyup', e => release(e.code), {signal: life.signal});

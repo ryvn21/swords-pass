@@ -30,10 +30,16 @@ export function handlingRules(input={}){
  if(input?.wellFlip===true)out.wellFlip=true;
  return out;
 }
-export const HANDLING_PRESETS=[
- {id:'relaxed',label:'Relaxed',rules:handlingRules({gravityMs:1000,fastFallMs:250,lockMs:400,entryMs:80,repeatDelayMs:185,repeatMs:80,dropBufferMs:200})},
- {id:'balanced',label:'Balanced',rules:handlingRules({...DEFAULT_RULES,repeatDelayMs:165,repeatMs:72,dropBufferMs:160})},
- {id:'brisk',label:'Brisk',rules:handlingRules({gravityMs:650,fastFallMs:150,lockMs:300,entryMs:50,repeatDelayMs:155,repeatMs:66,dropBufferMs:140})}
-];
+// The house setup: what new players start with, what "Restore defaults" returns to, and the
+// standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
+export const HOUSE_RULES=handlingRules({gravityMs:1600,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
+export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES}];
+
+// Key bindings: each action can have several keys (e.g. fast fall on Space or G).
+export const KEY_ACTIONS={left:'Move left',right:'Move right',ccw:'Rotate counterclockwise',cw:'Rotate clockwise',drop:'Fast fall',pause:'Pause / resume'};
+export const DEFAULT_KEYS={left:['ArrowLeft'],right:['ArrowRight'],ccw:['ArrowUp'],cw:['ArrowDown'],drop:['Space'],pause:['Escape']};
+export const keysOf=(keys,action)=>{const k=keys?.[action];return Array.isArray(k)?k:k?[k]:[];};
+export function normalizeKeys(keys={}){const out={};for(const a of Object.keys(KEY_ACTIONS)){const k=keysOf(keys,a);out[a]=k.length?[...new Set(k)].slice(0,4):[...DEFAULT_KEYS[a]];}return out;}
+export const actionFor=(keys,code)=>Object.keys(KEY_ACTIONS).find(a=>keysOf(keys,a).includes(code));
 export const handlingKey=rules=>Object.entries(handlingRules(rules)).filter(([k])=>k!=='stallFlips'&&k!=='wellFlip'&&k!=='dropBufferMs').map(([k,v])=>k+'='+v).join(',');
 export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}

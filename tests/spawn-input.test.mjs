@@ -56,7 +56,7 @@ test('new-game defaults update once without rewriting custom handling or the inp
   assert.equal(next.rules.gravityMs,930);assert.equal(next.rules.entryMs,85);assert.deepEqual(original,copy);assert.deepEqual(migrateSpawnAdjustment(next),next);
  }
  assert.equal(migrateSpawnAdjustment({spawnAdjustmentVersion:2,rules:{spawnGraceMs:125}}).rules.spawnGraceMs,125);
- for(const p of HANDLING_PRESETS)assert.equal(p.rules.spawnGraceMs,250);
+ for(const p of HANDLING_PRESETS)assert.equal(p.rules.spawnGraceMs,0);   // the house setup has no spawn pause
 });
 
 test('fresh practice, duel, challenge, paired duel and solo runs share spawn timing',()=>{

@@ -1,4 +1,5 @@
 import {createPairedDuels,stepPairedDuels,pairedPlayer,pairedStandings} from './paired-duels.js';
+import {actionFor} from './handling-profile.js';
 import {pairAt,random} from './engine.js';
 import {OPPONENTS,botProfile,planMove} from './ai.js';
 import {drawBoard,drawNext} from './render.js';
@@ -50,7 +51,7 @@ export function createPairedDuelsUI({host,prefs,save,read,sound,getPool,showPool
   const standings=pairedStandings(run).map(e=>`<div class="paired-standing"><strong>${e.name}</strong><span>${e.status==='playing'?'Playing':e.status==='waiting'?'Waiting':e.status==='winner'?'Winner':'Out'}</span><b>${e.wins} wins</b></div>`).join('');if($('#paired-standings').innerHTML!==standings)$('#paired-standings').innerHTML=standings;
  }
  function frame(t){if(disposed)return;const delta=Math.min(100,t-(last||t));last=t;if(run&&!paused&&!run.finished){acc+=delta;while(acc>=DT){tick();acc-=DT;}}else acc=0;render(t);raf=requestAnimationFrame(frame);}
- window.addEventListener('keydown',e=>{if(!run||document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea'))return;const action=Object.entries(prefs.keys).find(([,code])=>code===e.code)?.[0];if(action){e.preventDefault();if(!e.repeat)press(e.code,action);}},{signal:scope.signal});
+ window.addEventListener('keydown',e=>{if(!run||document.querySelector('dialog[open]')||document.activeElement?.matches('input,select,textarea'))return;const action=actionFor(prefs.keys,e.code);if(action){e.preventDefault();if(!e.repeat)press(e.code,action);}},{signal:scope.signal});
  window.addEventListener('keyup',e=>release(e.code),{signal:scope.signal});window.addEventListener('blur',()=>pause(true),{signal:scope.signal});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause(true);},{signal:scope.signal});
  setup();raf=requestAnimationFrame(frame);
  return {isActive:()=>!!run&&!run.finished,pause:()=>pause(true),destroy(){disposed=true;scope.abort();cleanup();cancelAnimationFrame(raf);},getState:()=>run?{seed,difficulty,round:run.round,rules:run.rules,paused,finished:run.finished,winner:run.winner,players:run.entries.map(e=>({id:e.id,opponent:e.opponentId,status:e.status,pattern:e.swordName,stats:pairedPlayer(e).stats,turn:pairedPlayer(e).turn,board:pairedPlayer(e).board,queued:pairedPlayer(e).incoming.length}))}:null};

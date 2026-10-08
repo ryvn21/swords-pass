@@ -7,7 +7,7 @@ import {restoreRun,serializeRun} from '../dist/rogue-save.js';
 
 test('new games use the cancellable pause without changing fall or landing timings',()=>{
  assert.equal(DEFAULT_RULES.spawnGraceMs,250);assert.equal(DEFAULT_RULES.gravityMs,800);assert.equal(DEFAULT_RULES.fastFallMs,200);assert.equal(DEFAULT_RULES.lockMs,350);assert.equal(DEFAULT_RULES.entryMs,60);
- for(const preset of HANDLING_PRESETS)assert.equal(preset.rules.spawnGraceMs,250);
+ for(const preset of HANDLING_PRESETS)assert.equal(preset.rules.spawnGraceMs,0);   // house setup; engine defaults above are unchanged
  const m=createMatch({mode:'practice'}),p=m.players[0];step(m,200);assert.equal(p.fall,0);step(m,75);assert.equal(p.spawnGrace,0);assert.equal(p.fall,25);
 });
 test('custom spawn preferences and zero survive the default migration',()=>{

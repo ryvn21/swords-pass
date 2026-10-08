@@ -23,8 +23,8 @@ const MENUS = {
   ]},
   solo: {title: 'Solo', items: [
     {label: 'Play vs AI', hint: 'Pick your blade, theirs, and how hard they hit', run: () => go('play'), art: 'solo'},
-    {label: 'Freebuild', hint: 'Paint any board, then watch it break', run: () => go('freebuild')},
-    {label: 'Zen', hint: 'No rival, no clock. Music on, just play', run: () => go('zen')},
+    {label: 'Freebuild', hint: 'Paint any board, then watch it break', run: () => go('freebuild'), fx: 'freebuild'},
+    {label: 'Zen', hint: 'No rival, no clock. Music on, just play', run: () => go('zen'), fx: 'zen'},
     {label: 'Back', back: true},
   ]},
   multi: {title: 'Multiplayer', items: [
@@ -47,9 +47,16 @@ const audio = createTavernAudio({volume: volumeScale(), mix});
 addEventListener('scraps-audio', e => { mix = e.detail; audio.setMix(mix); audio.setVolume(mix.master); syncToggles?.(); });
 let syncToggles = null;
 
-let lastFrom = 'root', root, cv, g, raf = 0, open = false, entered = false, enteredAt = 0, logo, heard = false, nav, head, hint, gallery, emblem, menuKey = 'root';
+let lastFrom = 'root', root, cv, g, raf = 0, open = false, entered = false, enteredAt = 0, logo, naming = false, heard = false, nav, head, hint, gallery, emblem, menuKey = 'root';
 // a painted emblem for the lit menu item (title/modes/*.png)
-function showArt(item) { if (!emblem) return; const a = item?.art; emblem.classList.toggle('on', !!a); if (a && emblem.dataset.art !== a) { emblem.dataset.art = a; emblem.src = BASE + 'modes/' + a + '.png'; emblem.classList.remove('swap'); void emblem.offsetWidth; emblem.classList.add('swap'); } }
+// the lit item: its description sits just under it, and the window shows that mode's own effect
+let litFx = null, litAt = 0;
+function showArt(item) { const f = item?.fx ?? item?.art ?? null; if (f !== litFx) { litFx = f; litAt = performance.now() / 1000; } placeHint(); }
+function placeHint() {
+  const b = nav?.querySelector('.is-active'), wrap = hint?.offsetParent; if (!b || !wrap) return;
+  let y = b.offsetHeight - 2; for (let e = b; e && e !== wrap; e = e.offsetParent) y += e.offsetTop;   // the menu's swap animation makes it an offset parent too
+  hint.style.top = y + 'px';
+}
 const img = {};
 let reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || gamePrefs().reduced === true;
 
@@ -85,7 +92,7 @@ function back() { if (gallery && !gallery.hidden) return closeGallery(); if (men
 function buildDom() {
   cv = el('canvas', {width: 944, height: 531, class: 'tt-canvas', 'aria-hidden': 'true'});
   g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
-  head = el('p', {class: 'tt-head'}); nav = el('nav', {class: 'tt-menu', 'aria-label': 'Main menu'}); hint = el('p', {class: 'tt-hint', 'aria-live': 'polite'});
+  head = el('p', {class: 'tt-head'}); nav = el('nav', {class: 'tt-menu', 'aria-label': 'Main menu'}); nav.addEventListener('animationend', placeHint); hint = el('p', {class: 'tt-hint', 'aria-live': 'polite'});
   const menuWrap = el('div', {class: 'tt-menuwrap'}, [head, nav, hint]);
   const musicBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-music'});
   const ambBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-ambience'});
@@ -119,7 +126,8 @@ function buildDom() {
     if (!open) return;
     if (!heard) { heard = true; startAudio(); }
     if (entered || e.target?.closest?.('.tt-corner')) return;
-    entered = true; enteredAt = performance.now(); root.classList.add('tt-entered'); audio.select();
+    entered = true; enteredAt = performance.now(); root.classList.add('tt-entered'); audio.select(); requestAnimationFrame(placeHint);
+    if (!read('online-name', '') && !read('named', false)) askName();
     if (e.type === 'keydown') { e.preventDefault(); e.stopImmediatePropagation(); }
     setTimeout(() => nav.querySelector('button')?.focus({preventScroll: true}), 380);
   };
@@ -127,7 +135,7 @@ function buildDom() {
   addEventListener('keydown', enter, true);
   // arrows move through the menu; Escape / Backspace go back a level
   addEventListener('keydown', e => {
-    if (!open || !entered || document.querySelector('dialog[open]')) return;
+    if (!open || !entered || naming || document.querySelector('dialog[open]')) return;
     if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); back(); return; }
     const items = [...nav.querySelectorAll('button')]; if (!items.length || (gallery && !gallery.hidden)) return;
     if ((e.key === 'Enter' || e.key === ' ') && !nav.contains(document.activeElement)) { e.preventDefault(); e.stopPropagation(); nav.querySelector('.is-active')?.click(); return; }
@@ -180,6 +188,22 @@ function openGallery() {
   renderGallery(gallery, () => { audio.select(); closeGallery(); });
   root.classList.add('tt-gallery-open'); gallery.hidden = false; gallery.querySelector('.tt-gal-close')?.focus({preventScroll: true});
 }
+// first visit: a name for the tavern (used online and on results). Optional; editable later in the online lobby.
+function askName() {
+  naming = true; root.classList.add('tt-naming');
+  const card = el('form', {class: 'tt-namecard', 'aria-label': 'Choose a name'});
+  card.innerHTML = '<p class="tt-namecard-eyebrow">WELCOME, TRAVELLER</p><h2>What should we call you?</h2><p class="tt-namecard-note">Your name shows in online duels and on results. You can change it later.</p><input name="nm" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Swordhand" aria-label="Your name"><div class="tt-namecard-actions"><button type="submit" class="tt-namecard-go">Enter the tavern</button><button type="button" class="tt-namecard-skip">Later</button></div>';
+  const input = card.querySelector('input'), done = name => {
+    const nm = String(name || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16);
+    if (nm) save('online-name', nm); save('named', true); audio.select();
+    naming = false; root.classList.remove('tt-naming'); card.remove(); requestAnimationFrame(placeHint);
+    setTimeout(() => nav.querySelector('button')?.focus({preventScroll: true}), 30);
+  };
+  card.addEventListener('submit', e => { e.preventDefault(); done(input.value); });
+  card.querySelector('.tt-namecard-skip').onclick = () => done('');
+  card.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); done(''); } });
+  root.querySelector('.tt-ui').append(card); setTimeout(() => input.focus(), 60);
+}
 // whole-pixel scales for the wordmark: big on the title card, half that once the menu is open
 // (the full wordmark where it fits at 1x or more, otherwise the compact one, never a fractional scale)
 function sizeLogo() {
@@ -189,6 +213,7 @@ function sizeLogo() {
   const big = Math.max(1, k(w, h, full ? .86 : .92, .2)), small = Math.max(1, Math.min(big - 1, k(w, h, .6, .1)));
   logo.src = BASE + 'brand/' + (full ? 'logo-title' : 'logo-bar') + '.png';
   root.style.setProperty('--logo-big', w * big + 'px'); root.style.setProperty('--logo-small', w * small + 'px');
+  requestAnimationFrame(placeHint);
 }
 function closeGallery() { gallery.hidden = true; root.classList.remove('tt-gallery-open'); renderMenu('root', true); }
 
@@ -224,6 +249,52 @@ let flames = [], embers = [], px = 0, py = 0, tx = 0, ty = 0, pointer = false;
 function glow(x, y, r, col, a) { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
 const flick = (t, k) => .5 + .25 * Math.sin(t * 7.1 + k) + .15 * Math.sin(t * 13.7 + k * 2.3) + .1 * Math.sin(t * 23.3 + k * .7);
 
+// ---------- one small effect per mode, in the window behind the menu (vista pixels) ----------
+const PATH = [[250, 338], [247, 330], [238, 320], [217, 310], [191, 300], [166, 290], [167, 280], [170, 272]];
+const GEM_RGB = ['223,57,57', '242,207,40', '71,191,86', '54,157,222'];
+const MOON = [197, 172];
+function along(p) { const seg = PATH.length - 1, f = Math.min(seg - 1e-6, Math.max(0, p * seg)), i = Math.floor(f), k = f - i; return [PATH[i][0] + (PATH[i + 1][0] - PATH[i][0]) * k, PATH[i][1] + (PATH[i + 1][1] - PATH[i][1]) * k]; }
+const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+function dot(x, y, col, a, s = 1) { g.fillStyle = `rgba(${col},${a})`; g.fillRect(Math.round(x), Math.round(y), s, s); }
+function modeFx(kind, t, ox, oy) {
+  const fade = Math.min(1, (t - litAt) / .6); if (fade <= 0) return;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  if (kind === 'solo') {                       // Solo: a lone shooting star crosses the sky
+    const per = 2.6, c = (t % per) / per, n = Math.floor(t / per), x0 = 40 + hash(n) * 220, y0 = 18 + hash(n + 9) * 40;
+    if (c < .5) { const k = c / .5, hx = ox + x0 + k * 150, hy = oy + y0 + k * 60;
+      glow(hx, hy, 9, '255,230,250', fade * .55 * (1 - k * .5));
+      for (let i = 0; i < 16; i++) { const q = Math.max(0, k - i * .02); dot(ox + x0 + q * 150, oy + y0 + q * 60, '255,240,250', fade * (1 - i / 16) * (1 - k * .4), i < 3 ? 2 : 1); } }
+  } else if (kind === 'multi') {               // Multiplayer: two sparks race in and clash above the peak
+    const per = 2.2, c = (t % per) / per, mx = ox + MOON[0], my = oy + 88;
+    if (c < .45) { const k = (c / .45) ** 2; for (const d of [-1, 1]) { const col = d < 0 ? '255,210,90' : '240,96,96', hx = mx + d * (170 - k * 170), hy = my + 34 - k * 34;
+        glow(hx, hy, 8, col, fade * .5); for (let i = 0; i < 10; i++) { const q = Math.max(0, k - i * .025); dot(mx + d * (170 - q * 170), my + 34 - q * 34, col, fade * (1 - i / 10), i < 2 ? 2 : 1); } } }
+    else if (c < .85) { const k = (c - .45) / .4; glow(mx, my, 10 + k * 34, '255,220,140', fade * .7 * (1 - k));
+      for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283 + .2, r = 4 + k * 40; dot(mx + Math.cos(a) * r, my + Math.sin(a) * r + k * k * 16, i % 2 ? '255,226,150' : '255,140,120', fade * (1 - k), 2); } }
+  } else if (kind === 'adventure') {           // Adventure: lanterns climb the winding road
+    for (let i = 0; i < 4; i++) { const p = ((t * .08 + i / 4) % 1), [x, y] = along(p), a = fade * Math.min(1, p * 6, (1 - p) * 6);
+      glow(ox + x, oy + y - 3, 14, '255,190,90', .6 * a); dot(ox + x - 1, oy + y - 4, '255,236,170', a, 2); }
+  } else if (kind === 'workshop' || kind === 'forge') {   // Forge: sparks fly up as if from an anvil below the sill
+    glow(ox + 200, oy + 330, 70, '255,128,48', fade * (.18 + .06 * Math.sin(t * 9)));
+    for (let i = 0; i < 44; i++) { const life = 1.4 + hash(i + 50) * .8, s = (t + hash(i) * life) % life, k = s / life, n = Math.floor((t + hash(i) * life) / life) + i * 31;
+      const x = 200 + (hash(n) - .5) * 80 + (hash(n + 3) - .5) * 300 * k, y = 330 - k * (190 + hash(n + 5) * 110) + k * k * 90;
+      dot(ox + x, oy + y, k < .35 ? '255,240,190' : k < .7 ? '255,170,70' : '226,92,34', fade * (1 - k * .8), 2); }
+  } else if (kind === 'gallery') {             // Gallery: jewels glint in the night, in the gems' own colours
+    for (let i = 0; i < 10; i++) { const per = 1.8 + hash(i + 20), s = (t + hash(i) * per) % per, k = s / per, n = Math.floor((t + hash(i) * per) / per) * 17 + i;
+      if (k > .55) continue; const a = fade * Math.sin(k / .55 * Math.PI), x = ox + 24 + hash(n) * 352, y = oy + 14 + hash(n + 1) * 130, c = GEM_RGB[i % 4];
+      glow(x + 1, y + 1, 9, c, a * .5); dot(x, y, '255,255,255', a, 2);
+      for (let r = 2; r <= (a > .6 ? 6 : 4); r += 2) for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) dot(x + dx, y + dy, c, a * (1 - r / 8), 2); }
+  } else if (kind === 'replays') {             // Replays: the stars wheel backwards round the moon
+    for (let i = 0; i < 22; i++) { const r = 40 + hash(i) * 140, a0 = hash(i + 40) * 6.283 - t * .45;
+      for (let j = 0; j < 16; j++) { const a = a0 + j * .028, y = oy + MOON[1] + Math.sin(a) * r * .55; if (y > oy + 200) continue; dot(ox + MOON[0] + Math.cos(a) * r, y, '235,225,255', fade * (.05 + .85 * (j / 16) ** 2), j === 15 ? 2 : 1); } }
+  } else if (kind === 'zen') {                 // Zen: petals drift slowly down over the valley
+    for (let i = 0; i < 18; i++) { const per = 8 + hash(i + 3) * 4, k = ((t + hash(i) * per) % per) / per, x = ox + hash(i + 7) * 380 + Math.sin(t * .9 + i) * 10 + k * 30, y = oy + 10 + k * 300, a = fade * .9 * Math.sin(k * Math.PI);
+      dot(x, y, '255,196,224', a, 2); dot(x + 2, y + 1, '255,150,200', a * .6); }
+  } else if (kind === 'freebuild') {           // Freebuild: little blocks drop and land in the valley
+    for (let i = 0; i < 6; i++) { const per = 2.4, k = ((t + i * .4) % per) / per, n = Math.floor((t + i * .4) / per) * 6 + i, x = ox + 120 + Math.floor(hash(n) * 7) * 24, y = oy + 20 + Math.min(1, k * 1.5) ** 2 * 250;
+      const c = GEM_RGB[Math.floor(hash(n + 2) * 4)], a = fade * (k < .8 ? 1 : (1 - k) / .2); g.fillStyle = `rgba(${c},${.85 * a})`; g.fillRect(Math.round(x), Math.round(y), 8, 12); g.fillStyle = `rgba(255,255,255,${.55 * a})`; g.fillRect(Math.round(x), Math.round(y), 8, 2); g.fillStyle = `rgba(0,0,0,${.35 * a})`; g.fillRect(Math.round(x), Math.round(y) + 10, 8, 2); }
+  }
+  g.restore();
+}
 function frame(ms) {
   if (!open) return;
   if (!img.room?.complete || !img.vista?.complete) { raf = requestAnimationFrame(frame); return; }
@@ -238,6 +309,7 @@ function frame(ms) {
     for (const f of (decorFlags().fireflies ? flies.concat(extraFlies) : flies)) { f.x += Math.sin(t * f.v + f.p) * .25; f.y += Math.cos(t * f.v * 1.3 + f.p) * .12; const a = Math.max(0, Math.sin(t * 1.7 + f.p)), X = Math.round(vistaX + vx + f.x), Y = Math.round(vistaY + vy + f.y); glow(X, Y, 5, '200,255,140', .35 * a); g.fillStyle = `rgba(230,255,170,${a})`; g.fillRect(X, Y, 1, 1); }
     g.globalCompositeOperation = 'source-over';
   }
+  if (live && open && entered && litFx) modeFx(litFx, t, vistaX + vx, vistaY + vy);
   g.drawImage(img.room, rx, ry); g.drawImage(img.portrait, META.portrait.x + rx, META.portrait.y + ry);
   drawDecor(g, rx, ry, t, live); const D = decorFlags();
   g.globalCompositeOperation = 'lighter';
