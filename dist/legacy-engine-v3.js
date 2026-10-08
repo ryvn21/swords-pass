@@ -1,0 +1,186 @@
+/** Scraps combat model. Coordinates are zero based, y=0 at the floor.
+ * Pure deterministic simulation: browser rendering, audio and AI live elsewhere.
+ */
+export const W=6,H=13,VERSION=3;
+export const DEFAULT_RULES=Object.freeze({gravityMs:720,fastFallMs:95,lockMs:220,clearMs:180,waveMs:85,settleMs:50,attackMs:320,entryMs:100,breakerRate:.25,repeatDelayMs:145,repeatMs:65});
+export const PATTERNS=[{"id":"sinners-saber","name":"Sinner\u2019s Saber","note":"Legacy Saber  -  blue/green/yellow/red layout.","rows":[[3,3,3,0,0,3],[3,0,0,3,3,3],[2,0,0,3,3,1],[2,2,2,1,1,1],[2,2,2,1,1,1],[2,3,3,0,0,1]]},{"id":"forgotten-falchion","name":"Forgotten Falchion","note":"Legacy Falchion  -  layered strike pattern.","rows":[[3,3,2,2,1,1],[3,0,2,0,0,1],[1,0,0,2,0,3],[1,1,2,2,3,3]]},
+ {id:'ember',name:'Ember',note:'Alternating lanes. Built for strikes.',rows:[[0,0,1,2,3,3],[0,1,1,2,2,3],[1,2,3,0,1,2],[2,3,0,1,2,3],[3,0,1,2,3,0],[0,1,2,3,0,1]]},
+ {id:'tide',name:'Tide',note:'A scattered opening. Persistent pressure.',rows:[[0,1,2,3,0,1],[2,3,0,1,2,3],[1,1,2,2,3,3],[0,0,1,1,2,2]]},
+ {id:'moss',name:'Moss',note:'Broad colours. A forgiving practice blade.',rows:[[0,0,1,1,2,2],[0,0,1,1,2,2],[2,2,3,3,0,0],[3,3,2,2,1,1]]}
+];
+export const clone=x=>structuredClone(x);
+export const grid=()=>Array.from({length:H},()=>Array(W).fill(null));
+export const block=(color,breaker=false)=>({color,breaker,stage:0,gem:0,strike:0});
+export function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+export function pairAt(seed,index,rate=DEFAULT_RULES.breakerRate){const r=random((seed+Math.imul(index+1,0x9e3779b9))>>>0);return [block(Math.floor(r()*4),r()<rate),block(Math.floor(r()*4),r()<rate)];}
+const dirs=[[0,1],[1,0],[0,-1],[-1,0]];
+export function cells(piece){const [dx,dy]=dirs[piece.r];return [{x:piece.x,y:piece.y,cell:piece.pair[0]},{x:piece.x+dx,y:piece.y+dy,cell:piece.pair[1]}];}
+export function fits(board,piece){return cells(piece).every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H&&(y>=H||!board[y][x]));}
+export function move(board,piece,dx,dy){const next={...piece,x:piece.x+dx,y:piece.y+dy};return fits(board,next)?next:null;}
+export function rotate(board,piece,direction){const next={...piece,r:(piece.r+direction+4)%4};for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1]]){const p={...next,x:next.x+dx,y:next.y+dy};if(fits(board,p))return p;}return null;}
+export function landing(board,piece){let p=clone(piece),n;while((n=move(board,p,0,-1)))p=n;return p;}
+export function gemRects(board){const map=new Map();for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=board[y][x];if(!c?.gem)continue;let g=map.get(c.gem);if(!g){g={id:c.gem,x,y,w:1,h:1,color:c.color};map.set(c.gem,g);}g.w=Math.max(g.w,x-g.x+1);g.h=Math.max(g.h,y-g.y+1);}return [...map.values()];}
+// Existing fused rectangles are indivisible. Expand/merge only if the new
+// rectangle contains every cell of each intersected old gem.
+export function fuse(board){let nextId=Math.max(0,...board.flat().map(c=>c?.gem||0))+1;let changed=true;
+ while(changed){changed=false;const old=gemRects(board),candidates=[];
+ for(let y=0;y<H-1;y++)for(let x=0;x<W-1;x++){const c=board[y][x];if(!c||c.breaker||c.stage)continue;
+ for(let h=2;y+h<=H;h++)for(let w=2;x+w<=W;w++){
+ let good=true;for(let yy=y;yy<y+h&&good;yy++)for(let xx=x;xx<x+w;xx++){const v=board[yy][xx];if(!v||v.breaker||v.stage||v.color!==c.color){good=false;break;}}
+ if(!good)continue;
+ const overlaps=old.filter(g=>g.x<x+w&&g.x+g.w>x&&g.y<y+h&&g.y+g.h>y);
+ if(overlaps.some(g=>g.x<x||g.x+g.w>x+w||g.y<y||g.y+g.h>y+h))continue;
+ if(overlaps.length===1&&overlaps[0].x===x&&overlaps[0].y===y&&overlaps[0].w===w&&overlaps[0].h===h)continue;
+ candidates.push({x,y,w,h,area:w*h});}}
+ candidates.sort((a,b)=>b.area-a.area||a.y-b.y||a.x-b.x||b.h-a.h);
+ if(candidates.length){const g=candidates[0];for(let y=g.y;y<g.y+g.h;y++)for(let x=g.x;x<g.x+g.w;x++)board[y][x].gem=nextId;nextId++;changed=true;}
+ }return board;
+}
+export function gravity(board,passes=H){let any=false;for(let pass=0;pass<passes;pass++){let changed=false;const moved=new Set();for(let y=1;y<H;y++)for(let x=0;x<W;x++){const c=board[y][x];if(!c||c.stage===3)continue;
+ if(c.gem){if(moved.has(c.gem))continue;moved.add(c.gem);const g=gemRects(board).find(g=>g.id===c.gem);if(!g||g.y===0)continue;if(Array.from({length:g.w},(_,i)=>board[g.y-1][g.x+i]).some(Boolean))continue;for(let yy=g.y;yy<g.y+g.h;yy++)for(let xx=g.x;xx<g.x+g.w;xx++){board[yy-1][xx]=board[yy][xx];board[yy][xx]=null;}changed=true;
+ }else if(!board[y-1][x]){board[y-1][x]=c;board[y][x]=null;changed=true;}}
+ any||=changed;if(!changed)break;}return any;
+}
+export function clearGroups(board){const seen=new Set(),groups=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=board[y][x],key=y*W+x;if(!c||c.stage||seen.has(key))continue;const group=[],todo=[[x,y]];let breaker=false;seen.add(key);while(todo.length){const [xx,yy]=todo.pop(),v=board[yy][xx];group.push({x:xx,y:yy,cell:v});breaker||=v.breaker;for(const [dx,dy] of dirs){const nx=xx+dx,ny=yy+dy,k=ny*W+nx,n=board[ny]?.[nx];if(nx>=0&&nx<W&&ny>=0&&ny<H&&n&&!n.stage&&n.color===c.color&&!seen.has(k)){seen.add(k);todo.push([nx,ny]);}}}if(breaker&&group.length>1)groups.push(group);}return groups;}
+export function swordFromGem(w,h,chain=1){if(w>h)w*=chain;else h*=chain;if(w===2&&h===2)return{kind:'vertical',width:1,length:4};if(w===3&&h===3)return{kind:'vertical',width:2,length:4};if(h>=w)return{kind:'vertical',width:Math.min(3,w),length:h+Math.max(0,w-3)};return{kind:'horizontal',width:Math.min(3,h),length:w+Math.max(0,h-3)};}
+export function shatter(board,groups,chain){const rects=gemRects(board),swords=[],cleared=[];let sprinkles=0;for(const group of groups){const ids=new Set();let loose=0;for(const p of group){if(p.cell.gem)ids.add(p.cell.gem);else loose++;cleared.push({...p,cell:clone(p.cell)});}sprinkles+=Math.floor(loose/2)*chain;for(const g of rects.filter(g=>ids.has(g.id)).sort((a,b)=>a.y-b.y||a.x-b.x))swords.push(swordFromGem(g.w,g.h,chain));}for(const {x,y} of cleared)board[y][x]=null;return{swords,sprinkles,cleared,chain};}
+export function resolve(board){const results=[];gravity(board);fuse(board);for(let chain=1;chain<=H*W;chain++){const groups=clearGroups(board);if(!groups.length)break;results.push(shatter(board,groups,chain));gravity(board);fuse(board);}return results;}
+export function decay(board,settle=true){for(const row of board)for(const c of row)if(c?.stage){c.stage--;if(c.stage<3)c.strike=0;}if(settle){gravity(board);fuse(board);}}
+export function patternColor(rows,x,offset){const n=rows.length,repeat=Math.min(n,4),row=offset<n?offset:n-repeat+(offset-n)%repeat;return rows[row][x];}
+export const penetrationDepth=(length,width=1)=>width===1?1:Math.min(4,1+Math.ceil(length/4));
+const obstacle=c=>!!(c&&(c.gem||c.stage===3));
+export function searchOrder(start,max,hand){const result=[start];for(let x=start+hand;x>=0&&x<=max;x+=hand)result.push(x);for(let x=start-hand;x>=0&&x<=max;x-=hand)result.push(x);return result;}
+export function verticalPlacement(board,attack){const w=attack.width,max=W-w,start=(attack.index+1)%(max+1),order=searchOrder(start,max,attack.hand);const candidates=[];
+ for(const x of order){let floor=0,contact=0,blocked=false;for(let dx=0;dx<w;dx++){for(let y=H-1;y>=0;y--){const c=board[y][x+dx];if(c)contact=Math.max(contact,y+1);if(c?.stage===3&&c.axis!=='horizontal'){blocked=true;break;}if(c?.gem||c?.stage===3){floor=Math.max(floor,y+1);break;}}}floor=Math.max(floor,contact-penetrationDepth(attack.length,w));if(blocked||floor>=H)continue;candidates.push({x,y:floor,w,h:Math.min(attack.length,H-floor),protected:x<=3&&x+w>3});}
+ const safe=candidates.filter(c=>!c.protected),pool=safe.length?safe:candidates;if(!pool.length)return null;return pool.find(c=>c.h===attack.length)||pool.reduce((a,b)=>b.h>a.h?b:a);
+}
+export function horizontalBase(board,width){const rects=gemRects(board);const strikes=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(board[y][x]?.stage===3)strikes.push(y+1);if(rects.length||strikes.length){const lowest=Math.min(...rects.map(g=>g.y+1),...strikes);return Math.max(0,lowest-width-3);}let height=0;for(let y=0;y<H;y++)if(board[y].some(Boolean))height=y+1;if(height===13)return 0;return Math.max(0,height-width-2);}
+export function horizontalPlacement(board,attack){const w=attack.width,base=Math.min(H-w-1,attack.base??horizontalBase(board,w)),ys=[base];for(let y=base-1;y>=0;y--)ys.push(y);for(let y=base+1;y<=H-w-1;y++)ys.push(y);
+ for(const y of ys)for(const hand of [attack.hand,-attack.hand]){let length=0;for(let i=0;i<Math.min(W,attack.length);i++){const x=hand===1?W-1-i:i;if(Array.from({length:w},(_,j)=>board[y+j]?.[x]).some(obstacle))break;length++;}if(length>attack.length/2)return {x:hand===1?W-length:0,y,w:length,h:w,hand};}return null;
+}
+// Displacement policy is isolated for reference calibration.
+function insertVertical(board,placement,attack,pattern){const {x,y,w,h}=placement;for(let dx=0;dx<w;dx++)for(let i=0;i<h;i++)board[y+i][x+dx]={...block(patternColor(pattern,x+dx,i)),stage:3,strike:attack.id,axis:'vertical'};}
+function insertHorizontal(board,placement,attack,pattern){const {x,y,w,h,hand}=placement;for(let dy=0;dy<h;dy++)for(let xx=x;xx<x+w;xx++){const depth=hand===1?W-1-xx:xx,col=hand===1?W-1-(h-1-dy):h-1-dy;board[y+dy][xx]={...block(patternColor(pattern,col,depth)),stage:3,strike:attack.id,axis:'horizontal',hand};}}export function applyAttack(board,attack,pattern){if(attack.kind==='sprinkle'){const placed=[];for(let i=0;i<attack.count;i++){const x=attack.hand===1?W-1-i%W:i%W;let y=H-1;while(y>=0&&!board[y][x])y--;y++;if(y>=H||(x===3&&y>=10))continue;board[y][x]={...block(pattern[Math.floor(i/W)%2][x]),stage:2};placed.push({x,y});}return{...attack,placed};}
+ let placement;if(attack.kind==='horizontal')placement=horizontalPlacement(board,attack);if(placement)insertHorizontal(board,placement,attack,pattern);else{placement=verticalPlacement(board,attack);if(placement)insertVertical(board,placement,attack,pattern);}return{...attack,placement,converted:attack.kind==='horizontal'&&!placement?.hand};}
+export function createPlayer(seed,rules,pattern){return {board:grid(),active:null,nextIndex:0,turn:0,phase:'entry',timer:0,fall:0,lock:0,fast:false,chain:0,incoming:[],pattern:clone(pattern),stats:{pieces:0,cleared:0,swords:0,sprinkles:0,bestChain:0},dead:false};}
+export function createMatch(options={}){const rules={...DEFAULT_RULES,...options.rules},seed=options.seed??1;const state={version:VERSION,seed,rules,mode:options.mode??'duel',tick:0,elapsed:0,swordIndex:0,sprinkleIndex:0,nextAttackId:1,players:[createPlayer(seed,rules,options.pattern??PATTERNS[0].rows),createPlayer(seed,rules,options.opponentPattern??PATTERNS[1].rows)],winner:null,events:[]};for(const p of state.players)spawn(state,p);return state;}
+export function spawn(state,p){if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H-1,r:0,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;}
+export function command(state,side,action){
+ const p=state.players[side];if(p.dead||state.winner!==null)return false;
+ if(action==='fastOn'||action==='fastOff'){
+  const fast=action==='fastOn';
+  if(fast!==p.fast){
+   const oldSpeed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;
+   const newSpeed=fast?state.rules.fastFallMs:state.rules.gravityMs;
+   // Preserve progress within the current row; old slow-fall time is not a drop budget.
+   p.fall=Math.min(1,p.fall/oldSpeed)*newSpeed;p.fast=fast;
+  }
+  return true;
+ }
+ if(p.phase!=='fall'||!p.active)return false;
+ let next;
+ if(action==='left')next=move(p.board,p.active,-1,0);
+ if(action==='right')next=move(p.board,p.active,1,0);
+ if(action==='ccw')next=rotate(p.board,p.active,-1);
+ if(action==='cw')next=rotate(p.board,p.active,1);
+ if(!next)return false;
+ if((p.lockResets??0)>=6&&next.y>p.active.y)return false;
+ p.active=next;
+ // Allow a grounded tuck without indefinite rotation stalling.
+ if(p.lock>0&&(p.lockResets??0)<6){p.lock=0;p.lockResets=(p.lockResets??0)+1;}
+ return true;
+}
+function emitAttack(state,side,result){const from=state.players[side],to=state.players[1-side];from.stats.cleared+=result.cleared.length;from.stats.swords+=result.swords.length;from.stats.sprinkles+=result.sprinkles;from.stats.bestChain=Math.max(from.stats.bestChain,result.chain);state.events.push({type:'clear',side,...result});if(state.mode==='practice')return;
+ for(const s of result.swords){const a={...s,index:state.swordIndex,hand:state.swordIndex%2===0?1:-1,id:state.nextAttackId++,due:to.turn+1,pattern:clone(from.pattern)};state.swordIndex++;if(a.kind==='horizontal')a.base=horizontalBase(to.board,a.width);to.incoming.push(a);}
+ from.pendingSprinkles=(from.pendingSprinkles||0)+result.sprinkles;
+}
+
+// A shortest path through same-colour neighbours. A fused gem is one node:
+// every cell in it starts breaking together, without a wave crossing its interior.
+export function clearWave(groups,interval){
+ const result=[];
+ for(const group of groups){
+  const remaining=new Set(group),distance=new Map(group.map(c=>[c,c.cell.breaker?0:Infinity]));
+  while(remaining.size){
+   const at=[...remaining].reduce((a,b)=>distance.get(a)<=distance.get(b)?a:b);remaining.delete(at);
+   const cost=distance.get(at);
+   for(const next of remaining){const sameGem=at.cell.gem&&at.cell.gem===next.cell.gem;
+    if(sameGem||Math.abs(at.x-next.x)+Math.abs(at.y-next.y)===1)
+     distance.set(next,Math.min(distance.get(next),cost+(sameGem?0:interval)));
+   }
+  }
+  for(const c of group)result.push({...c,cell:clone(c.cell),delay:distance.get(c)});
+ }
+ return result;
+}
+function settlePlayer(state,side){
+ const p=state.players[side],before=new Map();
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(p.board[y][x])before.set(p.board[y][x],{x,y});
+ p.motion=[];
+ if(gravity(p.board,1)){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=p.board[y][x],from=before.get(c);if(from&&from.y!==y)p.motion.push({x,y,fromY:from.y});}
+  p.timer=Math.max(1,state.rules.settleMs);p.motionDuration=p.timer;return;
+ }
+ beginResolution(state,side);
+}
+function beginSettle(state,side){const p=state.players[side];p.phase='settle';p.timer=Math.max(1,state.rules.settleMs);p.motion=[];}
+function enterAttack(state,side){
+ const p=state.players[side],attack=p.readyAttacks.shift();
+ if(!attack){p.attackVisual=null;beginSettle(state,side);return;}
+ const before=clone(p.board),hit=applyAttack(p.board,attack,attack.pattern);
+ p.phase='attack';p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,hit,duration:p.timer};
+ 
+}
+function beginResolution(state,side){
+ const p=state.players[side];p.motion=[];fuse(p.board);const groups=clearGroups(p.board);
+ if(groups.length){
+  p.chain++;p.phase='clear';p.wave=clearWave(groups,state.rules.waveMs);
+  p.clearCellMs=state.rules.clearMs;
+  p.clearDuration=Math.max(...p.wave.map(c=>c.delay))+state.rules.clearMs;
+  p.timer=p.clearDuration;p.clearing=groups.map(g=>g.map(({x,y})=>({x,y})));
+  // Snapshot the result before progressively removing cells from the live board.
+  p.pendingClear=shatter(clone(p.board),groups,p.chain);
+  state.events.push({type:'breaking',side,...p.pendingClear});return;
+ }
+ if(p.pendingSprinkles&&state.mode!=='practice'){
+  const to=state.players[1-side];to.incoming.push({kind:'sprinkle',count:p.pendingSprinkles,hand:state.sprinkleIndex%2===0?1:-1,id:state.nextAttackId++,due:to.turn+1,pattern:clone(p.pattern)});state.sprinkleIndex++;
+ }
+ p.pendingSprinkles=0;p.chain=0;
+ if(p.readyAttacks?.length){enterAttack(state,side);return;}
+ p.phase='entry';p.timer=state.rules.entryMs;
+}
+function lockPair(state,side){
+ const p=state.players[side];for(const {x,y,cell} of cells(p.active)){if(y<H)p.board[y][x]=clone(cell);}
+ p.active=null;p.fast=false;p.turn++;p.stats.pieces++;state.events.push({type:'lock',side});
+ decay(p.board,false);
+ p.readyAttacks=p.incoming.filter(a=>a.due<=p.turn);p.incoming=p.incoming.filter(a=>a.due>p.turn);
+ beginSettle(state,side);
+}
+export function step(state,dt=1000/60,actions=[]){
+ state.events=[];if(state.winner!==null)return state;state.tick++;state.elapsed+=dt;for(const a of actions)command(state,a.side,a.action);
+ for(let side=0;side<2;side++){
+  if(state.mode==='practice'&&side===1)continue;const p=state.players[side];if(p.dead)continue;
+  if(p.phase==='fall'){
+   const speed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;p.fall+=dt;
+   while(p.fall>=speed){p.fall-=speed;const next=move(p.board,p.active,0,-1);if(!next){p.fall=0;break;}p.active=next;p.lock=0;}
+   if(!move(p.board,p.active,0,-1)){p.lock+=dt;if(p.lock>=state.rules.lockMs)lockPair(state,side);}else p.lock=0;
+  }else{
+   p.timer-=dt;
+   if(p.phase==='clear'){
+    const age=p.clearDuration-p.timer;
+    for(const c of p.wave)if(age>=c.delay+state.rules.clearMs)p.board[c.y][c.x]=null;
+   }
+   if(p.timer<=0){
+    if(p.phase==='clear'){emitAttack(state,side,p.pendingClear);p.pendingClear=null;p.clearing=[];p.wave=[];beginSettle(state,side);}
+    else if(p.phase==='settle')settlePlayer(state,side);
+    else if(p.phase==='attack'){state.events.push({type:'hit',side,...p.attackVisual.hit});p.attackVisual=null;if(p.board[H-1][3]?.stage===3)p.dead=true;else if(p.readyAttacks.length)enterAttack(state,side);else beginSettle(state,side);}
+    else spawn(state,p);
+   }
+  }
+ }
+ const [a,b]=state.players;if(a.dead&&b.dead)state.winner='draw';else if(a.dead)state.winner=1;else if(b.dead&&state.mode!=='practice')state.winner=0;
+ if(state.winner!==null)state.events.push({type:'end',winner:state.winner});return state;
+}
+export function hashState(state){const copy=clone(state);delete copy.events;const s=JSON.stringify(copy);let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return(h>>>0).toString(16);}
+export function validatePattern(rows){return Array.isArray(rows)&&rows.length>=3&&rows.length<=6&&rows.every(row=>Array.isArray(row)&&row.length===W&&row.every(c=>Number.isInteger(c)&&c>=0&&c<4));}
+

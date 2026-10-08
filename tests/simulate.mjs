@@ -1,0 +1,8 @@
+import {createMatch,step,clone,pairAt,hashState,gemRects} from '../dist/engine.js';
+import {planMove,OPPONENTS} from '../dist/ai.js';
+import assert from 'node:assert/strict';
+let total=0,planning=0,maximum=0;const started=performance.now();
+for(const seed of [771,5329,90120,2468]){const m=createMatch({seed}),seen=[0,0],inputs=[],initial=clone(m);while(m.winner===null&&m.tick<24000){const actions=[];for(let side=0;side<2;side++){const p=m.players[side];if(p.phase==='fall'&&p.active&&seen[side]!==p.nextIndex){seen[side]=p.nextIndex;const t=performance.now();const plan=planMove({board:p.board,active:p.active,nextPair:pairAt(seed,p.nextIndex,m.rules.breakerRate),opponent:OPPONENTS[side?2:1]});const elapsed=performance.now()-t;planning+=elapsed;maximum=Math.max(maximum,elapsed);total++;for(const action of [...plan.path,'fastOn'])actions.push({side,action});}assert.equal(p.board.length,13);for(const g of gemRects(p.board))assert.ok(g.w>=2&&g.h>=2);}
+for(const a of actions)inputs.push({...a,tick:m.tick+1});step(m,1000/60,actions);}
+assert.notEqual(m.winner,null,'AI match must terminate');const replay=clone(initial);let cursor=0;while(replay.tick<m.tick){const a=[];while(cursor<inputs.length&&inputs[cursor].tick===replay.tick+1)a.push(inputs[cursor++]);step(replay,1000/60,a);}assert.equal(hashState(m),hashState(replay),'Full AI replay must match');console.log(JSON.stringify({seed,seconds:Math.round(m.elapsed/1000),winner:m.winner,stats:m.players.map(p=>p.stats),hash:hashState(m)}));}
+console.log(JSON.stringify({plans:total,averagePlanMs:Math.round(planning/total*10)/10,maxPlanMs:Math.round(maximum),testSeconds:Math.round((performance.now()-started)/1000)}));

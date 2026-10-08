@@ -1,0 +1,31 @@
+# Builds the Windows app (an installer and a portable .exe). Run it from the Actions tab,
+# or push a tag like desktop-v1.0.0 to also attach the files to a GitHub release.
+# The app opens the live site, so game updates reach it without rebuilding this.
+name: Desktop app
+on:
+  workflow_dispatch:
+  push:
+    tags: ['desktop-v*']
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx electron-builder --win nsis portable --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swords-pass-windows
+          path: desktop/release/*.exe
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/release/*.exe

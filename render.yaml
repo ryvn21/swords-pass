@@ -1,0 +1,18 @@
+# Render blueprint: one free web service runs the game and the online relay together.
+# Every push to main deploys automatically. https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: swords-pass
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm install --omit=dev
+    startCommand: node server.mjs
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_VERSION
+        value: "22"

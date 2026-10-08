@@ -1,0 +1,9 @@
+node_modules/
+.reference/
+.sites-runtime/
+*.log
+art-handoff/
+Scraps-Claude-Visual-Handoff.zip
+
+desktop/node_modules/
+desktop/release/

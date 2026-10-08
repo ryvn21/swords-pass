@@ -1,0 +1,25 @@
+{
+  "name": "swords-pass-desktop",
+  "productName": "Sword's Pass",
+  "version": "1.0.0",
+  "description": "Sword's Pass for Windows",
+  "main": "main.js",
+  "site": "https://swords-pass.onrender.com/",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.ryvn.swordspass",
+    "productName": "Sword's Pass",
+    "directories": {"output": "release", "buildResources": "build"},
+    "files": ["main.js", "offline.html", "package.json", "build/icon.png"],
+    "win": {"target": ["nsis", "portable"], "icon": "build/icon.png"},
+    "nsis": {"oneClick": true, "artifactName": "SwordsPass-Setup-${version}.exe", "shortcutName": "Sword's Pass"},
+    "portable": {"artifactName": "SwordsPass-${version}-portable.exe"}
+  }
+}

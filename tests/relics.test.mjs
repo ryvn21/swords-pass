@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {DEFAULT_CLIMB,validateClimb} from '../dist/climb-content.js';
+import {rewardChoices,modifiers} from '../dist/rogue-content.js';
+import {transformRunAttack} from '../dist/rogue-upgrades.js';
+test('the Long Road relics validate and keep rarity and flavour',()=>{const c=validateClimb(DEFAULT_CLIMB);assert.equal(c.upgrades.length,12);assert.ok(c.upgrades.every(u=>u.rarity&&u.flavor));assert.ok(c.upgrades.some(u=>u.rarity==='legendary'));});
+test('relic draws are deterministic, distinct and rarity weighted',()=>{const c=validateClimb(DEFAULT_CLIMB);const a=rewardChoices(c,{},7,3),b=rewardChoices(c,{},7,3);assert.deepEqual(a,b);assert.equal(new Set(a).size,3);
+ let legendary=0,common=0;for(let s=0;s<400;s++)for(const id of rewardChoices(c,{},s,1)){const r=c.upgrades.find(u=>u.id===id).rarity;if(r==='legendary')legendary++;if(r==='common')common++;}assert.ok(common>legendary*2);});
+test('relic modifiers are capped',()=>{const c=validateClimb(DEFAULT_CLIMB),inv=Object.fromEntries(c.upgrades.map(u=>[u.id,9]));const m=modifiers(c,inv);assert.equal(m.waveWard,3);assert.equal(m.swordWidthBonus,2);assert.equal(m.secondWind,1);assert.equal(m.blockBounty,9);});
+test('broad edge widens swords and thunder crown pays big chains',()=>{const make=()=>({kind:'sprinkle',id:9,hand:1,pattern:[]});
+ const out=transformRunAttack([{kind:'vertical',width:1,length:4,stage:3}],{swordWidthBonus:1,chainSprinkles:2},make);assert.equal(out[0].width,2);assert.equal(out.find(a=>a.kind==='sprinkle').count,2);
+ const small=transformRunAttack([{kind:'vertical',width:1,length:4,stage:1}],{chainSprinkles:2},make);assert.equal(small.length,1);});

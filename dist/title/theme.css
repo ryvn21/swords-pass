@@ -1,0 +1,211 @@
+/* Pixel tavern theme for every screen. Art matches the title screen: each screen has its own
+   pixel-art room behind it, and panels, buttons, fields and frames are pixel 9-slices from ui/,
+   shown at 2x with no smoothing. Presentation only; piece colours (--red/--yellow/--green/--blue)
+   are untouched so the board stays readable. */
+/* Pixelify Sans (OFL, fonts/OFL.txt) is bundled so every screen uses the same pixel type offline */
+@font-face{font-family:"Pixelify Sans";src:url(fonts/pixelify-sans-latin-400-normal.woff2) format("woff2");font-weight:400 500;font-display:swap}
+@font-face{font-family:"Pixelify Sans";src:url(fonts/pixelify-sans-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Pixelify Sans";src:url(fonts/pixelify-sans-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+/* digits come from Jersey 10 (OFL): Pixelify's 2/5/8/9 blur together at small sizes */
+@font-face{font-family:"Scraps Digits";src:url(fonts/jersey-10-latin-400-normal.woff2) format("woff2");unicode-range:U+0030-0039;size-adjust:118%;font-display:swap}
+:root{
+  --gold:#f0cf7a; --gold-mid:#d4a24c; --gold-dark:#6e4419; --crimson:#7d1b20; --crimson-lit:#a32a2a;
+  --parchment:#f5e8c8; --tt-ink:#0d0807;
+  --tt-display:"Scraps Digits","Pixelify Sans",ui-monospace,monospace; --tt-ui:"Scraps Digits","Pixelify Sans","DM Sans",ui-monospace,monospace;
+  --bg:#0f0a08; --surface:#261810; --inset:#140c08; --line:#6e4419; --ink:#f5e8c8; --muted:#c9b28c; --accent:#f0cf7a; --radius:0px;
+  --sword-highlight:#f0cf7a;
+  --px-o1:1px 0 0 var(--tt-ink),-1px 0 0 var(--tt-ink),0 1px 0 var(--tt-ink),0 -1px 0 var(--tt-ink),0 2px 0 var(--tt-ink);
+  --px-outline:2px 0 0 var(--tt-ink),-2px 0 0 var(--tt-ink),0 2px 0 var(--tt-ink),0 -2px 0 var(--tt-ink),2px 2px 0 var(--tt-ink),-2px 2px 0 var(--tt-ink),2px -2px 0 var(--tt-ink),-2px -2px 0 var(--tt-ink);
+}
+
+/* ---------- each screen's room ---------- */
+body{background:#0f0a08 url(scenes/spar.png) center 35%/cover fixed no-repeat;image-rendering:pixelated}
+body *{image-rendering:auto}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 62% 70% at 50% 52%,rgba(10,6,5,.62),rgba(10,6,5,.3) 70%,rgba(10,6,5,.55))}
+body[data-scene=solo]{background-image:url(scenes/solo.png)}
+body[data-scene=chal]{background-image:url(scenes/chal.png)}
+body[data-scene=work]{background-image:url(scenes/work.png)}
+body[data-scene=repl]{background-image:url(scenes/repl.png)}
+main,.topbar,.footer{position:relative}
+
+/* ---------- type ---------- */
+h1,.wordmark{font-family:var(--tt-display);font-weight:400;letter-spacing:.01em}
+h1{font-size:46px;color:var(--parchment);text-shadow:0 3px 0 var(--crimson),var(--px-outline),0 5px 0 var(--tt-ink)}
+h2,h3{font-family:var(--tt-ui);letter-spacing:0;font-weight:600}
+.eyebrow,.local-label,.table-label,.footer,.tag,.next-piece span,.board-header strong,.record-numbers b,.record-numbers span,
+.match-tools>span,.count-in,.range-row output,.opponent-initial,.pattern-preset strong,.equipped-blade strong,.title-select,.exchange-entry>span,
+.board-banner,.replay-result,.stat-list strong,.nav-button,button,.primary,kbd{font-family:var(--tt-ui)}
+.eyebrow{color:var(--gold);letter-spacing:.14em;font-weight:600}
+.room-heading .eyebrow,.room-heading .local-label,.room-heading>p,.game-heading .eyebrow,.footer{text-shadow:var(--px-outline)}
+.muted,.fine-print{color:var(--muted)}
+
+/* ---------- top beam + nav with mode icons ---------- */
+.topbar{height:80px;border:0;background:url(ui/beam.png) left top/64px 80px repeat-x;image-rendering:pixelated;z-index:2;padding-bottom:6px}
+.wordmark{font-size:50px;color:var(--gold);text-shadow:0 3px 0 var(--crimson),var(--px-outline),0 5px 0 var(--tt-ink)}
+.brand-dot{color:var(--crimson-lit)}
+.topbar nav{gap:26px}
+.nav-button{display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:#d8c49c;text-shadow:var(--px-outline);background:transparent}
+.nav-button::before{content:"";width:32px;height:32px;flex:none;background:center/32px 32px no-repeat;image-rendering:pixelated;filter:drop-shadow(0 2px 0 #000a)}
+.nav-button[data-view=play]::before{background-image:url(ui/icon-spar.png)}
+.nav-button[data-view=solo]::before{background-image:url(ui/icon-solo.png)}
+.nav-button[data-view=challenges]::before{background-image:url(ui/icon-chal.png)}
+.nav-button[data-view=workshop]::before{background-image:url(ui/icon-work.png)}
+.nav-button[data-view=replays]::before{background-image:url(ui/icon-repl.png)}
+.nav-button:hover{color:var(--parchment);background:transparent}
+.nav-button.active{color:var(--gold)}
+.nav-button.active:after{left:50%;right:auto;bottom:-2px;width:26px;height:18px;margin-left:-13px;background:url(ui/divider-gem.png) center/26px 18px no-repeat;box-shadow:none;image-rendering:pixelated}
+#settings-open{width:44px;height:44px;font-size:0;border:0;background:url(ui/icon-set.png) center/32px 32px no-repeat;image-rendering:pixelated;filter:drop-shadow(0 2px 0 #000a)}
+#settings-open:hover{background-color:transparent;filter:drop-shadow(0 2px 0 #000a) brightness(1.25)}
+
+/* ---------- gilded wooden panels ---------- */
+.panel:not(.field-notes),.table-surface,dialog,.pause-card,.replay-card,.challenge-options,.challenge-rules{
+  --slab:linear-gradient(180deg,#1c120cec,#120b08ee);
+  background:url(ui/divider-gem.png) top 4px center/20px 14px no-repeat,var(--slab);border:2px solid #5a391b;border-radius:0;
+  box-shadow:0 0 0 2px #0d0807,inset 0 0 0 2px #0d080799,inset 0 2px 0 3px #f0cf7a14,0 14px 30px #0009;image-rendering:pixelated}
+.panel:not(.field-notes){padding:22px 22px 18px}
+.loadout{padding:22px 18px 16px}
+.table-surface{padding:20px 22px 14px}
+dialog{padding:30px 34px 26px;max-height:90vh}
+
+.replay-card{padding:14px 18px}
+.challenge-options,.challenge-rules{padding:22px}
+.field-notes{background:transparent;border:0;box-shadow:none;text-shadow:var(--px-outline)}
+.field-notes .muted,.field-notes .fine-print{color:#e3d2b0}
+dialog::backdrop{background:radial-gradient(ellipse 70% 70% at 50% 46%,#0b0610b0,#0b0610f2);backdrop-filter:none}
+.modal-close{top:14px;right:14px;color:var(--gold);font-size:26px;border:0!important;background:none!important}
+.divider{height:18px;background:url(ui/divider-gem.png) center/26px 18px no-repeat,url(ui/divider-line.png) center/48px 18px repeat-x;image-rendering:pixelated;border:0}
+.game-overlay{background:#140a0ccc;backdrop-filter:none;border-radius:0}
+
+/* ---------- buttons: text-only items like the title menu; a ruby diamond either side marks the one in play ----------
+   :not(#_) only lifts specificity above the older stylesheet's class rules. */
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)){position:relative;border:0;border-image:none;border-radius:0;background:none;padding:4px .75em;margin:0;width:auto;
+  font:600 16px/1.25 var(--tt-ui);letter-spacing:.02em;color:#e3d3b2;text-shadow:var(--px-o1);transition:none;cursor:pointer;box-shadow:none}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice))::before,button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice))::after{content:"";position:absolute;top:50%;width:.38em;height:.38em;margin-top:-.21em;background:var(--crimson);border:2px solid var(--gold);
+  box-shadow:0 0 0 2px var(--tt-ink);transform:rotate(45deg) scale(0);transition:transform .12s steps(3);pointer-events:none}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice))::before{left:-.1em}button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice))::after{right:-.1em}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):is(:hover,:focus-visible,.is-active):not(:disabled){color:var(--gold);background:none}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):is(:hover,:focus-visible,.is-active):not(:disabled)::before,button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):is(:hover,:focus-visible,.is-active):not(:disabled)::after{transform:rotate(45deg) scale(1)}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):not(:disabled):active{transform:translateY(1px)}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):focus-visible{outline:none}
+/* the main action: larger gold text, its diamonds resting small until it is pointed at */
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary{font-size:19px;color:var(--gold);letter-spacing:.03em;text-shadow:0 2px 0 var(--crimson),var(--px-o1);padding:6px 1em;display:inline-block;justify-content:center;margin-top:14px}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary::before,button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary::after{transform:rotate(45deg) scale(.6)}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary:is(:hover,:focus-visible,.is-active):not(:disabled){color:#fff1c4}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary:is(:hover,:focus-visible,.is-active):not(:disabled)::before,button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).primary:is(:hover,:focus-visible,.is-active):not(:disabled)::after{transform:rotate(45deg) scale(1)}
+/* tabs and toggles: the chosen one is gold with a gem under it */
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).selected{color:var(--gold);background:url(ui/divider-gem.png) bottom 0 center/16px 11px no-repeat;padding-bottom:12px}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)):disabled{opacity:.42;cursor:default}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).text-button{color:var(--gold);font-size:15px}
+button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).danger{color:#ff9d8a}button:not(#_):not(:where(.nav-button,.editor-cell,.swatch,.pattern-preset,.equipped-blade,.opponent,.sword-choice,#settings-open,.pattern-editor button,.palette button,.key-button,#title-screen *,.touch-controls button,.challenge-modes button,.pool-choice)).danger:is(:hover,:focus-visible,.is-active):not(:disabled){color:#ffc4b4}
+.button-row{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+/* key caps stay boxed so they read as keys */
+.key-button{border-style:solid;border-width:8px;border-radius:0;background:transparent;padding:0 6px;min-width:56px;color:var(--parchment);
+  font:600 15px var(--tt-ui);border-image:url(ui/field.png) 4 fill/8px round;image-rendering:pixelated}
+.key-button:hover{color:var(--gold)}
+
+/* list choices keep their own layout, with a pixel rim when chosen */
+.opponent,.sword-choice,.pattern-preset{border-radius:0}
+.opponent.selected,.sword-choice.selected,.pattern-library .pattern-preset.selected{border:0;box-shadow:none;background:transparent;border-style:solid;border-width:10px;border-image:url(ui/btn-selected.png) 5 fill/10px round;image-rendering:pixelated}
+.sword-choice{background:#00000033;border-color:#6e441966}
+.opponent-initial{border:0;background:url(ui/plaque.png) center/100% 100%;image-rendering:pixelated;color:var(--tt-ink);text-shadow:0 1px 0 #fff3}
+.equipped-blade strong{font-size:20px;overflow-wrap:normal;word-break:normal;hyphens:none}
+.tag{border:2px solid var(--gold-dark);color:var(--gold);border-radius:0;background:#0006}
+
+/* ---------- fields ---------- */
+input:not([type=checkbox]):not([type=range]):not([type=radio]),select{
+  border-style:solid;border-width:8px;border-radius:0;background:transparent;padding:2px 4px;color:var(--parchment);
+  border-image:url(ui/field.png) 4 fill/8px round;image-rendering:pixelated}
+select option{background:#1d120c}
+input[type=checkbox]{appearance:none;-webkit-appearance:none;width:24px;height:24px;margin:0;background:url(ui/check-off.png) center/24px 24px;image-rendering:pixelated;cursor:pointer;border:0}
+input[type=checkbox]:checked{background-image:url(ui/check-on.png)}
+input[type=checkbox]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input[type=range]{accent-color:var(--crimson-lit)}
+kbd{background:#1d120c;border:2px solid var(--gold-dark);border-bottom-width:4px;border-radius:0;color:var(--parchment)}
+
+/* ---------- playfields: gilt frame, board colours untouched ---------- */
+.board-frame{border-style:solid;border-width:14px;border-radius:0;outline:0;box-shadow:0 8px 0 #0008;
+  border-image:url(ui/board-frame.png) 7/14px round;image-rendering:pixelated;background:#14100f}
+.empty-board{border-style:solid;border-width:14px;border-radius:0;outline:0;box-shadow:none;border-image:url(ui/board-frame.png) 7/14px round;image-rendering:pixelated}
+.editor-board{border-style:solid;border-width:14px;border-radius:0;border-image:url(ui/board-frame.png) 7/14px round;image-rendering:pixelated}
+.board-banner{color:var(--gold);text-shadow:0 3px 0 var(--crimson),var(--px-outline)}
+.count-in{color:var(--gold);text-shadow:0 4px 0 var(--crimson),var(--px-outline)}
+.versus{color:var(--gold);text-shadow:var(--px-outline);font-family:var(--tt-display);font-style:normal;font-size:30px}
+.spawn-marker{color:var(--gold)}
+canvas.board,.board-frame canvas,.next-piece canvas{image-rendering:auto}
+
+/* sword-pattern cells and editor cells: same bevelled tile look as the board pieces */
+.pattern-cell,.editor-cell,.pattern-editor button{border-radius:0;box-shadow:inset 2px 2px 0 #ffffff59,inset -2px -2px 0 #00000059,0 0 0 2px #0d0807}
+.pattern-preview{gap:4px}
+
+
+/* ---------- menu clean-up ---------- */
+.how-steps{list-style:none;counter-reset:step;margin:6px 0 4px;padding:0;display:grid;gap:10px}
+.how-steps li{counter-increment:step;position:relative;padding-left:34px;font-size:14px;line-height:1.45;color:#ead9b8;text-shadow:var(--px-outline)}
+.how-steps li::before{content:counter(step);position:absolute;left:0;top:-1px;width:24px;height:24px;display:grid;place-items:center;font:600 13px var(--tt-ui);color:var(--tt-ink);text-shadow:none;background:url(ui/plaque.png) center/100% 100%;image-rendering:pixelated}
+.table-foot{font-family:var(--tt-ui);color:#d8c49c;text-shadow:0 2px 0 var(--tt-ink)}
+.rules-more{margin-top:10px}
+.rules-more summary{cursor:pointer;font:600 14px var(--tt-ui);color:var(--gold);text-shadow:0 2px 0 var(--tt-ink);list-style:none;display:flex;align-items:center;gap:8px}
+.rules-more summary::-webkit-details-marker{display:none}
+.rules-more summary::before{content:"";width:13px;height:9px;background:url(ui/divider-gem.png) center/13px 9px no-repeat;image-rendering:pixelated;transition:transform .15s}
+.rules-more[open] summary::before{transform:rotate(90deg)}
+.loadout #pool-summary{color:#e3d2b0}
+.opponent .record{white-space:nowrap}
+.loadout .fine-print{margin:8px 0}
+.record-numbers b{color:var(--gold);text-shadow:0 2px 0 var(--crimson),var(--px-outline)}
+.footer{padding-top:6px;padding-bottom:12px;font-size:10px;opacity:.75}
+.room-heading{margin-bottom:22px}
+.empty-state h2{text-shadow:var(--px-outline)}
+.empty-state .eyebrow{text-shadow:var(--px-outline)}
+.replay-card .muted{color:var(--muted)}
+
+/* ---------- one way around: the tavern hub; the top bar keeps only Menu and Settings ---------- */
+.topbar nav{display:none}
+.tt-menu-open{margin-left:auto;margin-right:12px;font:600 16px var(--tt-ui)!important;padding:0 12px!important}
+
+/* trimmed copy: actions live in the hub now */
+#start-paired,#start-practice,.loadout #blade-note,.lobby-table+.field-notes>.fine-print,.table-foot{display:none!important}
+
+/* ---------- small things ---------- */
+#toast{background:transparent;color:var(--parchment);border-style:solid;border-width:20px;border-radius:0;border-image:url(ui/panel.png) 10 fill/20px round;padding:2px 8px;font-family:var(--tt-ui);image-rendering:pixelated}
+.footer{color:#cdb894;border-top:0}
+.replay-result{border-radius:0}
+
+@media(max-width:720px){
+  h1{font-size:34px}.wordmark{font-size:38px}.topbar{height:auto;min-height:74px;background-size:64px 100%}
+  .nav-button{font-size:13px;gap:4px}.nav-button::before{width:20px;height:20px;background-size:20px 20px}
+}
+@media(max-width:640px){.wordmark{font-size:32px}.nav-button{font-size:11px;flex-direction:column;gap:0}.topbar nav{gap:6px}}
+@media(prefers-reduced-motion:reduce){button:active{transform:none!important}}
+
+/* ---------- no game name for now: the logo is the crossed-swords mark ---------- */
+.wordmark{font-size:0!important;display:flex;align-items:center;height:44px;text-shadow:none!important;filter:drop-shadow(0 2px 0 #000a)}
+.wordmark img{display:block;image-rendering:pixelated}
+
+.wordmark .brand-dot{display:none}
+
+/* ---------- Workshop: blade rack ---------- */
+.blade-rack{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.rack-card{padding:6px 8px;border-style:solid;border-width:20px;border-image:url(ui/panel.png) 10 fill/20px/0 round;image-rendering:pixelated;display:flex;flex-direction:column;gap:8px}
+.rack-card.equipped{border-image-source:url(ui/panel.png);box-shadow:0 0 0 3px #f0cf7a55}
+.rack-top{display:flex;align-items:center;gap:8px}.rack-top .sword-icon{width:30px;height:60px}
+.rack-top h3{margin:0;font:600 16px var(--tt-ui)}.rack-top small{color:var(--muted);font-family:var(--tt-ui)}
+.rack-card.equipped .rack-top small{color:var(--gold)}
+.rack-card .pattern-preview{max-width:180px}
+
+
+/* ---------- unlockable board style: gilded frame ---------- */
+body.cos-gilded-frame .board-frame,body.cos-gilded-frame .empty-board{border-image-source:url(ui/board-frame-gold.png)}
+
+/* ---------- Settings: sound panel ---------- */
+.snd-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,1.3fr) 44px;align-items:center;gap:12px;margin:12px 0;font-size:14px}
+.snd-row span{display:flex;flex-direction:column;gap:2px}.snd-row small{color:var(--muted);font-size:12px}
+.snd-row output{font:600 13px var(--tt-ui);color:var(--gold);text-align:right;font-variant-numeric:tabular-nums}
+.snd-row input[type=range]{width:100%;accent-color:var(--crimson-lit)}
+.snd-toggle{margin:12px 0 4px}
+.snd-tests{margin-top:16px;flex-wrap:wrap}.snd-tests button{flex:1}
+input[type=range]{-webkit-appearance:none;appearance:none;height:14px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:8px;background:#140c08;border:2px solid #0d0807;box-shadow:inset 0 0 0 1px #6e4419}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:18px;margin-top:-7px;background:url(ui/btn-primary.png) center/100% 100%;image-rendering:pixelated;border:0}
+input[type=range]::-moz-range-track{height:8px;background:#140c08;border:2px solid #0d0807}
+input[type=range]::-moz-range-thumb{width:14px;height:18px;background:#a32a2a;border:2px solid #f0cf7a;border-radius:0}

@@ -1,0 +1,505 @@
+{
+  "description": "Engine 9 before the optional outgoing hook: both sides clear a 2x2, exchange attacks, then continue falling.",
+  "initial": {
+    "version": 9,
+    "seed": 73,
+    "rules": {
+      "gravityMs": 800,
+      "fastFallMs": 200,
+      "lockMs": 350,
+      "clearMs": 180,
+      "waveMs": 85,
+      "settleMs": 50,
+      "attackMs": 320,
+      "entryMs": 60,
+      "spawnGraceMs": 0,
+      "breakerRate": 0.25,
+      "repeatDelayMs": 145,
+      "repeatMs": 65
+    },
+    "mode": "duel",
+    "tick": 0,
+    "elapsed": 0,
+    "swordIndex": 0,
+    "sprinkleIndex": 0,
+    "nextAttackId": 1,
+    "players": [
+      {
+        "board": [
+          [
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "active": {
+          "x": 0,
+          "y": 2,
+          "r": 0,
+          "pair": [
+            {
+              "color": 0,
+              "breaker": true,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 2,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            }
+          ]
+        },
+        "nextIndex": 1,
+        "turn": 0,
+        "phase": "fall",
+        "timer": 0,
+        "fall": 0,
+        "lock": 0,
+        "fast": false,
+        "chain": 0,
+        "incoming": [],
+        "pendingAttack": [],
+        "pattern": [
+          [
+            1,
+            2,
+            2,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            2,
+            2,
+            1
+          ],
+          [
+            3,
+            1,
+            1,
+            2,
+            2,
+            3
+          ],
+          [
+            3,
+            3,
+            0,
+            0,
+            3,
+            3
+          ],
+          [
+            3,
+            3,
+            0,
+            0,
+            3,
+            3
+          ],
+          [
+            3,
+            2,
+            2,
+            1,
+            1,
+            3
+          ]
+        ],
+        "stats": {
+          "pieces": 0,
+          "cleared": 0,
+          "swords": 0,
+          "sprinkles": 0,
+          "bestChain": 0
+        },
+        "dead": false,
+        "spawnGrace": 0,
+        "lockResets": 0,
+        "bufferedRotation": 0
+      },
+      {
+        "board": [
+          [
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 0,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ],
+        "active": {
+          "x": 0,
+          "y": 2,
+          "r": 0,
+          "pair": [
+            {
+              "color": 0,
+              "breaker": true,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            },
+            {
+              "color": 2,
+              "breaker": false,
+              "stage": 0,
+              "gem": 0,
+              "strike": 0
+            }
+          ]
+        },
+        "nextIndex": 1,
+        "turn": 0,
+        "phase": "fall",
+        "timer": 0,
+        "fall": 0,
+        "lock": 0,
+        "fast": false,
+        "chain": 0,
+        "incoming": [],
+        "pendingAttack": [],
+        "pattern": [
+          [
+            1,
+            1,
+            2,
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            2,
+            3,
+            3,
+            0
+          ],
+          [
+            3,
+            0,
+            0,
+            1,
+            3,
+            2
+          ],
+          [
+            3,
+            3,
+            1,
+            1,
+            2,
+            2
+          ]
+        ],
+        "stats": {
+          "pieces": 0,
+          "cleared": 0,
+          "swords": 0,
+          "sprinkles": 0,
+          "bestChain": 0
+        },
+        "dead": false,
+        "spawnGrace": 0,
+        "lockResets": 0,
+        "bufferedRotation": 0
+      }
+    ],
+    "winner": null,
+    "events": []
+  },
+  "samples": [
+    {
+      "tick": 60,
+      "hash": "2f94202f"
+    },
+    {
+      "tick": 120,
+      "hash": "d881919f"
+    },
+    {
+      "tick": 180,
+      "hash": "1fb51605"
+    },
+    {
+      "tick": 240,
+      "hash": "4ae3b245"
+    },
+    {
+      "tick": 300,
+      "hash": "c7a54e91"
+    },
+    {
+      "tick": 360,
+      "hash": "b5192ea6"
+    },
+    {
+      "tick": 420,
+      "hash": "3e5390f7"
+    },
+    {
+      "tick": 480,
+      "hash": "df760900"
+    },
+    {
+      "tick": 540,
+      "hash": "78b4e499"
+    },
+    {
+      "tick": 600,
+      "hash": "965f3ad1"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# Spawn input update — engine 10
+
+Owner request, 7 October 2026: a 250 ms default positioning window, cancelled by a fresh press of the mapped fast-fall key. Holding the key must not drop subsequent pairs. This supersedes the earlier 125 ms default in the roguelite handoff.
+
+- New pairs stay on the original 6×13 board. Movement and tap rotation work during the pause. Natural/fast fall speeds, lock grace, attacks and next-pair entry delay are unchanged.
+- A fresh Space (or mapped drop key) press while the pair exists ends its remaining spawn pause and begins steerable fast fall. Releasing returns to natural fall; it does not restore the pause. Holding or OS key repeats cannot engage fast fall for the next pair. Pressing during clear/settle/entry does not pre-arm a future pair.
+- `fastOn` is a press event, `fastOff` a release event. New input adapters must send `fastOn` only for a new keydown (ignore repeat) and never every frame while held. Horizontal held-repeat is unchanged. AI planners already send one fast-fall command per pair.
+- Defaults/presets use 250 ms. Preference migration version 2 replaces the previous 125 ms default once, preserves other custom values (including zero), and never rewrites captured save/replay rules. A user can set 125 ms again after migration.
+- Published engine-9 behavior is frozen in `dist/legacy-engine-v9.js`. Engine-9 replays and old finite/climb saves use it, including future encounters. New matches/runs use engine 10. `createRun`/`createClimb` receive a validated engine version from save envelopes; UI must not upgrade a resumed run's engine or rules. Climb policy remains version 1 because generation/objectives/rewards are unchanged.
+- The five adapter edits are limited to guarding automatic held-drop rearming in `app.js`, `rogue-ui.js`, `challenge-ui.js`, `paired-duels-ui.js` and `handling-editor.js`. Claude's menu markup, style and rendering work is separate. If replacing an adapter, retain this input contract; do not copy the old rearming loop into a new menu/game shell.
+
+Verification: ten focused spawn/input and compatibility tests; engine-9 finite/climb golden saves captured before the change, with exact restored and future-board hashes; match replay checks; desktop Chrome keyboard checks in practice, duels, solo runs, four-player challenges, paired duels, the handling preview and a remapped drop key. Desktop checks include hold across pairs, fresh press cancellation, steering, OS repeat, release and pause/resume. No mobile gameplay checks.

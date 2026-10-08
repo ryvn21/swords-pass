@@ -1,0 +1,151 @@
+/* Tavern title screen layer. Uses the gilded tokens from theme.css. */
+.tt{position:fixed;inset:0;z-index:50;background:#0b0708;overflow:hidden;transition:opacity .45s ease}
+.tt.tt-leaving{opacity:0;pointer-events:none}
+body.tt-open{overflow:hidden}
+.tt-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;image-rendering:crisp-edges}
+.tt-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:clamp(10px,3.2vh,40px) 16px;pointer-events:none}
+.tt-name{margin:0;font-family:var(--tt-display);font-weight:400;font-size:clamp(56px,11vmin,148px);line-height:.9;letter-spacing:.02em;color:var(--gold);text-align:center;max-width:92vw;text-wrap:balance;
+  text-shadow:0 3px 0 var(--crimson),3px 0 0 var(--tt-ink),-3px 0 0 var(--tt-ink),0 -3px 0 var(--tt-ink),0 6px 0 var(--tt-ink),3px 6px 0 var(--tt-ink),-3px 6px 0 var(--tt-ink),0 0 28px rgba(255,170,80,.35);
+  animation:tt-bob 6s ease-in-out infinite}
+@keyframes tt-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.tt-prompt{margin:auto 0;transform:translateY(6vh);font:600 clamp(16px,2.6vmin,26px) var(--tt-ui);color:var(--parchment);letter-spacing:.04em;
+  text-shadow:2px 0 0 var(--tt-ink),-2px 0 0 var(--tt-ink),0 2px 0 var(--tt-ink),0 -2px 0 var(--tt-ink);animation:tt-pulse 2.4s steps(6) infinite}
+@keyframes tt-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.tt-menu button:focus{outline:none}
+.tt-menuwrap{display:none;margin:auto 0;transform:translateY(4vh);flex-direction:column;align-items:center;gap:clamp(4px,1vh,12px);pointer-events:auto}
+.tt-entered .tt-menuwrap{display:flex}
+.tt-menu{display:flex;height:auto;flex-direction:column;align-items:center;gap:clamp(2px,.9vh,10px)}
+.tt-entered .tt-prompt{display:none}
+.tt-menu.tt-swap{animation:tt-in .32s steps(4) both}
+@keyframes tt-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.tt-menu button{all:unset;cursor:pointer;position:relative;font:600 clamp(20px,3.9vmin,42px) var(--tt-ui);color:#d9cdb6;padding:0 .6em;
+  text-shadow:2px 0 0 var(--tt-ink),-2px 0 0 var(--tt-ink),0 2px 0 var(--tt-ink),0 -2px 0 var(--tt-ink),2px 2px 0 var(--tt-ink),-2px 2px 0 var(--tt-ink),2px -2px 0 var(--tt-ink),-2px -2px 0 var(--tt-ink),0 4px 0 rgba(0,0,0,.45);
+  transition:transform .12s steps(3),color .12s}
+.tt-menu button::before,.tt-menu button::after{content:"";position:absolute;top:50%;width:.36em;height:.36em;margin-top:-.2em;background:var(--crimson);border:2px solid var(--gold);transform:rotate(45deg) scale(0);transition:transform .12s steps(3);box-shadow:0 0 0 2px var(--tt-ink)}
+.tt-menu button::before{left:-.15em}.tt-menu button::after{right:-.15em}
+.tt-menu button.is-active{color:var(--gold);transform:scale(1.14)}
+.tt-menu button.is-active::before,.tt-menu button.is-active::after{transform:rotate(45deg) scale(1)}
+.tt-corner{position:absolute;bottom:clamp(8px,1.6vh,18px);font:400 clamp(11px,1.6vmin,15px) var(--tt-ui);color:#bfae93;letter-spacing:.06em;text-shadow:1px 1px 0 var(--tt-ink),-1px -1px 0 var(--tt-ink);pointer-events:auto}
+.tt-left{left:16px;max-width:45vw}.tt-right{right:16px;display:flex;gap:16px}
+.tt-toggle{all:unset;cursor:pointer;color:#bfae93}.tt-toggle:hover,.tt-toggle:focus-visible{color:var(--gold)}
+.tt-toggle:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media (max-width:600px){.tt-right{flex-direction:column;align-items:end;gap:4px}.tt-left{max-width:40vw}}
+@media (prefers-reduced-motion:reduce){.tt-name,.tt-prompt,.tt-entered .tt-menu{animation:none}.tt-menu button,.tt-menu button::before,.tt-menu button::after,.tt{transition:none}}
+
+.tt-head{margin:0;font:600 clamp(13px,1.9vmin,20px) var(--tt-ui);letter-spacing:.3em;text-transform:uppercase;color:var(--gold);
+  text-shadow:2px 0 0 var(--tt-ink),-2px 0 0 var(--tt-ink),0 2px 0 var(--tt-ink),0 -2px 0 var(--tt-ink)}
+.tt-head::before,.tt-head::after{content:"";display:inline-block;width:26px;height:18px;vertical-align:middle;margin:0 .6em;background:url(ui/divider-gem.png) center/26px 18px no-repeat;image-rendering:pixelated}
+.tt-hint{margin:0;min-height:1.4em;font:400 clamp(13px,1.9vmin,19px) var(--tt-ui);color:var(--parchment);text-align:center;max-width:80vw;
+  text-shadow:2px 0 0 var(--tt-ink),-2px 0 0 var(--tt-ink),0 2px 0 var(--tt-ink),0 -2px 0 var(--tt-ink)}
+.tt-menu button.tt-back{font-size:clamp(15px,2.6vmin,28px);color:#bfae93;margin-top:.3em}
+.tt-gallery-open .tt-menuwrap{display:none}
+/* gallery: a gilded panel over the tavern */
+.tt-gallery{pointer-events:auto;margin:clamp(10px,2vh,24px) 0 clamp(40px,7vh,70px);width:min(980px,100%);flex:1;min-height:0;display:flex;flex-direction:column;
+  border-style:solid;border-width:20px;border-image:url(ui/panel.png) 10 fill/20px/0 round;image-rendering:pixelated;padding:4px 8px 8px;box-shadow:0 10px 0 #0007}
+.tt-gallery[hidden]{display:none}
+.tt-gal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 2px 10px}
+.tt-gal-head h2{margin:0;font:600 22px var(--tt-ui);color:var(--gold);text-shadow:0 2px 0 var(--tt-ink)}
+.tt-gal-close{all:unset;cursor:pointer;font:600 16px var(--tt-ui);color:var(--parchment);border-style:solid;border-width:10px;border-image:url(ui/btn.png) 5 fill/10px round;image-rendering:pixelated;padding:0 8px}
+.tt-gal-close:hover,.tt-gal-close:focus-visible{border-image-source:url(ui/btn-hover.png);color:var(--gold)}
+.tt-gal-grid{overflow:auto;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding-right:4px;scrollbar-width:thin;scrollbar-color:#6e4419 transparent}
+.tt-gal-card{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;gap:6px 8px;align-items:center;padding:8px;background:#00000038;border:2px solid #4a2f12}
+.tt-gal-card.is-equipped{border-color:var(--gold);background:#7d1b2024}
+.tt-gal-icon .sword-icon{width:30px;height:60px;display:block}
+.tt-gal-text h3{margin:0;font:600 15px var(--tt-ui);color:var(--parchment);line-height:1.15}
+.tt-gal-text p{margin:2px 0 0;font:400 12px var(--tt-ui);color:#bfae93}
+.tt-gal-card.is-equipped .tt-gal-text p{color:var(--gold)}
+.tt-gal-pattern{grid-column:1/-1;width:100%;height:auto;image-rendering:pixelated}
+@media (max-width:600px){.tt-gal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* keep the hub text-only like the original intro: no frames from the in-game button style */
+#title-screen .tt-menu button,#title-screen .tt-toggle{border:0!important;border-image:none!important;background:none!important;transform:none;padding:0 .6em!important}
+#title-screen .tt-menu button.is-active{transform:scale(1.14)}
+#title-screen .tt-menu button:active{transform:scale(1.08)}
+#title-screen .tt-toggle{padding:0!important}
+/* ---------- Gallery: swords of honour + achievements ---------- */
+.tt-gallery .pg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 2px 10px}
+.pg-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.pg-tabs button{all:unset;cursor:pointer;font:600 16px var(--tt-ui);color:#d8c49c;padding:2px 10px;border-style:solid;border-width:10px;border-image:url(ui/btn.png) 5 fill/10px round;image-rendering:pixelated}
+.pg-tabs button[aria-selected=true]{border-image-source:url(ui/btn-selected.png);color:var(--gold)}
+.pg-tabs small{font-size:12px;opacity:.8;margin-left:4px}
+.pg-scroll{overflow:auto;min-height:0;flex:1;padding-right:4px;scrollbar-width:thin;scrollbar-color:#6e4419 transparent}
+.pg-swords{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.pg-sword{display:grid;grid-template-columns:76px 1fr;gap:12px;align-items:center;padding:10px;background:#00000038;border:2px solid #3a2612}
+.pg-sword.r3,.pg-sword.r4{border-color:#6e4419}
+.pg-sword.r5{border-color:#d4a24c;box-shadow:inset 0 0 0 1px #8f5f22,0 0 14px #f0cf7a33}
+/* the blade art wakes up rank by rank: a shadow, dull steel, true colour, a sheen, its own glow, then sparks */
+.pg-blade{position:relative;width:76px;height:200px;display:grid;place-items:center;overflow:hidden}
+.pg-blade img{height:100%;width:auto;image-rendering:pixelated;position:relative}
+.pg-blade.r0 img{filter:brightness(0);opacity:.5}
+.pg-blade.r1 img{filter:grayscale(.85) brightness(.7)}
+.pg-blade.r3::after,.pg-blade.r4::after,.pg-blade.r5::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,#ffffff40 50%,transparent 60%) no-repeat;background-size:100% 300%;
+  -webkit-mask:var(--blade) center/auto 100% no-repeat;mask:var(--blade) center/auto 100% no-repeat;animation:pg-sheen 4.5s ease-in-out infinite;pointer-events:none}
+.pg-blade.r4 img,.pg-blade.r5 img{filter:drop-shadow(0 0 3px var(--aura)) drop-shadow(0 0 7px color-mix(in srgb,var(--aura) 40%,transparent))}
+.pg-blade.r5 img{animation:pg-glow 3s ease-in-out infinite}
+.pg-blade i{position:absolute;left:var(--x);top:var(--y);width:3px;height:3px;background:#fff;box-shadow:0 0 4px var(--aura),0 0 0 1px color-mix(in srgb,var(--aura) 70%,transparent);opacity:0;animation:pg-spark 2.8s var(--d) steps(4) infinite}
+@keyframes pg-sheen{0%,55%{background-position:0 120%}100%{background-position:0 -120%}}
+@keyframes pg-spark{0%,100%{opacity:0;transform:scale(.5)}40%{opacity:1;transform:scale(1)}}
+@keyframes pg-glow{50%{filter:drop-shadow(0 0 4px var(--aura)) drop-shadow(0 0 10px color-mix(in srgb,var(--aura) 55%,transparent)) brightness(1.08)}}
+.pg-sword-info h3{margin:0;font:600 17px var(--tt-ui);color:var(--parchment)}
+.pg-rank{margin:0 0 6px;font:600 12px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:#9f8a6c}
+.pg-sword.r3 .pg-rank,.pg-sword.r4 .pg-rank{color:#d9b56a}.pg-sword.r5 .pg-rank{color:var(--gold)}
+.pg-count{margin:0 0 8px;font:600 14px var(--tt-ui);color:var(--gold)}
+.pg-tier{margin:6px 0 0;font:400 13px var(--tt-ui);color:#cdb894;line-height:1.35}
+.pg-pips{display:flex;gap:5px;margin:8px 0 0;padding:0;list-style:none}
+.pg-pips li{width:9px;height:9px;transform:rotate(45deg);background:#140c08;border:1px solid #6e4419}
+.pg-pips li.on{background:#d4a24c;border-color:#f0cf7a}
+.pg-bar{height:10px;background:#140c08;border:2px solid #0d0807;box-shadow:inset 0 0 0 1px #6e4419}
+.pg-bar i{display:block;height:100%;background:linear-gradient(#f0cf7a,#d4a24c 60%,#8f5f22)}
+.pg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.pg-card{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;padding:8px;background:#00000038;border:2px solid #3a2612;opacity:.82}
+.pg-card.done{opacity:1;border-color:#6e4419}
+.pg-icon{width:48px;height:48px;image-rendering:pixelated}
+.pg-body h3{margin:0;font:600 15px var(--tt-ui);color:var(--parchment)}
+.pg-for{margin:2px 0 0;font:400 13px var(--tt-ui);color:#cdb894}
+.pg-reward{margin:4px 0 0;font:400 12px var(--tt-ui);color:#9f8a6c}
+.pg-card.done .pg-reward{color:var(--gold)}
+.pg-use{all:unset;cursor:pointer;margin-top:6px;font:600 13px var(--tt-ui);color:var(--parchment);border-style:solid;border-width:8px;border-image:url(ui/btn.png) 5 fill/8px round;image-rendering:pixelated;padding:0 6px}
+.pg-use:hover{border-image-source:url(ui/btn-hover.png)}
+/* toasts appear on every screen */
+.pg-toasts{position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.pg-toast{display:flex;align-items:center;gap:10px;min-width:260px;max-width:min(360px,calc(100vw - 32px));padding:2px 8px;border-style:solid;border-width:20px;border-image:url(ui/panel.png) 10 fill/20px round;image-rendering:pixelated;
+  animation:pg-in .35s steps(4) both;font-family:var(--tt-ui);color:var(--parchment)}
+.pg-toast.out{animation:pg-out .5s steps(4) both}
+@keyframes pg-in{from{transform:translateY(20px);opacity:0}}@keyframes pg-out{to{transform:translateY(20px);opacity:0}}
+.pg-toast-icon{flex:none;width:48px;height:auto;max-height:100px;image-rendering:pixelated;object-fit:contain}
+.pg-toast-icon.pg-blade{width:36px;height:100px}
+.pg-toast small{display:block;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+.pg-toast strong{display:block;font-size:16px}.pg-toast span{display:block;font-size:13px;color:#cdb894}
+@media (max-width:600px){.pg-swords{grid-template-columns:1fr}.pg-grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.pg-blade img,.pg-blade::after,.pg-blade i,.pg-toast{animation:none}.pg-blade i{opacity:.8}}
+
+/* achievements arrive in stages: per category, what you've earned plus the next two to aim for */
+.pg-cat{margin:0 0 18px}
+.pg-cat header{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 12px;margin:0 0 8px;padding-bottom:6px;border-bottom:2px solid #3a2612}
+.pg-cat h3{margin:0;font:600 18px var(--tt-ui);color:var(--gold);text-shadow:0 2px 0 var(--tt-ink)}
+.pg-cat header span{font:600 16px var(--tt-ui);color:var(--parchment)}
+.pg-cat header p{grid-column:1/-1;margin:0;font:400 13px var(--tt-ui);color:#bfae93}
+.pg-card.next{border-style:dashed;border-color:#6e4419;opacity:.9}
+.pg-card.next .pg-icon{filter:grayscale(.7) brightness(.8)}
+.pg-for span{display:inline-block;margin-right:4px;font:600 11px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:#9f8a6c}
+.pg-card.done .pg-for span{color:#c9a85e}
+.pg-sealed{display:grid;place-items:center;min-height:64px;border:2px dashed #3a2612;font:600 14px var(--tt-ui);color:#9f8a6c;letter-spacing:.06em}
+.pg-sealed::before{content:"";width:13px;height:9px;margin-bottom:4px;background:url(ui/divider-gem.png) center/13px 9px no-repeat;image-rendering:pixelated;opacity:.6}
+
+/* phones: toasts drop from the top so they never cover the touch controls */
+@media(max-width:640px){.pg-toasts{top:76px;bottom:auto;left:12px;right:12px;align-items:center}.pg-toast{min-width:0;width:100%}.pg-toast-icon{width:32px;max-height:64px}}
+
+/* painted emblem for the lit menu item */
+.tt-emblem{width:clamp(56px,10vmin,112px);height:clamp(56px,10vmin,112px);image-rendering:pixelated;opacity:0;filter:drop-shadow(0 4px 0 #0008) drop-shadow(0 0 14px #ffb45a40);transition:opacity .15s}
+.tt-emblem.on{opacity:1}.tt-emblem.swap{animation:tt-emb .22s ease-out}
+@keyframes tt-emb{from{transform:translateY(6px) scale(.92);opacity:.2}}
+@media (max-height:560px){.tt-emblem{display:none}}
+.tt-corner.tt-left{display:none}
+
+/* ---------- the title: Sword's Pass ---------- */
+.tt-logo{position:absolute;left:50%;top:30%;width:var(--logo-big,1173px);height:auto;transform:translate(-50%,-50%);image-rendering:pixelated;pointer-events:none;
+  filter:drop-shadow(0 6px 0 #0009) drop-shadow(0 0 22px #ffb45a33);transition:width .5s steps(8),top .5s steps(8);animation:tt-logo-in .9s steps(9) both}
+@keyframes tt-logo-in{from{opacity:0;margin-top:-14px}}
+.tt-entered .tt-logo{top:clamp(28px,7.5vh,70px);width:var(--logo-small,391px)}
+.tt-prompt{position:absolute;left:0;right:0;top:56%;margin:0;transform:none;text-align:center}
+.tt-gallery-open .tt-logo{opacity:0;transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.tt-logo{animation:none;transition:none}}
