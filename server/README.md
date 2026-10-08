@@ -37,3 +37,16 @@ and in Free-for-All the last board standing wins (shared hazard waves rise for e
 Dropped connections resume within 20 seconds; after that the player forfeits.
 Online matches use the standard timings for fairness; only each player's held-movement delay and
 repeat (input feel) come from their own settings.
+
+## Results, ratings and the leaderboard (Supabase)
+
+The lobby shows live tables (watch or join), recent results and a leaderboard. Results are kept in memory and,
+when two environment variables are set, saved to a free Supabase project so they survive restarts:
+
+1. Create a project at supabase.com. In **SQL Editor**, paste `server/supabase.sql` and run it.
+2. In **Project Settings → API**, copy the project URL and the `service_role` key.
+3. In Render, open the swords-pass service → **Environment**, add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`, save.
+   Render restarts the service; `/health` then shows `"scores": "supabase"`.
+
+The service key stays on the server (never in the game files). Players are identified by a random id their
+browser keeps, so a record belongs to that browser; there are no accounts.

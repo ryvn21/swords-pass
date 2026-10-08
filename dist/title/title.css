@@ -155,8 +155,9 @@ body.tt-open{overflow:hidden}
 #title-screen .tt-menu{gap:calc(clamp(2px,.6vh,8px) + clamp(12px,1.6vmin,16px) * 1.15)}
 #title-screen .tt-menu button{font-size:clamp(19px,3.4vmin,38px)}
 .tt-menuwrap .tt-hint{position:absolute;left:50%;top:0;transform:translateX(-50%);width:max-content;max-width:min(92vw,560px);margin:0;
-  font-size:clamp(12px,1.6vmin,16px);line-height:1.15;pointer-events:none;transition:top .16s steps(4)}
-@media (prefers-reduced-motion:reduce){.tt-menuwrap .tt-hint{transition:none}}
+  font-size:clamp(12px,1.6vmin,16px);line-height:1.15;pointer-events:none}
+/* switching items is instant: no easing on the lit item, its diamonds or its description */
+#title-screen .tt-menu button,#title-screen .tt-menu button::before,#title-screen .tt-menu button::after{transition:none}
 #title-screen .tt-menu button.tt-back{font-size:clamp(15px,2.4vmin,26px)}
 
 /* first visit: pick a name */
@@ -174,4 +175,5 @@ body.tt-open{overflow:hidden}
 .tt-namecard button.tt-namecard-go{color:var(--gold);border-image-source:url(ui/btn-primary.png)}
 .tt-namecard button:hover,.tt-namecard button:focus-visible{border-image-source:url(ui/btn-hover.png);color:var(--gold)}
 .tt-namecard button.tt-namecard-go:hover,.tt-namecard button.tt-namecard-go:focus-visible{border-image-source:url(ui/btn-primary-hover.png)}
-.tt-namecard button.tt-namecard-skip{border-image:none;padding:0 4px;font-size:14px;color:#bfae93}
+.tt-namecard button.tt-namecard-skip,.tt-namecard button.tt-namecard-skip:hover,.tt-namecard button.tt-namecard-skip:focus-visible{border:0;border-image:none;padding:0 4px;font-size:14px;color:#bfae93;text-decoration:underline;text-underline-offset:3px}
+.tt-namecard button.tt-namecard-skip:hover,.tt-namecard button.tt-namecard-skip:focus-visible{color:var(--gold)}

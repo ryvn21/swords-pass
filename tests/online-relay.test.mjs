@@ -132,3 +132,26 @@ test('a page from an older build is told to refresh instead of joining newer pla
   const ok = [], s2 = {send(x) { ok.push(JSON.parse(x)); }, close() {}}; relay.connect(s2); s2.onMessage(JSON.stringify({t: 'hello', name: 'New', build: 'new'}));
   assert.equal(ok[0].t, 'welcome');
 });
+
+test('the lobby lists live tables; anyone can watch one, and open tables can be joined', async () => {
+  const {createScores} = await import('../server/scores.mjs');
+  const scores = createScores({url: '', key: ''});
+  let t = 1000; const timers = [];
+  const relay = createRelay({now: () => t, setTimer: (fn, ms) => { const h = {at: t + ms, fn}; timers.push(h); return h; }, clearTimer: h => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1); }, scores});
+  const advance = ms => { t += ms; for (const h of [...timers].sort((a, b) => a.at - b.at)) if (h.at <= t && timers.includes(h)) { timers.splice(timers.indexOf(h), 1); h.fn(); } };
+  const client = (name, pid) => { const sock = {inbox: [], send(x) { this.inbox.push(JSON.parse(x)); }, close() {}}; relay.connect(sock); const say = m => sock.onMessage(JSON.stringify(m)); say({t: 'hello', name, pid}); const last = type => [...sock.inbox].reverse().find(m => m.t === type); return {sock, say, last, id: last('welcome').id}; };
+  const a = client('Ann', 'pid-ann-000000001'), b = client('Bo', 'pid-bo-0000000001'), w = client('Wes', 'pid-wes-000000001');
+  w.say({t: 'lobby'}); assert.deepEqual(w.last('lobby').games, []);
+  a.say({t: 'quick', mode: 'duel'}); b.say({t: 'quick', mode: 'duel'}); advance(500);
+  const g = w.last('lobby').games[0]; assert.equal(g.mode, 'duel'); assert.deepEqual(g.players.map(p => p.name), ['Ann', 'Bo']); assert.equal(g.open, false);
+  w.say({t: 'watch', code: g.code}); assert.equal(w.last('start').you, null); assert.equal(w.last('start').players.length, 2);
+  advance(4000); a.say({t: 'state', s: {b: [], n: 3}, score: 0}); assert.equal(w.last('state').from, a.id);
+  b.say({t: 'dead'}); const r = w.last('result'); assert.equal(r.winner, a.id); assert.ok(r.placements[0].change > 0);
+  assert.equal(scores.top()[0].name, 'Ann'); assert.equal(scores.recent()[0].winner, 'Ann');
+  assert.ok(!JSON.stringify(scores.top()).includes('pid-ann'));   // ids stay private
+  // an open table shows as joinable, and joining by its code works
+  const h = client('Hal', 'pid-hal-000000001'), j = client('Jo', 'pid-jo-0000000001');
+  h.say({t: 'create', mode: 'duel', public: true}); advance(500);
+  const open = w.last('lobby') && relay.lobby().games.find(x => x.open); assert.ok(open);
+  j.say({t: 'join', code: open.code}); assert.equal(j.last('room').players.length, 2);
+});

@@ -16,3 +16,8 @@ services:
         value: 0.0.0.0
       - key: NODE_VERSION
         value: "22"
+      # Online results and ratings (optional). Set these in the Render dashboard; see server/supabase.sql.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

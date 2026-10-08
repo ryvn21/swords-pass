@@ -815,3 +815,37 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .fb-strike input{width:100%;min-width:0}
 .fb-share{align-self:flex-start}
 @media (max-width:900px){.fb-grid{grid-template-columns:1fr;max-width:420px}.fb-table{order:-1}}
+
+/* ---------- online lobby: live tables, leaderboard, recent results; watching a match ---------- */
+.ol-menu-row{display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+.ol-open-note{margin:0;font:400 14px var(--tt-ui);color:#d8c49c}
+.ol-board{width:min(560px,92vw);display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.ol-tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.ol-tabs button:not(#_){all:unset;cursor:pointer;font:600 15px var(--tt-ui);color:#d8c49c;padding:0 10px;border-style:solid;border-width:10px;border-image:url(ui/btn.png) 5 fill/10px round;image-rendering:pixelated}
+.ol-tabs button:not(#_)::before,.ol-tabs button:not(#_)::after{display:none}
+.ol-tabs button:not(#_)[aria-selected=true]{border-image-source:url(ui/btn-selected.png);color:var(--gold)}
+.ol-tabs button:not(#_):hover{color:var(--gold)}
+.ol-online{margin:0 0 6px;font:600 12px var(--tt-ui);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.ol-empty,.ol-fine{margin:4px 0;font:400 14px var(--tt-ui);color:#cdb894}
+.ol-fine{font-size:12px;color:#9f8a6c}
+.ol-tables{width:100%}
+.ol-tables li{grid-template-columns:30px 1fr auto}
+.ol-tables strong em{font-style:normal;color:var(--gold);font-size:13px;margin:0 4px}
+.ol-tables strong i{font-style:normal;color:var(--gold);font-size:12px}
+.ol-tables strong span.out{opacity:.5;text-decoration:line-through}
+.ol-table-acts{display:flex;gap:10px}
+.ol-ranks,.ol-recent{list-style:none;margin:0;padding:0;display:grid;gap:6px;width:100%}
+.ol-ranks li{display:grid;grid-template-columns:34px 1fr auto 64px;gap:12px;align-items:center;padding:6px 14px;text-align:left;background:linear-gradient(180deg,#140c0ce6,#0d0807d9);border:2px solid #4a2f16;box-shadow:0 0 0 2px #0d0807}
+.ol-ranks li.you{border-color:var(--gold)}
+.ol-ranks span{font:600 16px var(--tt-ui);color:var(--gold)}
+.ol-ranks strong{font:600 17px var(--tt-ui);color:var(--parchment)}
+.ol-ranks strong em{font:400 12px var(--tt-ui);font-style:normal;color:var(--gold);margin-left:6px}
+.ol-ranks b{font:600 17px var(--tt-ui);color:var(--gold)}
+.ol-ranks small{font:400 13px var(--tt-ui);color:#cdb894;text-align:right}
+.ol-recent li{padding:6px 14px;text-align:left;font:400 15px var(--tt-ui);color:#d8c49c;background:linear-gradient(180deg,#140c0ce6,#0d0807d9);border:2px solid #4a2f16;box-shadow:0 0 0 2px #0d0807}
+.ol-recent li strong{color:var(--gold);font-weight:600}
+.ol-recent li small{display:block;font-size:12px;color:#9f8a6c}
+.ol-watch{display:flex;justify-content:center;align-items:flex-start;gap:clamp(16px,4vw,56px);flex-wrap:wrap;padding:8px 0}
+.ol-watch .challenge-board{width:clamp(120px,calc((100dvh - 270px)*.3),260px)}
+.ol-watch-ffa .challenge-board{width:clamp(110px,calc((100dvh - 270px)*.28),220px)}
+.ol-watch .challenge-board.eliminated{opacity:.45;filter:grayscale(.8)}

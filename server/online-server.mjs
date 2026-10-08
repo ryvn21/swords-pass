@@ -5,10 +5,11 @@
 import http from 'node:http';
 import {attachWebSockets} from './ws.mjs';
 import {createRelay} from './relay.mjs';
+import {createScores} from './scores.mjs';
 
 const port = Number(process.env.PORT || 8787), host = process.env.HOST || '0.0.0.0';
 const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-const relay = createRelay({log: (...a) => console.error(...a)});
+const relay = createRelay({scores: createScores({log: (...a) => console.error(...a)}), log: (...a) => console.error(...a)});
 const server = http.createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200, {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}); res.end(JSON.stringify({ok: true, ...relay.stats()})); return; }
   res.writeHead(404).end('Scraps online server');

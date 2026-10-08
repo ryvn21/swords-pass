@@ -257,7 +257,7 @@ function along(p) { const seg = PATH.length - 1, f = Math.min(seg - 1e-6, Math.m
 const hash = n => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 function dot(x, y, col, a, s = 1) { g.fillStyle = `rgba(${col},${a})`; g.fillRect(Math.round(x), Math.round(y), s, s); }
 function modeFx(kind, t, ox, oy) {
-  const fade = Math.min(1, (t - litAt) / .6); if (fade <= 0) return;
+  const fade = Math.min(1, (t - litAt) / .25); if (fade <= 0) return;
   g.save(); g.globalCompositeOperation = 'lighter';
   if (kind === 'solo') {                       // Solo: a lone shooting star crosses the sky
     const per = 2.6, c = (t % per) / per, n = Math.floor(t / per), x0 = 40 + hash(n) * 220, y0 = 18 + hash(n + 9) * 40;

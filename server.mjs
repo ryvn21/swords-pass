@@ -8,6 +8,7 @@ import {gzipSync} from 'node:zlib';
 import {resolve, extname, sep, relative} from 'node:path';
 import {attachWebSockets} from './server/ws.mjs';
 import {createRelay} from './server/relay.mjs';
+import {createScores} from './server/scores.mjs';
 
 const root = resolve('dist');
 const mime = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json',
@@ -35,7 +36,8 @@ async function load(file) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  if (url.pathname === '/health') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({ok: true, build: BUILD, ...relay.stats()})); return; }
+  if (url.pathname === '/health') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({ok: true, build: BUILD, scores: scores.remote ? 'supabase' : 'memory', ...relay.stats()})); return; }
+  if (url.pathname === '/api/lobby') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify(relay.lobby())); return; }
   if (url.pathname === '/build.json') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({build: BUILD})); return; }
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
@@ -55,7 +57,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Online play. A few connections per address is plenty for real players and keeps one visitor from filling the server.
-const relay = createRelay({build: BUILD, log: (...a) => console.error(...a)});
+// Results and ratings: saved to Supabase when SUPABASE_URL / SUPABASE_SERVICE_KEY are set (see server/supabase.sql).
+const scores = createScores({log: (...a) => console.error(...a)});
+const relay = createRelay({build: BUILD, scores, log: (...a) => console.error(...a)});
 const perAddress = new Map(), MAX_PER_ADDRESS = 12, MAX_TOTAL = 2000;
 const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 const sockets = attachWebSockets(server, {path: '/ws', onConnection(ws, req) {

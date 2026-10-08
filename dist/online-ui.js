@@ -1,4 +1,5 @@
-// Online play: lobby (quick match, private rooms), Online Duel and Online Free-for-All.
+// Online play: lobby (quick match, open tables, private rooms, live tables to watch or join, recent results,
+// leaderboard), Online Duel and Online Free-for-All, and watching other people's matches.
 // Your board is simulated here with zero added input delay (engine mode 'online'); rivals'
 // boards are drawn from the snapshots they stream. Attack batches travel as messages and land
 // on your next lock, exactly as they would locally. The server referees who topped out first.
@@ -20,28 +21,33 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   const $ = q => host.querySelector(q), life = new AbortController(), held = new Map();
   let mode = globalThis.scrapsOnlineMode || read('online-mode', 'duel'); if (!['duel', 'ffa'].includes(mode)) mode = 'duel';
   let name = read('online-name', '') || '', screen = 'home', room = null, queueInfo = null, match = null, notice = '', raf = 0, last = 0, acc = 0, disposed = false;
+  let lobby = null, listTab = read('online-tab', 'live'), watch = null;
+  // this browser's own id for the leaderboard (an account-free "this browser's record"); never shown to anyone
+  let pid = read('player-id', ''); if (!/^[A-Za-z0-9_-]{12,64}$/.test(pid)) { pid = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); save('player-id', pid); }
   const record = read('online-record', {duel: {w: 0, l: 0}, ffa: {w: 0, played: 0}});
   const blade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
-  const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1})});
+  const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1, pid})});
   const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: 3, wellFlip: true});
   const set = (q, v) => { const el = $(q); if (el && el.textContent !== String(v)) el.textContent = String(v); };
 
   // ---------- network events ----------
-  net.on('status', () => { if (screen !== 'match') paint(); else statusBadge(); });
+  net.on('status', ({status}) => { if (status === 'online') net.send({t: 'lobby'}); if (screen === 'home' || screen === 'queue' || screen === 'room') paint(); else statusBadge(); });
+  net.on('lobby', m => { lobby = m; if (screen === 'home') paintLists(); }); net.send({t: 'lobby'});
   net.on('queue', m => { queueInfo = m.mode ? m : null; if (screen === 'queue' && !m.mode) screen = 'home'; if (screen !== 'match') paint(); });
   net.on('room', m => {
-    if (m.state === 'none') { room = null; if (screen !== 'match') { screen = 'home'; paint(); } return; }
+    if (m.state === 'none') { room = null; if (screen === 'watch') { watch = null; if (m.closed) notice = 'That table has closed.'; } if (screen !== 'match') { screen = 'home'; paint(); } return; }
+    if (m.watching) { room = m; if (watch) { watch.room = m; watchResults(); } return; }
     room = m; mode = m.mode;
     if (screen === 'match') updateResults(); else { screen = 'room'; paint(); }
   });
   net.on('error', m => { notice = m.message || 'Something went wrong.'; paint(); });
-  net.on('start', m => beginMatch(m));
-  net.on('state', m => { if (!match) return; const r = match.rivals.get(m.from); if (r) { r.s = m.s; r.at = performance.now(); if (typeof m.score === 'number') r.score = m.score; } });
+  net.on('start', m => m.watching ? beginWatch(m) : beginMatch(m));
+  net.on('state', m => { if (watch) { const w = watch.players.get(m.from); if (w) { w.s = m.s; w.at = performance.now(); if (typeof m.score === 'number') w.score = m.score; } return; } if (!match) return; const r = match.rivals.get(m.from); if (r) { r.s = m.s; r.at = performance.now(); if (typeof m.score === 'number') r.score = m.score; } });
   net.on('attack', m => { if (!match || match.over) return; if (receiveBatch(match.game, 0, m.attacks, m.turn)) { match.incomingFrom = m.from; match.incomingAt = performance.now(); } });
   net.on('aimed', m => { if (match) match.aims.set(m.from, {to: m.to, at: performance.now()}); });
-  net.on('out', m => { if (!match) return; if (m.id === match.you) return; const r = match.rivals.get(m.id); if (r) { r.out = true; if (match.game.players[1] && match.mode === 'duel') match.game.players[1].dead = true; } if (match.target === m.id) retarget(); });
-  net.on('result', m => finishMatch(m));
-  net.on('left', m => { if (match) { const r = match.rivals.get(m.id); if (r) { r.left = true; r.out = true; } } notice = `${m.name} ${m.why === 'disconnected' ? 'lost connection' : 'left'}.`; if (screen === 'match') updateResults(); else paint(); });
+  net.on('out', m => { if (watch) { const w = watch.players.get(m.id); if (w) w.out = true; return; } if (!match) return; if (m.id === match.you) return; const r = match.rivals.get(m.id); if (r) { r.out = true; if (match.game.players[1] && match.mode === 'duel') match.game.players[1].dead = true; } if (match.target === m.id) retarget(); });
+  net.on('result', m => { if (watch) { watch.result = m; watchResults(); sound('end'); } else finishMatch(m); });
+  net.on('left', m => { if (watch) { const w = watch.players.get(m.id); if (w) { w.left = true; w.out = true; } return; } if (match) { const r = match.rivals.get(m.id); if (r) { r.left = true; r.out = true; } } notice = `${m.name} ${m.why === 'disconnected' ? 'lost connection' : 'left'}.`; if (screen === 'match') updateResults(); else paint(); });
   net.on('peer', m => { if (match) { const r = match.rivals.get(m.id); if (r) r.connected = m.connected; } });
 
   // ---------- lobby screens ----------
@@ -55,18 +61,19 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function paint() {
     if (disposed || screen === 'match') return;
     const b = blade(), online = net.status === 'online';
-    const head = `<section class="room-heading pm-heading ol-heading"><div><p class="eyebrow">ONLINE</p><h1>${screen === 'room' ? (room?.private ? 'Your table.' : 'Match found.') : screen === 'queue' ? 'Finding rivals.' : 'Cross blades.'}</h1></div></section>`;
+    const head = `<section class="room-heading pm-heading ol-heading"><div><p class="eyebrow">ONLINE</p><h1>${screen === 'room' ? (room?.private || room?.open ? 'Your table.' : 'Match found.') : screen === 'queue' ? 'Finding rivals.' : 'Cross blades.'}</h1></div></section>`;
     let body = '';
     if (screen === 'home') {
       body = `<div class="ol-modes">${['duel', 'ffa'].map(k => `<button class="pm-diff-item ${k === mode ? 'selected' : ''}" data-mode="${k}"><strong>${k === 'duel' ? 'Duel' : 'Free-for-All'}</strong><small>${k === 'duel' ? 'One on one. First to top out loses' : 'Two to four players. Last board standing'}</small></button>`).join('')}</div>
         <div class="ol-you"><span class="ol-blade">${swordIcon(b.iconId)}</span><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}"></label><div class="ol-blade-name"><small>YOUR BLADE</small><strong>${esc(b.name)}</strong></div></div>
         <nav class="ol-menu">
           <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button>
-          <button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Create a room</button>
+          <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Host a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
           <div class="ol-join"><input id="ol-code" maxlength="4" placeholder="CODE" autocapitalize="characters" spellcheck="false"><button class="ol-item" id="ol-join" ${online ? '' : 'disabled'}>Join</button></div>
         </nav>
         <p class="ol-notice">${esc(notice)}</p>
-        <p class="ol-record">${mode === 'duel' ? `<b>${record.duel.w}</b> won · <b>${record.duel.l}</b> lost online` : `<b>${record.ffa.w}</b> wins in <b>${record.ffa.played}</b> free-for-alls`}</p>`;
+        <p class="ol-record">${mode === 'duel' ? `<b>${record.duel.w}</b> won · <b>${record.duel.l}</b> lost online` : `<b>${record.ffa.w}</b> wins in <b>${record.ffa.played}</b> free-for-alls`}</p>
+        <section class="ol-board"><div class="ol-tabs" role="tablist">${[['live', 'Live tables'], ['top', 'Leaderboard'], ['recent', 'Recent']].map(([k, l]) => `<button role="tab" data-list="${k}" aria-selected="${listTab === k}">${l}</button>`).join('')}</div><div id="ol-lists"></div></section>`;
     } else if (screen === 'queue') {
       body = `<div class="ol-wait"><div class="ol-spinner" aria-hidden="true"></div><p class="ol-big">${mode === 'duel' ? 'Looking for a rival…' : 'Gathering the table…'}</p>
         <p class="muted">${queueInfo ? `${queueInfo.waiting} of ${queueInfo.need} waiting${mode === 'ffa' && queueInfo.waiting >= 2 ? ' · starts shortly' : ''}` : ''}</p>
@@ -74,9 +81,9 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     } else if (screen === 'room' && room) {
       const me = room.players.find(p => p.id === net.id), allReady = room.players.every(p => p.ready || p.host);
       body = `<div class="ol-room">
-        ${room.private ? `<div class="ol-code"><small>ROOM CODE</small><strong>${esc(room.code)}</strong><button class="ol-item" id="ol-copy">Copy</button></div>` : ''}
+        ${room.private ? `<div class="ol-code"><small>ROOM CODE</small><strong>${esc(room.code)}</strong><button class="ol-item" id="ol-copy">Copy</button></div>` : room.open ? `<p class="ol-open-note">Open table · listed in the lobby for anyone to join or watch</p>` : ''}
         <ol class="ol-players">${room.players.map(p => `<li class="${p.ready ? 'ready' : ''} ${p.connected ? '' : 'away'}"><span class="ol-blade">${swordIcon(p.blade?.iconId)}</span><div><strong>${esc(p.name)}${p.id === net.id ? ' <em>you</em>' : ''}</strong><small>${esc(p.blade?.name || '')}${p.wins ? ` · ${p.wins} won` : ''}</small></div><b>${!p.connected ? 'Away' : p.ready ? 'Ready' : p.host && room.mode === 'ffa' ? 'Host' : 'Not ready'}</b></li>`).join('')}
-          ${Array.from({length: Math.max(0, room.max - room.players.length)}, () => `<li class="empty"><span class="ol-blade"></span><div><strong>Open seat</strong><small>${room.private ? 'Share the code' : ''}</small></div></li>`).join('')}</ol>
+          ${Array.from({length: Math.max(0, room.max - room.players.length)}, () => `<li class="empty"><span class="ol-blade"></span><div><strong>Open seat</strong><small>${room.private ? 'Share the code' : room.open ? 'Waiting for a player' : ''}</small></div></li>`).join('')}</ol>
         <nav class="ol-menu">
           ${room.state === 'lobby' ? `<button class="primary" id="ol-ready">${me?.ready ? 'Not ready' : 'Ready'}</button>` : ''}
           ${room.state === 'lobby' && room.mode === 'ffa' && me?.host ? `<button class="ol-item" id="ol-start" ${room.players.length >= room.min && allReady ? '' : 'disabled'}>Start now</button>` : ''}
@@ -94,6 +101,9 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const code = $('#ol-code'); if (code) { code.oninput = () => { code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }; code.onkeydown = e => { if (e.key === 'Enter') $('#ol-join')?.click(); }; }
     on('#ol-quick', () => { notice = ''; profile(); net.send({t: 'quick', mode}); screen = 'queue'; queueInfo = null; paint(); });
     on('#ol-create', () => { notice = ''; profile(); net.send({t: 'create', mode}); });
+    on('#ol-host', () => { notice = ''; profile(); net.send({t: 'create', mode, public: true}); });
+    for (const b of host.querySelectorAll('[data-list]')) b.onclick = () => { listTab = b.dataset.list; save('online-tab', listTab); for (const x of host.querySelectorAll('[data-list]')) x.setAttribute('aria-selected', String(x === b)); paintLists(); };
+    paintLists();
     on('#ol-join', () => { const c = $('#ol-code')?.value.trim(); if (!c || c.length < 4) { notice = 'Room codes are four letters.'; paint(); return; } notice = ''; profile(); net.send({t: 'join', code: c}); });
     on('#ol-cancel', () => { net.send({t: 'cancel'}); screen = 'home'; paint(); });
     on('#ol-ready', () => { const me = room?.players.find(p => p.id === net.id); net.send({t: 'ready', ready: !me?.ready}); });
@@ -102,6 +112,80 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     on('#ol-copy', () => { try { navigator.clipboard.writeText(room.code); notice = 'Code copied.'; } catch { notice = 'Code: ' + room.code; } paint(); });
   }
   function profile() { const nm = $('#ol-name'); if (nm) { name = nm.value.trim().slice(0, 16); save('online-name', name); } net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); }
+
+  // ---------- the lobby lists: live tables, leaderboard, recent results ----------
+  const ago = ms => { const s = Math.max(0, Math.round((Date.now() - ms) / 1000)); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + 'm ago' : s < 86400 ? Math.round(s / 3600) + 'h ago' : Math.round(s / 86400) + 'd ago'; };
+  function paintLists() {
+    const box = $('#ol-lists'); if (!box) return;
+    let html = '';
+    if (!lobby) html = `<p class="ol-empty">${net.status === 'online' ? 'Loading…' : 'Connect to see who’s playing.'}</p>`;
+    else if (listTab === 'live') {
+      const games = lobby.games || [];
+      html = `<p class="ol-online">${lobby.online} in the tavern</p>` + (games.length ? `<ol class="ol-players ol-tables">${games.map(g => {
+        const label = g.state === 'playing' ? 'Playing' + (g.since ? ' · ' + mmss(g.since) : '') : g.state === 'countdown' ? 'Starting' : g.state === 'results' ? 'Between rounds' : g.open ? `Open · ${g.players.length}/${g.seats}` : 'Waiting';
+        const names = g.players.map(p => `<span class="${p.out ? 'out' : ''}">${esc(p.name)}${p.wins ? ' <i>★' + p.wins + '</i>' : ''}</span>`).join(g.mode === 'duel' ? ' <em>vs</em> ' : ' · ');
+        return `<li><span class="ol-blade">${swordIcon(g.players[0]?.blade?.iconId)}</span><div><strong>${names || 'Empty table'}</strong><small>${g.mode === 'duel' ? 'Duel' : 'Free-for-All'} · ${label}${g.watchers ? ` · ${g.watchers} watching` : ''}</small></div><span class="ol-table-acts">${g.open ? `<button class="ol-item" data-join="${esc(g.code)}">Join</button>` : ''}${g.state !== 'lobby' || g.players.length > 1 ? `<button class="ol-item" data-watch="${esc(g.code)}">Watch</button>` : ''}</span></li>`; }).join('')}</ol>`
+        : `<p class="ol-empty">No tables yet. Start a quick match or host one — it’ll show here for others to join or watch.</p>`);
+    } else if (listTab === 'top') {
+      const top = lobby.top || [];
+      html = top.length ? `<ol class="ol-ranks">${top.map(p => `<li class="${p.id === lobby.me ? 'you' : ''}"><span>${p.rank}</span><strong>${esc(p.name)}${p.id === lobby.me ? ' <em>you</em>' : ''}</strong><b>${p.rating}</b><small>${p.wins}–${p.losses}</small></li>`).join('')}</ol><p class="ol-fine">Rating from online duels and free-for-alls. Your record lives on this browser.</p>`
+        : `<p class="ol-empty">No ranked games yet. Win an online match to take the top spot.</p>`;
+    } else {
+      const rec = lobby.recent || [];
+      html = rec.length ? `<ol class="ol-recent">${rec.map(r => { const w = r.players.find(p => p.place === 1), rest = r.players.filter(p => p.place !== 1);
+        return `<li><strong>${esc(w?.name || 'No one')}</strong> ${r.mode === 'duel' ? 'beat' : 'won against'} ${rest.map(p => esc(p.name)).join(', ')}<small>${r.mode === 'duel' ? 'Duel' : 'Free-for-All'} · ${ago(r.at)}</small></li>`; }).join('')}</ol>`
+        : `<p class="ol-empty">No results yet.</p>`;
+    }
+    if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
+    for (const b of box.querySelectorAll('[data-join]')) b.onclick = () => { notice = ''; profile(); net.send({t: 'join', code: b.dataset.join}); };
+    for (const b of box.querySelectorAll('[data-watch]')) b.onclick = () => { notice = ''; net.send({t: 'watch', code: b.dataset.watch}); };
+  }
+
+  // ---------- watching someone else's match ----------
+  function beginWatch(m) {
+    const keep = watch && watch.code === m.code ? watch : null;
+    watch = {code: m.code, mode: m.mode, round: m.round, seed: m.seed, startAt: performance.now() + (m.in || 0), result: null, room: keep?.room || room,
+      players: new Map(m.players.map(p => [p.id, {id: p.id, name: p.name, blade: p.blade, s: keep?.players.get(p.id)?.s || null, at: 0, score: 0, out: m.alive ? !m.alive.includes(p.id) : false}]))};
+    screen = 'watch'; held.clear(); renderWatch();
+  }
+  function renderWatch() {
+    const ps = [...watch.players.values()], duel = watch.mode === 'duel';
+    host.innerHTML = `<section class="room-heading game-heading"><div><p class="eyebrow">WATCHING · ${duel ? 'ONLINE DUEL' : 'ONLINE FREE-FOR-ALL'} · ROUND ${watch.round}</p><h1>${duel ? ps.map(p => esc(p.name)).join(' vs. ') : 'Last board standing.'}</h1></div>
+      <div class="match-tools"><span id="ol-clock">0:00</span><button id="ol-stopwatch">Back to lobby</button></div></section>
+      <div class="ol-watch ${duel ? 'ol-watch-duel' : 'ol-watch-ffa'}">${ps.map(p => `<section class="challenge-board ol-watched" id="ow-${p.id}"><div class="board-header"><div><strong>${esc(p.name)}</strong><span id="ows-${p.id}">${esc(p.blade?.name || '')}</span></div><div class="next-piece"><span>NEXT</span><canvas id="own-${p.id}"></canvas></div></div><div class="board-frame"><canvas id="owc-${p.id}" role="img" aria-label="${esc(p.name)} board"></canvas></div><div class="challenge-board-foot"><strong id="owsc-${p.id}"></strong><span id="owi-${p.id}"></span></div></section>`).join('')}</div>
+      <p class="ol-net" id="ol-net">${statusLine()}</p><div id="ol-results"></div>`;
+    $('#ol-stopwatch').onclick = () => { net.send({t: 'unwatch'}); watch = null; room = null; screen = 'home'; paint(); };
+    watchResults();
+  }
+  function watchResults() {
+    const box = $('#ol-results'); if (!watch || !box) return;
+    const r = watch.result; if (!r) { box.innerHTML = ''; return; }
+    const win = r.placements.find(p => p.place === 1);
+    box.innerHTML = `<section class="panel challenge-result-card ol-result"><div><p class="eyebrow">${watch.mode === 'duel' ? 'DUEL OVER' : 'TABLE CLEARED'}</p><h2>${esc(win?.name || 'No one')} wins.</h2>
+      ${watch.mode === 'ffa' ? `<ol class="ol-placements">${r.placements.map(p => `<li><span>${PLACE[p.place]}</span>${esc(p.name)}</li>`).join('')}</ol>` : ''}<p class="muted">Stay to watch the rematch, or head back to the lobby.</p></div>
+      <div class="button-row"><button id="ol-watch-back">Back to lobby</button></div></section>`;
+    $('#ol-watch-back').onclick = () => { net.send({t: 'unwatch'}); watch = null; room = null; screen = 'home'; paint(); };
+  }
+  function drawSnap(cv, nextCv, s, at, seed, r) {
+    if (!cv) return;
+    if (!s) { drawBoard(cv, {board: Array.from({length: H}, () => Array(6).fill(null)), active: null, phase: 'entry', timer: 0}, {reduced: prefs.reduced}); return; }
+    const age = Math.min(250, performance.now() - at);
+    const p = {board: s.b, active: s.d ? null : s.a, phase: s.ph, timer: (s.tm || 0) - age, wave: s.w, clearDuration: s.cd, clearCellMs: s.cc, motion: s.mo, motionDuration: s.md, attackVisual: s.av,
+      fall: s.ph === 'fall' ? (s.f || 0) + Math.max(0, age - (s.sg || 0)) : s.f || 0, fast: s.fa, spawnGrace: Math.max(0, (s.sg || 0) - age)};
+    if (p.phase === 'attack' && !p.attackVisual) p.phase = 'settle';
+    drawBoard(cv, p, {gravityMs: r.gravityMs, fastFallMs: r.fastFallMs, reduced: prefs.reduced});
+    if (nextCv) drawNext(nextCv, pairAt(seed, s.n || 0, r.breakerRate));
+  }
+  function renderWatchFrame() {
+    const r = rules(), now = performance.now();
+    for (const p of watch.players.values()) {
+      drawSnap($('#owc-' + p.id), $('#own-' + p.id), p.s, p.at, watch.seed, r);
+      const el = $('#ow-' + p.id); if (el) el.classList.toggle('eliminated', !!p.out);
+      set('#ows-' + p.id, p.left ? 'Left' : p.out ? 'Out' : p.s?.q ? p.s.q + ' incoming' : (p.blade?.name || 'In play'));
+      set('#owsc-' + p.id, watch.mode === 'ffa' ? (p.score || 0).toLocaleString() : '');
+    }
+    const wait = watch.startAt - now; set('#ol-clock', wait > 0 ? 'Starting…' : mmss(-wait));
+  }
 
   // ---------- the match ----------
   function boardHTML(id, label, sub, mini, mine) {
@@ -200,6 +284,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     if (match.mode === 'duel') match.game.players[1].board = s.b;             // keeps sent horizontal swords aimed sensibly
   }
   function render(time) {
+    if (screen === 'watch' && watch) { renderWatchFrame(); return; }
     const m = match; if (!m || screen !== 'match') return;
     const me = m.game.players[0], now = performance.now();
     drawBoard($('#challenge-board-0'), me, {time, gravityMs: m.rules.gravityMs, fastFallMs: m.rules.fastFallMs, ghost: prefs.ghost, reduced: prefs.reduced, renderAheadMs: m.started && !m.over ? acc : 0});
@@ -248,7 +333,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const tally = players.length ? players.map(p => `${esc(p.name)} <b>${p.wins}</b>`).join(' · ') : '';
     box.innerHTML = `<section class="panel challenge-result-card ol-result ${won ? 'win' : 'loss'}"><div><p class="eyebrow">${won ? 'VICTORY' : m.mode === 'duel' ? 'DEFEAT' : (PLACE[mine?.place] || '') + ' PLACE'}</p><h2>${title}</h2>
       ${m.mode === 'ffa' ? `<ol class="ol-placements">${r.placements.map(p => `<li class="${p.id === m.you ? 'you' : ''}"><span>${PLACE[p.place]}</span>${esc(p.id === m.you ? (name || 'You') : p.name)}</li>`).join('')}</ol>` : ''}
-      <p class="muted">${tally ? 'Wins at this table: ' + tally : ''}${notice ? '<br>' + esc(notice) : ''}</p></div>
+      <p class="muted">${typeof mine?.change === 'number' ? `Rating ${mine.change >= 0 ? '+' : ''}${mine.change}` + (tally ? ' · ' : '') : ''}${tally ? 'Wins at this table: ' + tally : ''}${notice ? '<br>' + esc(notice) : ''}</p></div>
       <div class="button-row">${canRematch ? `<button class="primary" id="ol-rematch" ${meRow?.rematch ? 'disabled' : ''}>${meRow?.rematch ? (waiting.length ? 'Waiting for ' + esc(waiting.join(', ')) : 'Starting…') : 'Rematch'}</button>` : `<button class="primary" id="ol-again">Find another match</button>`}<button id="ol-lobby">Back to lobby</button></div></section>`;
     $('#ol-rematch')?.addEventListener('click', () => net.send({t: 'rematch'}));
     $('#ol-again')?.addEventListener('click', () => { net.send({t: 'leave'}); match = null; room = null; notice = ''; net.send({t: 'quick', mode}); screen = 'queue'; paint(); });
@@ -271,13 +356,14 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   addEventListener('keyup', e => release(e.code), {signal: life.signal});
   addEventListener('blur', () => { for (const code of [...held.keys()]) release(code); }, {signal: life.signal});
 
+  const listTick = setInterval(() => { if (screen === 'home') paintLists(); }, 5000);
   paint(); raf = requestAnimationFrame(frame);
   const api = {
     isActive: () => !!match && !match.over && !match.game.players[0].dead,
     pause: () => {},
     leave: leaveMatch,
     getState: () => ({screen, mode, status: net.status, room, match: match ? {mode: match.mode, you: match.you, seed: match.seed, started: match.started, over: match.over, result: match.result, sent: match.sent, score: match.score, target: match.target, dead: match.game.players[0].dead, turn: match.game.players[0].turn, incoming: match.game.players[0].incoming.length, rivals: [...match.rivals.values()].map(r => ({id: r.id, name: r.name, out: r.out, hasState: !!r.s}))} : null}),
-    destroy() { disposed = true; life.abort(); cancelAnimationFrame(raf); held.clear(); net.close(); if (globalThis.__scrapsOnline === api) delete globalThis.__scrapsOnline; },
+    destroy() { disposed = true; clearInterval(listTick); life.abort(); cancelAnimationFrame(raf); held.clear(); net.close(); if (globalThis.__scrapsOnline === api) delete globalThis.__scrapsOnline; },
     _net: net,
   };
   globalThis.__scrapsOnline = api;   // for QA scripts and debugging
