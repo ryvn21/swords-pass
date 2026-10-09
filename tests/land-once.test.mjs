@@ -35,3 +35,13 @@ test('stall flips still reset the lock while landed', () => {
   command(m, 0, 'cw'); command(m, 0, 'cw');
   assert.ok(p.lock < before); step(m, 300, []); assert.equal(p.turn, turn);
 });
+
+test('with no landing grace, stalling still works in the air: two flips hold the pair on its row', async () => {
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const m = createMatch({mode: 'practice', seed: 11, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0];
+  assert.equal(HOUSE_RULES.lockMs, 0);
+  let guard = 0; while (!(p.phase === 'fall' && p.active && !p.active.entering) && guard++ < 2000) step(m, 16, []);
+  step(m, 3000, []); const row = p.active.y;                 // 3 of the 4 s on this row
+  command(m, 0, 'cw'); command(m, 0, 'cw');                   // stall: the fall timer resets
+  step(m, 2000, []); assert.equal(p.active.y, row, 'held on the same row');
+});
