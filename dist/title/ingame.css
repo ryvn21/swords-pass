@@ -1146,3 +1146,6 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .fb-them-tools{display:flex;gap:10px;justify-content:center;margin-top:4px}
 .fb-them-tools button:not(#_){font-size:13px;min-height:0;padding:2px 6px}
 .fb-them-tools button::before,.fb-them-tools button::after{content:none!important;display:none!important}
+.handling-presets{display:flex;gap:16px;flex-wrap:wrap}
+.zen-night{display:block;font:400 11px var(--tt-ui);color:#9f8a6c;letter-spacing:.06em;margin:-2px 0 6px}
+#zm-night::before,#zm-night::after{content:none!important;display:none!important}

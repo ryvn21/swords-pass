@@ -8,6 +8,7 @@ import {readMix, writeMix} from './audio-settings.js';
 import {openPatchNotes} from './patch-notes.js';
 import {offensive} from '../name-filter.js';
 import {setActivity, onPresence, presenceCounts, ACTIVITY_LABEL} from '../presence.js';
+import {cycleNight, nightLabel, onNight} from './night.js';
 
 const META = {W: 960, H: 540, window: [372, 588, 103, 367], portrait: {x: 703, y: 158}, vista: [400, 359, 130],
   lanterns: [[65, 88], [896, 88]], fire: [753, 418],
@@ -112,6 +113,8 @@ function buildDom() {
   const musicBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-music'});
   const ambBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-ambience'});
   const setBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-settings', text: 'Settings'});
+  const nightBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-night', text: nightLabel()});
+  nightBtn.onclick = e => { e.stopPropagation(); cycleNight(); }; onNight(n => { nightBtn.textContent = nightLabel(n); });
   syncToggles = () => {
     musicBtn.textContent = 'Music ' + (mix.musicOn ? 'on' : 'off'); musicBtn.setAttribute('aria-pressed', String(mix.musicOn));
     ambBtn.textContent = 'Ambience ' + (mix.ambienceOn ? 'on' : 'off'); ambBtn.setAttribute('aria-pressed', String(mix.ambienceOn));
@@ -134,7 +137,7 @@ function buildDom() {
     el('div', {class: 'tt-ui'}, [
       logo, prompt, menuWrap, gallery,
       el('div', {class: 'tt-corner tt-bl'}, [notesBtn, who]),
-      el('div', {class: 'tt-corner tt-right'}, [musicBtn, ambBtn, setBtn]),
+      el('div', {class: 'tt-corner tt-right'}, [musicBtn, ambBtn, nightBtn, setBtn]),
     ]),
   ]);
   document.body.append(root);

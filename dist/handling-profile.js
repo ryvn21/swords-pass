@@ -9,7 +9,7 @@ export function migrateSpawnAdjustment(prefs={}){
  return {...prefs,spawnAdjustmentVersion:2,rules:{...prefs.rules,spawnGraceMs}};
 }
 export const HANDLING_FIELDS=[
- ['gravityMs','Natural fall per row',150,3000,10],
+ ['gravityMs','Natural fall per row',150,4000,10],
  ['fastFallMs','Fast fall per row',16,600,5],
  ['lockMs','Landing grace',0,650,10],
  ['entryMs','Next pair delay',0,300,5],
@@ -33,7 +33,12 @@ export function handlingRules(input={}){
 // The house setup: what new players start with, what "Restore defaults" returns to, and the
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 export const HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:550,dropBufferMs:160,stallFlips:3,wellFlip:true});
-export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES}];
+// Legacy: Puzzle Pirates' own timings, converted from its 40 px rows. Natural fall is its starting speed at
+// difficulty 0 (0.01 px/ms, 4 s a row), held steady (no speed-ups); Space 0.8 px/ms (50 ms a row); strikes and
+// loose blocks 1.2 px/ms (33 ms a row, about 430 ms down the whole board); breaks staggered 75 ms by depth with a
+// 150 ms pause; held movement 300 ms then about 7 steps a second (that unit is a guess).
+export const LEGACY_RULES=handlingRules({...HOUSE_RULES,gravityMs:4000,fastFallMs:50,attackMs:430,settleMs:33,waveMs:75,clearMs:150,repeatDelayMs:300,repeatMs:143});
+export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES},{id:'legacy',label:'Legacy (Puzzle Pirates)',rules:LEGACY_RULES}];
 // One-time switch of every saved timing setup to the house presets (key bindings are left alone).
 // v3: natural fall slowed to 2400 ms (topping out by accident was too easy); anyone still on 1600 moves.
 // v4: attacks drop in over 550 ms instead of 400 (easier to read what landed); anyone still on 400 moves.
