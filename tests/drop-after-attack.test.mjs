@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createMatch, step, command, VERSION} from '../dist/engine.js';
 
 // A drop pressed while an attack is landing on you counts for the next pair, however early.
-test('a drop pressed during an incoming attack drops the next pair at once', () => {
+test('a drop pressed during an incoming attack and held drops the next pair at once', () => {
   const m = createMatch({mode: 'duel', seed: 7, rules: {entryMs: 0, spawnGraceMs: 0, attackMs: 400, dropBufferMs: 160}});
   assert.equal(m.version, VERSION);
   const p = m.players[0];
@@ -12,9 +12,21 @@ test('a drop pressed during an incoming attack drops the next pair at once', () 
   command(m, 0, 'fastOn');
   let guard = 0; while (p.phase !== 'attack' && guard++ < 2000) step(m, 16, []);
   assert.equal(p.phase, 'attack');
-  command(m, 0, 'fastOff'); command(m, 0, 'fastOn'); command(m, 0, 'fastOff'); // a tap, early in the attack
+  command(m, 0, 'fastOff'); command(m, 0, 'fastOn');   // pressed early in the attack and held
   guard = 0; while (!(p.phase === 'fall' && p.active) && guard++ < 2000) step(m, 16, []);
   assert.equal(p.fast, true);
+});
+
+test('a tap during an incoming attack does not drop the next pair (no accidental double-tap drops)', () => {
+  const m = createMatch({mode: 'duel', seed: 7, rules: {entryMs: 0, spawnGraceMs: 0, attackMs: 550, dropBufferMs: 160}});
+  const p = m.players[0];
+  for (let i = 0; i < 10 && p.phase !== 'fall'; i++) step(m, 16, []);
+  p.incoming.push({kind: 'batch', id: 999, sourceTurn: 0, due: p.turn + 1, attacks: [{kind: 'sprinkle', count: 3, hand: 1, id: 998, pattern: p.pattern}]});
+  command(m, 0, 'fastOn');
+  let guard = 0; while (p.phase !== 'attack' && guard++ < 2000) step(m, 16, []);
+  command(m, 0, 'fastOff'); command(m, 0, 'fastOn'); command(m, 0, 'fastOff');   // the second tap of a double tap
+  guard = 0; while (!(p.phase === 'fall' && p.active) && guard++ < 2000) step(m, 16, []);
+  assert.equal(p.fast, false);
 });
 
 test('a column filled to the top is a wall: a pair above the board cannot slide over it', async () => {

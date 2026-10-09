@@ -32,14 +32,18 @@ export function handlingRules(input={}){
 }
 // The house setup: what new players start with, what "Restore defaults" returns to, and the
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
-export const HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
+export const HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:550,dropBufferMs:160,stallFlips:3,wellFlip:true});
 export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES}];
 // One-time switch of every saved timing setup to the house presets (key bindings are left alone).
 // v3: natural fall slowed to 2400 ms (topping out by accident was too easy); anyone still on 1600 moves.
+// v4: attacks drop in over 550 ms instead of 400 (easier to read what landed); anyone still on 400 moves.
 export function migrateToHouse(prefs={}){
- const v=prefs.houseVersion??0;if(v>=3)return prefs;
- if(v<2)return {...prefs,houseVersion:3,rules:{...(prefs.rules||{}),...HOUSE_RULES}};
- const r=prefs.rules||{};return {...prefs,houseVersion:3,rules:r.gravityMs===1600||r.gravityMs===undefined?{...r,gravityMs:HOUSE_RULES.gravityMs}:r};
+ const v=prefs.houseVersion??0;if(v>=4)return prefs;
+ if(v<2)return {...prefs,houseVersion:4,rules:{...(prefs.rules||{}),...HOUSE_RULES}};
+ let r={...(prefs.rules||{})};
+ if(v<3&&(r.gravityMs===1600||r.gravityMs===undefined))r.gravityMs=HOUSE_RULES.gravityMs;
+ if(r.attackMs===400||r.attackMs===undefined)r.attackMs=HOUSE_RULES.attackMs;
+ return {...prefs,houseVersion:4,rules:r};
 }
 
 // Key bindings: each action can have several keys (e.g. fast fall on Space or G).

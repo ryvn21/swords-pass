@@ -106,8 +106,8 @@ export function command(state,side,action){
   const fast=action==='fastOn';
   // fastOn is a fresh press. A press before a pair exists never arms the next one, unless the
   // rules give an early-press window (dropBufferMs): a fresh press that close to the spawn counts.
-  if(!fast)p.fastBuffered=null;
-  // a press while an attack is landing on you (or settling after it) is kept for the next pair, however early
+  if(!fast){p.fastBuffered=null;p.fastAfterAttack=false;}   // a press during an attack only carries over while it's still held
+  // a press while an attack is landing on you (or settling after it) drops the next pair at once if you're still holding it
   if(fast){if(p.phase!=='fall'||!p.active){if(p.underAttack)p.fastAfterAttack=true;if(state.rules.dropBufferMs>0)p.fastBuffered=state.elapsed;return false;}p.spawnGrace=0;}
   if(fast!==p.fast){
    const oldSpeed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;
