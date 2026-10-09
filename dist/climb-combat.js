@@ -44,7 +44,8 @@ export function tickCombat(r,emit){
   room.sentSprinkles+=sprinkles;room.sentSwords+=swords;emit('attack-sent',{sprinkles,swords});return boosted;
  }});
  // Second Wind: once per encounter, when column 4 reaches row 10, the top five rows shatter.
- if(room.effect.secondWind&&!room.windUsed&&p.phase==='fall'&&!p.dead&&p.board[9]?.[3]){room.windUsed=true;let n=0;for(let y=8;y<p.board.length;y++)for(let x=0;x<p.board[y].length;x++)if(p.board[y][x]){p.board[y][x]=null;n++;}emit('second-wind',{cleared:n});}
+ // Second Wind is a rescue, not a tidy-up: it fires only when column 4 is one row from topping out, and clears the top four rows
+ if(room.effect.secondWind&&!room.windUsed&&p.phase==='fall'&&!p.dead&&p.board[p.board.length-2]?.[3]){room.windUsed=true;let n=0;for(let y=p.board.length-4;y<p.board.length;y++)for(let x=0;x<p.board[y].length;x++)if(p.board[y][x]){p.board[y][x]=null;n++;}emit('second-wind',{cleared:n});}
  const bot=r.game.players[1];if(room.bot&&bot.nextIndex!==botIndex&&bot.active)bot.active.pair=pairAt(r.game.seed,bot.nextIndex-1,r.rules.breakerRate);
  for(const event of r.game.events){
   if(event.type==='clear'&&event.side===0){

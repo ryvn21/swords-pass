@@ -33,7 +33,7 @@ function trail(depth, nextCheckpoint) {
 const GIVES = {scorePercent: n => `+${n}% clear points`, chainBonus: n => `+${n} per chain stage`, breakerBonus: n => `+${Math.round(n * 100)}% breakers`,
   attackDelayMs: n => `timed waves ${n / 1000}s slower`, sprinkleBonus: n => `+${n} sprinkle${n === 1 ? '' : 's'} per attack`, strikeHeightBonus: n => `+${n} sword height`,
   waveWard: n => `${n} wave${n === 1 ? '' : 's'} turned aside`, swordWidthBonus: n => `+${n} sword width`, blockBounty: n => `+${n} per block broken`,
-  secondWind: () => 'ready once per encounter', attackHasteMs: n => `waves ${n / 1000}s sooner`, chainSprinkles: n => `+${n} sprinkles on ×3 chains`};
+  secondWind: () => 'saves you once per encounter', attackHasteMs: n => `waves ${n / 1000}s sooner`, chainSprinkles: n => `+${n} sprinkles on ×3 chains`};
 const gives = u => (u.effects || []).map(e => GIVES[e.kind]?.(e.current ?? e.amount ?? 0)).filter(Boolean).join(' · ');
 let bonusShown = '';
 // ---------- your blade: one sword that grows with every relic rank you earn this run ----------
