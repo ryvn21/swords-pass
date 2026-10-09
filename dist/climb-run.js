@@ -1,13 +1,25 @@
 /** Climb policy v1. Each new round checkpoints carry and starts a bounded journal. */
-import {clone,command,validatePattern,VERSION} from './engine.js';
+import {clone,command,validatePattern,VERSION,random} from './engine.js';
 import {handlingRules} from './handling-profile.js';
 import {equippedSword} from './swords.js';
-import {numberIn,rewardChoices,stacksOf} from './rogue-content.js';
+import {numberIn,rewardChoices,stacksOf,RARITIES} from './rogue-content.js';
 import {upgradePreview} from './rogue-upgrades.js';
 import {DEFAULT_CLIMB,validateClimb} from './climb-content.js';
 import {encounterOffers,bonusEncounter,isCheckpoint} from './climb-generator.js';
 import {objectiveProgress} from './climb-objectives.js';
 import {openCombat,tickCombat,combatMetrics,TICK_MS} from './climb-combat.js';
+// Rewards are a real choice: one relic for attack, one for defence, one for fortune, so every pick
+// trades one way of playing for another. Rares grow likelier the deeper you go; legendaries wait
+// until depth 5; a few relics only appear late (Broad Edge turns any double sword into a kill).
+const GROUP={sprinkleBonus:'attack',strikeHeightBonus:'attack',swordWidthBonus:'attack',chainSprinkles:'attack',attackDelayMs:'defence',waveWard:'defence',secondWind:'defence',scorePercent:'fortune',chainBonus:'fortune',blockBounty:'fortune',breakerBonus:'fortune'};
+export const LATE=Object.freeze({'broad-edge':20});
+export function climbOffers(eligible,seed,index,depth){
+ const rng=random(seed^Math.imul(index+1,0x2b8f1c7)),weight=u=>u.rarity==='legendary'?(depth>=5?RARITIES.legendary*(1+depth/10):0):u.rarity==='rare'?RARITIES.rare*(1+depth/6):RARITIES.common;
+ const groupOf=u=>GROUP[u.effects?.[0]?.kind]??'fortune',pick=bag=>{const live=bag.filter(u=>weight(u)>0);if(!live.length)return null;let t=rng()*live.reduce((n,u)=>n+weight(u),0);for(const u of live)if((t-=weight(u))<=0)return u;return live.at(-1);};
+ const out=[];for(const g of ['attack','defence','fortune']){const u=pick(eligible.filter(x=>groupOf(x)===g&&!out.includes(x.id)));if(u)out.push(u.id);}
+ while(out.length<3){const u=pick(eligible.filter(x=>!out.includes(x.id)));if(!u)break;out.push(u.id);}
+ return out;
+}
 export const CLIMB_VERSION=1,MAX_ROUND_TICKS=10800,MAX_ROUND_COMMANDS=60000;
 export const CLIMB_INPUTS=Object.freeze(['left','right','cw','ccw','fastOn','fastOff']);
 const CARRY_KEYS=['depth','lastBonusDepth','totalTicks','totalScore','totalBlocks','bestCombo','inventory','recent','results','eventId'];
@@ -64,7 +76,7 @@ function finish(r,success,reason){
  emit(r,'encounter-completed',{success,bonus:e.bonus,depth:r.depth,completionPoints:completion});
  if(!success){r.phase='result';r.offers=[];return;}
  const eligible=r.content.upgrades.filter(u=>upgradePreview(r.content,r.inventory,u.id,r.rules).effects.some(e=>e.next>e.current));
- r.offers=rewardChoices({...r.content,upgrades:eligible},r.inventory,r.seed,r.depth*2+(e.bonus?1:0));
+ r.offers=climbOffers(eligible.filter(u=>!(LATE[u.id]>r.depth)),r.seed,r.depth*2+(e.bonus?1:0),r.depth);
  // Explicit, useful fallback until next-encounter rewards arrive in milestone 2.
  if(!r.offers.length)r.offers=['bank-points'];r.phase='reward';emit(r,'rewards-offered',{ids:[...r.offers]});
 }

@@ -33,6 +33,17 @@ export function objectiveStatus(progress){
  if(progress.items)return progress.items.map(objectiveStatus).join(progress.kind==='all'?' · ':' or ');
  const {kind,value,target,complete}=progress;
  if(kind==='defeat')return complete?'Opponent defeated':'Defeat opponent';
- if(kind==='sword')return complete?`${swordSize(target)} sword formed`:`Biggest ${value?swordSize(value):'none'} / ${swordSize(target)}`;
+ if(kind==='sword')return complete?`${swordSize(target)} sword forged`:`Best ${value?swordSize(value):'none yet'} · need ${swordSize(target)}`;
  return kind==='survive'?`${Math.floor(value/1000)} / ${Math.ceil(target/1000)}s`:`${value} / ${target}${kind==='combo'?' combo':kind==='blocks'?' blocks':' points'}`;
+}
+// One line on how to do it, for the briefing and the encounter banner.
+export function objectiveHint(o){
+ if(o.items)return objectiveHint(o.items[0]);
+ const k=o.kind;
+ return k==='sword'?`Stack one colour into a solid block ${swordSize(o.target)} or bigger, then break it with a matching breaker.`
+  :k==='combo'?`Build breaks that fall into each other: each one that sets off the next adds a step.`
+  :k==='blocks'?'Every block you break counts. Big gems count in full.'
+  :k==='score'?'Combos and big gems score far more than single breaks.'
+  :k==='survive'?'Keep column 4 clear until the clock runs out. Attacks land between pairs.'
+  :'Top them out before they top you out.';
 }

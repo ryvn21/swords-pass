@@ -159,6 +159,15 @@ const waiting = [];
 setInterval(() => { if (waiting.length && !globalThis.scrapsInPlay?.()) waiting.splice(0).forEach((args, i) => setTimeout(() => show(...args), i * 450)); }, 700);
 function toast(...args) { if (globalThis.scrapsInPlay?.()) waiting.push(args); else show(...args); }
 function show(canvas, small, title, line) {
+  // an end-of-game card on screen collects them instead (its .eg-unlocks shelf)
+  const shelf = [...document.querySelectorAll('.eg-unlocks')].find(e => e.isConnected && e.parentElement?.offsetParent !== null);
+  if (shelf) {
+    const t = document.createElement('div'); t.className = 'eg-unlock'; canvas.classList.add('eg-unlock-icon');
+    const txt = document.createElement('div'); for (const [tag, v] of [['small', small], ['strong', title], ['span', line]]) if (v) { const e = document.createElement(tag); e.textContent = v; txt.append(e); }
+    t.append(canvas, txt); shelf.append(t); shelf.hidden = false;
+    try { globalThis.scrapsSfx?.('win', 1, read('preferences', {})); } catch {}
+    return;
+  }
   if (!toastHost) { toastHost = document.createElement('div'); toastHost.className = 'pg-toasts'; toastHost.setAttribute('role', 'status'); document.body.append(toastHost); }
   const t = document.createElement('div'); t.className = 'pg-toast'; canvas.classList.add('pg-toast-icon');
   const txt = document.createElement('div'); for (const [tag, v] of [['small', small], ['strong', title], ['span', line]]) if (v) { const e = document.createElement(tag); e.textContent = v; txt.append(e); }

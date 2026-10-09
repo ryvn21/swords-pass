@@ -175,7 +175,7 @@ function setup(host) {
 let lastPhase = '';
 function banner(v, b) {
   const box = document.createElement('div'); box.className = 'adv-banner'; box.style.setProperty('--acc', b.accent);
-  const what = v.opponent ? `Duel · ${v.opponent.difficulty} rival` : 'Hold the line';
+  const what = v.opponent ? `Duel · ${v.opponent.difficulty} rival` : (v.objectiveText || 'Hold the line');
   box.innerHTML = `<small>${b.name.toUpperCase()}</small><strong>Encounter ${v.encounter?.depth ?? v.depth + 1}</strong><span>${what}</span>`;
   document.body.append(box); setTimeout(() => box.remove(), 2400);
 }

@@ -23,7 +23,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   const $ = q => host.querySelector(q), life = new AbortController(), held = new Map();
   let mode = globalThis.scrapsOnlineMode || read('online-mode', 'duel'); if (!['duel', 'ffa'].includes(mode)) mode = 'duel';
   let name = read('online-name', '') || '', screen = 'home', room = null, queueInfo = null, match = null, notice = '', raf = 0, last = 0, acc = 0, disposed = false;
-  let lobby = null, listTab = read('online-tab', 'live'), watch = null;
+  let lobby = null, listTab = read('online-tab', 'live'), watch = null, series = null;   // series: the games played at this table with these rivals
   // this browser's own id for the leaderboard (an account-free "this browser's record"); never shown to anyone
   let pid = read('player-id', ''); if (!/^[A-Za-z0-9_-]{12,64}$/.test(pid)) { pid = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); save('player-id', pid); }
   const record = read('online-record', {duel: {w: 0, l: 0}, ffa: {w: 0, played: 0}});
@@ -188,8 +188,10 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     clearTimeout(b.t); b.t = setTimeout(() => b.classList.remove('active'), 950);
   }
   function paintLog(log, box, me) {
-    if (!box || box.dataset.v === String(log.version)) return; box.dataset.v = log.version;
-    box.innerHTML = log.entries.length ? log.entries.map(c => comboHTML(c, {who: c.who === me ? 'You' : nameOf(c.who), mine: c.who === me, to: !c.to ? '' : me && c.to === me ? (c.who !== me ? 'you' : '') : nameOf(c.to)})).join('') : '<p class="muted">No combos yet.</p>';
+    if (!box || box.dataset.v === String(log.version) + (match?.target || '')) return; box.dataset.v = String(log.version) + (match?.target || '');
+    // a free-for-all shows what concerns you: your combos, combos sent at you, and your target's
+    const shown = me && match?.mode === 'ffa' ? log.entries.filter(c => c.who === me || c.to === me || c.who === match.target) : log.entries;
+    box.innerHTML = shown.length ? shown.map(c => comboHTML(c, {who: c.who === me ? 'You' : nameOf(c.who), mine: c.who === me, to: !c.to ? '' : me && c.to === me ? (c.who !== me ? 'you' : '') : nameOf(c.to)})).join('') : '<p class="muted">No combos yet.</p>';
   }
 
   // ---------- watching someone else's match ----------
@@ -266,6 +268,8 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
       target: others[0]?.id ?? null, aims: new Map(), sent: 0, score: 0, blocks: 0, combo: 0, snapAt: 0, lastSnap: '', sentDead: false, over: false, result: null,
       hazard: m.mode === 'ffa' ? hazardAt(m.seed, 0, DEFAULT_PROGRESSION) : null, incomingFrom: null, incomingAt: 0, introDone: false,
       log: createComboLog({limit: 10}), lastHit: null, lastSent: null, playout: null, shownAt: 0};
+    const key = m.mode + ':' + m.players.map(p => p.id).sort().join(',');
+    if (series?.key !== key) series = {key, mode: m.mode, rounds: []};
     screen = 'match'; notice = ''; held.clear(); renderMatch();
     if (m.mode === 'duel' && globalThis.scrapsIntro && others[0]) {
       const b = blade();
@@ -417,8 +421,23 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function placementsHTML(r, you, who) {
     return `<ol class="ol-placements">${r.placements.map(p => { const x = who(p.id); return `<li class="${p.id === you ? 'you' : ''}"><span>${PLACE[p.place]}</span><b>${esc(p.id === you ? (name || 'You') : p.name)}</b><small>${[(x?.s?.c || x?.best) ? 'best ×' + (x.s?.c || x.best) : '', typeof p.change === 'number' ? (p.change >= 0 ? '+' : '') + p.change : ''].filter(Boolean).join(' · ')}</small></li>`; }).join('')}</ol>`;
   }
+  // this game, into the set: swords sent and best combo for everyone (rivals' from their combos and boards)
+  function recordRound(m) {
+    if (!series || series.rounds.some(r => r.round === m.round)) return;
+    const me = m.game.players[0], row = {round: m.round, winner: m.result.winner, players: {[m.you]: {sent: m.sent, best: me.stats.bestChain}}};
+    for (const r of m.rivals.values()) row.players[r.id] = {sent: r.sent || 0, best: r.s?.c || 0};
+    series.rounds.push(row);
+  }
+  function setHTML(m) {
+    if (!series?.rounds.length) return '';
+    const n = series.rounds.length, ids = [m.you, ...m.rivals.keys()], who = id => id === m.you ? (name || 'You') : m.rivals.get(id)?.name || 'Rival';
+    const rows = ids.map(id => { const games = series.rounds.filter(r => r.players[id]), wins = series.rounds.filter(r => r.winner === id).length, sent = games.reduce((a, r) => a + r.players[id].sent, 0), best = Math.max(0, ...games.map(r => r.players[id].best || 0));
+      return `<tr class="${id === m.you ? 'you' : ''}"><td>${esc(who(id))}</td><td>${wins}</td><td>${games.length ? (sent / games.length).toFixed(1) : '\u2013'}</td><td>${best > 1 ? '\u00d7' + best : '\u2013'}</td></tr>`; }).join('');
+    return `<table class="eg-set"><caption>${n === 1 ? 'This game' : `This set \u00b7 ${n} games`}</caption><tr><th></th><th>Wins</th><th>Swords / game</th><th>Best combo</th></tr>${rows}</table>`;
+  }
   function updateResults() {
     const m = match, box = $('#ol-results'); if (!m || !m.result || !m.shownAt || !box) return;
+    recordRound(m);
     const r = m.result, won = r.winner === m.you, mine = r.placements.find(p => p.id === m.you), others = [...m.rivals.values()], me = m.game.players[0];
     const players = room?.players || [], meRow = players.find(p => p.id === m.you), waiting = players.filter(p => !p.rematch && p.id !== m.you).map(p => p.name);
     const canRematch = players.length >= 2 && room?.state === 'results';
@@ -426,12 +445,15 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const tally = players.length > 1 ? players.map(p => `${esc(p.name)} <b>${p.wins}</b>`).join(' · ') : '';
     const b = blade(), stats = [[m.mode === 'duel' ? 'Swords sent' : 'Score', m.mode === 'duel' ? m.sent : m.score.toLocaleString()], ['Best combo', me.stats.bestChain ? '×' + me.stats.bestChain : '–'], ['Pairs', me.stats.pieces], ['Time', mmss(m.game.elapsed)]];
     if (typeof mine?.change === 'number') stats.push(['Rating', (mine.change >= 0 ? '+' : '') + mine.change]);
+    const kept = [...box.querySelectorAll('.eg-unlock')];
     box.innerHTML = `<div class="ol-veil"><section class="pause-card endgame ol-end ${won ? 'win' : 'loss'}"><div class="eg-banner"><span>${won ? 'VICTORY' : m.mode === 'duel' ? 'DEFEAT' : (PLACE[mine?.place] || '').toUpperCase() + ' PLACE'}</span></div>
       <div class="eg-blade">${swordIcon(b.iconId)}</div><h2>${title}</h2>
       <dl class="eg-stats">${stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+      ${setHTML(m)}<div class="eg-unlocks" hidden></div>
       ${m.mode === 'ffa' ? placementsHTML(r, m.you, id => id === m.you ? {best: me.stats.bestChain} : {best: m.rivals.get(id)?.s?.c}) : ''}
-      ${tally || notice ? `<p class="muted">${tally ? 'Wins at this table: ' + tally : ''}${notice ? (tally ? '<br>' : '') + esc(notice) : ''}</p>` : ''}
+      ${notice ? `<p class="muted">${esc(notice)}</p>` : ''}
       <div class="eg-actions">${canRematch ? `<button class="primary" id="ol-rematch" ${meRow?.rematch ? 'disabled' : ''}>${meRow?.rematch ? (waiting.length ? 'Waiting for ' + esc(waiting.join(', ')) : 'Starting…') : 'Rematch'}</button>` : `<button class="primary" id="ol-again">Find another match</button>`}<button id="ol-lobby">Back to lobby</button></div></section></div>`;
+    const shelf = box.querySelector('.eg-unlocks'); if (shelf && kept.length) { shelf.append(...kept); shelf.hidden = false; }
     $('#ol-rematch')?.addEventListener('click', () => net.send({t: 'rematch'}));
     $('#ol-again')?.addEventListener('click', () => { net.send({t: 'leave'}); match = null; room = null; notice = ''; net.send({t: 'quick', mode}); screen = 'queue'; paint(); });
     $('#ol-lobby')?.addEventListener('click', () => { net.send({t: 'leave'}); match = null; room = null; notice = ''; screen = 'home'; paint(); });
@@ -456,6 +478,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   paint(); raf = requestAnimationFrame(frame);
   const api = {
     isActive: () => !!match && !match.over && !match.game.players[0].dead,
+    inPlay: () => !!match && screen === 'match' && (!match.over || !match.shownAt),
     pause: () => {},
     leave: leaveMatch,
     getState: () => ({screen, mode, status: net.status, room, match: match ? {mode: match.mode, you: match.you, seed: match.seed, started: match.started, over: match.over, result: match.result, sent: match.sent, score: match.score, target: match.target, dead: match.game.players[0].dead, turn: match.game.players[0].turn, incoming: match.game.players[0].incoming.length, rivals: [...match.rivals.values()].map(r => ({id: r.id, name: r.name, out: r.out, hasState: !!r.s}))} : null}),
