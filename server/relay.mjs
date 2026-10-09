@@ -3,6 +3,9 @@
 // onMessage / onClose. Each client simulates its own board; the server only routes board
 // snapshots and attack batches, and decides who topped out first.
 import {publicId as pubId} from './scores.mjs';
+import {onlineLegal} from '../dist/pattern-strength.js';
+// a blade busier than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
+const FALLBACK_BLADE = {name: 'Forgotten Falchion', iconId: 'forgotten-falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
 export const PROTOCOL = 1;
 const MODES = {duel: {min: 2, max: 2}, ffa: {min: 2, max: 4}};
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -118,6 +121,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       }
       if (typeof m.pid === 'string' && /^[A-Za-z0-9_-]{12,64}$/.test(m.pid)) { c.pid = m.pid; c.pub = pubId(m.pid); }
       c.name = clean(m.name, 16) || 'Swordhand'; c.blade = m.blade && typeof m.blade === 'object' ? {name: clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
+      if (c.blade?.rows?.length && !onlineLegal(c.blade.rows)) c.blade = {...FALLBACK_BLADE, rows: FALLBACK_BLADE.rows.map(r => [...r])};
       send(c, {t: 'welcome', id: c.id, token: c.token, protocol: PROTOCOL});
     },
     profile(c, m) { c.name = clean(m.name, 16) || c.name; if (m.blade) handlers.hello(c, {name: c.name, blade: m.blade}); const r = roomOf(c); if (r && r.state !== 'playing') sync(r); },

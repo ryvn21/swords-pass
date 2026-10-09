@@ -164,3 +164,13 @@ test('finished combos go to everyone at the table, cleaned; boards keep streamin
   assert.deepEqual(m.c.steps[2], {n: 3, g: 78, p: 2, s: [[6, 13]]}); assert.equal(a.last('combo'), undefined);
   b.say({t: 'dead'}); a.say({t: 'state', s: {b: []}, score: 0}); assert.ok(b.last('state'));
 });
+
+test('a blade busier than the curated set plays online as the Forgotten Falchion', async () => {
+  const {busyness, ONLINE_CAP} = await import('../dist/pattern-strength.js');
+  const {client} = harness(), a = client('Ann');
+  const checker = [[0,1,0,1,0,1],[1,0,1,0,1,0],[0,1,0,1,0,1],[1,0,1,0,1,0]];
+  assert.ok(busyness(checker) > ONLINE_CAP);
+  a.say({t: 'hello', name: 'Ann', blade: {name: 'Checker', iconId: 'custom', rows: checker}}); a.say({t: 'create', mode: 'duel'});
+  const me = a.last('room').players[0]; assert.equal(me.blade.name, 'Forgotten Falchion');
+  assert.ok(busyness(me.blade.rows) <= ONLINE_CAP);
+});
