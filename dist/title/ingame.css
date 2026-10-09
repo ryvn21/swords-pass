@@ -1117,3 +1117,16 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 [data-rows]{cursor:help}
 .ol-pick[data-rows],button[data-rows]{cursor:pointer}
 .ol-blade-name::before,.ol-blade-name::after,.ol-blade-pick::before,.ol-blade-pick::after,.ol-pick::before,.ol-pick::after{content:none!important;display:none!important}
+/* reward cards: what the relic does for you, and its rank */
+.rogue-rewards .relic-why:not(#_){display:block;font:400 13px/1.3 var(--tt-ui);color:#cdb894}
+.relic-why b{font:600 10px var(--tt-ui);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+.relic-why b.g-attack{color:#ff8a6a}.relic-why b.g-defence{color:#7ab8ff}.relic-why b.g-fortune{color:#ffd75e}
+.adv-pips.rank{align-items:center}
+.adv-pips.rank b{font:600 10px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:#9f8a6c;margin-right:6px;font-style:normal}
+/* no board jolt when attacks land (it threw off aim in competitive play) */
+.impact{animation:none!important}
+.ol-wheel{display:flex;align-items:center;gap:4px}
+.ol-spin:not(#_){min-height:0;padding:0 4px!important;background:none!important;border:0!important;box-shadow:none!important;font:600 26px/1 var(--tt-ui);color:var(--gold);cursor:pointer}
+.ol-spin::before,.ol-spin::after{content:none!important;display:none!important}
+.ol-spin:hover:not(#_){color:var(--parchment)}
+.adv-pips.rank small{font:600 10px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--crimson-lit);margin-left:6px}

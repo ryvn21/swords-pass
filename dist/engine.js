@@ -17,7 +17,8 @@ const dirs=[[0,1],[1,0],[0,-1],[-1,0]];
 export function cells(piece){const [dx,dy]=dirs[piece.r];return [{x:piece.x,y:piece.y,cell:piece.pair[0]},{x:piece.x+dx,y:piece.y+dy,cell:piece.pair[1]}];}
 // A pair needs a cell on the board, except while it is still entering from above (v11): then it may sit up to
 // two rows over the top. Once any part of it is on the board it can never climb back out.
-export function fits(board,piece){const occupied=cells(piece);return (piece.entering||occupied.some(({y})=>y<H))&&occupied.every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H+1&&(y>=H||!board[y][x]));}
+export function fits(board,piece){const occupied=cells(piece);return (piece.entering||occupied.some(({y})=>y<H))&&occupied.every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H+1&&(y>=H?!board[H-1][x]:!board[y][x]));}
+// (v11) a column filled to the top is a wall above the board too: nothing passes over it or lands on it until it clears
 const entered=p=>{if(p.active?.entering&&cells(p.active).some(({y})=>y<H))delete p.active.entering;};
 export function move(board,piece,dx,dy){const next={...piece,x:piece.x+dx,y:piece.y+dy};return fits(board,next)?next:null;}
 export function rotate(board,piece,direction,wellFlip=false){
@@ -96,7 +97,7 @@ export function createPlayer(seed,rules,pattern){return {board:grid(),active:nul
 export function createMatch(options={}){if(options.engineVersion===9)return legacy9.createMatch(options);if(options.engineVersion===10)return legacy10.createMatch(options);if(options.engineVersion!==undefined&&options.engineVersion!==VERSION)throw Error('Unsupported engine version.');const rules={...DEFAULT_RULES,...options.rules},seed=options.seed??1;const state={version:VERSION,seed,rules,mode:options.mode??'duel',tick:0,elapsed:0,swordIndex:0,sprinkleIndex:0,nextAttackId:1,players:[createPlayer(seed,rules,options.pattern??PATTERNS[0].rows),createPlayer(seed,rules,options.opponentPattern??PATTERNS[1].rows)],winner:null,events:[]};for(const p of state.players)spawn(state,p);return state;}
 // v11: a new pair enters one row above the board (its first cell hidden) and falls into view, so it starts
 // a row higher without the board growing. You still top out when column 4's top cell is filled.
-export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
+export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}if(p.fastAfterAttack){p.fast=true;p.spawnGrace=0;}p.fastAfterAttack=false;p.underAttack=false;const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
 export function command(state,side,action){
  if(state.version===9)return legacy9.command(state,side,action);
  if(state.version===10)return legacy10.command(state,side,action);
@@ -106,7 +107,8 @@ export function command(state,side,action){
   // fastOn is a fresh press. A press before a pair exists never arms the next one, unless the
   // rules give an early-press window (dropBufferMs): a fresh press that close to the spawn counts.
   if(!fast)p.fastBuffered=null;
-  if(fast){if(p.phase!=='fall'||!p.active){if(state.rules.dropBufferMs>0)p.fastBuffered=state.elapsed;return false;}p.spawnGrace=0;}
+  // a press while an attack is landing on you (or settling after it) is kept for the next pair, however early
+  if(fast){if(p.phase!=='fall'||!p.active){if(p.underAttack)p.fastAfterAttack=true;if(state.rules.dropBufferMs>0)p.fastBuffered=state.elapsed;return false;}p.spawnGrace=0;}
   if(fast!==p.fast){
    const oldSpeed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;
    const newSpeed=fast?state.rules.fastFallMs:state.rules.gravityMs;
@@ -170,7 +172,7 @@ function enterAttack(state,side,hooks){
  const p=state.players[side],attack=p.readyAttacks.shift();
  if(!attack){p.attackVisual=null;beginSettle(state,side,hooks);return;}
  const before=clone(p.board),result=applyAttackBatch(p.board,attack.attacks??[attack]);
- p.phase='attack';p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,...result,batchId:attack.id,duration:p.timer};
+ p.underAttack=true;p.phase='attack';p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,...result,batchId:attack.id,duration:p.timer};
  
 }
 function beginResolution(state,side,hooks){
