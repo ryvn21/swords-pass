@@ -81,6 +81,7 @@ function incomingShapes(canvas,p){
  try{const b=p.board.map(r=>r.map(c=>c&&{...c}));for(const batch of due){const res=applyAttackBatch(b,batch.attacks??[batch]);for(const a of res.hits){if(a.kind==='sprinkle')for(const c of a.placed||[])shapes.push({x:c.x,y:c.y,w:1,h:1,sprinkle:true});else if(a.placement)shapes.push({...a.placement,horizontal:a.kind==='horizontal'&&!a.converted});}}}catch{}
  shadowCache.set(canvas,{key,shapes});return shapes;
 }
+const SHOW_INCOMING_SHADOWS=false;
 function drawIncomingShadow(ctx,canvas,p,time,reduced){
  const shapes=incomingShapes(canvas,p);if(!shapes.length)return;
  const on=reduced?true:Math.floor(time/150)%2===0;ctx.save();
@@ -121,9 +122,9 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
    }
   }
  }
- // Warning: where the next incoming attack will land, as blinking shadows.
- // Worked out against the board as it is now, so it can shift if your next pair changes the board.
- if(!incoming&&p.incoming?.length&&!p.dead)drawIncomingShadow(ctx,canvas,p,time,reduced);
+ // Warning: where the next incoming attack will land, as blinking shadows. Off for now (too busy): the
+ // warning is sound only. Worked out against the board as it is now, so it can shift with your next pair.
+ if(SHOW_INCOMING_SHADOWS&&!incoming&&p.incoming?.length&&!p.dead)drawIncomingShadow(ctx,canvas,p,time,reduced);
  S?.ready&&S.incoming?.(canvas,p.incoming,p.turn);
  if(p.active){
   if(ghost)for(const c of cells(landing(p.board,p.active)))if(c.y<H)tile(ctx,c.x*X,(H-1-c.y)*Y,c.cell,X,.15);
