@@ -27,7 +27,7 @@ test('everyone moves onto the Default timings once, with their own kept as a cus
   const {DEFAULT_RULES} = await import('../dist/engine.js');
   const moved = migrateToHouse({houseVersion: 3, keys: {drop: ['g']}, rules: {...DEFAULT_RULES, gravityMs: 900, repeatMs: 72}});
   for (const k of Object.keys(HOUSE_RULES)) assert.equal(moved.rules[k], HOUSE_RULES[k], k);
-  assert.equal(moved.houseVersion, 4); assert.equal(moved.useDefaultTimings, true); assert.deepEqual(moved.keys, {drop: ['g']});
+  assert.equal(moved.houseVersion, 5); assert.equal(moved.useDefaultTimings, true); assert.deepEqual(moved.keys, {drop: ['g']});
   assert.equal(moved.customRules.gravityMs, 900); assert.equal(moved.customRules.repeatMs, 72);
   const mine = {...moved, useDefaultTimings: false, rules: {...moved.rules, gravityMs: 800}};
   assert.equal(migrateToHouse(mine).rules.gravityMs, 800);   // runs only once
@@ -37,4 +37,11 @@ test('the Default timings: 4 s natural fall, 500 ms landing window, 50 ms Space,
   const {HOUSE_RULES} = await import('../dist/handling-profile.js');
   const r = HOUSE_RULES;
   assert.deepEqual([r.gravityMs, r.lockMs, r.fastFallMs, r.dropBufferMs, r.attackMs, r.settleMs, r.waveMs, r.clearMs, r.repeatDelayMs, r.repeatMs], [4000, 500, 50, 0, 430, 33, 75, 250, 300, 142]);
+});
+
+test('v5: players on their own timings are moved back onto the Default once; their scheme is kept, keys untouched', async () => {
+  const {migrateToHouse, HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const moved = migrateToHouse({houseVersion: 4, useDefaultTimings: false, keys: {drop: ['g']}, rules: {...HOUSE_RULES, gravityMs: 1200}, customRules: {gravityMs: 1200}});
+  assert.equal(moved.useDefaultTimings, true); assert.equal(moved.rules.gravityMs, HOUSE_RULES.gravityMs);
+  assert.equal(moved.customRules.gravityMs, 1200); assert.deepEqual(moved.keys, {drop: ['g']});
 });

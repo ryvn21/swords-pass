@@ -1,5 +1,5 @@
 /** Presentation contract for the climb. No renderer may mutate these snapshots. */
-import {clone,pairAt} from './engine.js';
+import {clone,pairAt,previewIndex} from './engine.js';
 import {modifiers,stacksOf} from './rogue-content.js';
 import {upgradePreview} from './rogue-upgrades.js';
 import {combatMetrics,climbWave,TICK_MS} from './climb-combat.js';
@@ -14,7 +14,7 @@ export function climbView(r){
   inventory:r.content.upgrades.filter(u=>stacksOf(r.inventory,u.id)).map(u=>({...upgradePreview(r.content,r.inventory,u.id,r.rules),stacks:stacksOf(r.inventory,u.id)})),
   offers:r.offers.map(id=>id==='bank-points'?{id,name:'Bank 50 points',description:'All available upgrades are at their effective caps. Add 50 points and keep climbing.',pointReward:true}:upgradePreview(r.content,r.inventory,id,r.rules)),
   effects:modifiers(r.content,r.inventory),nextWave:playing?climbWave(r):null,queuedWaves:r.game?.players[0].incoming.length??0,
-  opponent:e.kind==='duel'?{...clone(e.opponent),board:r.game?clone(r.game.players[1]):null,nextPair:r.game?pairAt(r.game.seed,r.game.players[1].nextIndex,r.rules.breakerRate):null,patternName:room?.opponentPatternName??null,queuedWaves:r.game?.players[1].incoming.length??0}:null,
-  sentSprinkles:room?.sentSprinkles??0,sentSwords:room?.sentSwords??0,board:r.game?clone(r.game.players[0]):null,rules:clone(r.game?.rules??r.rules),nextPair:r.game?pairAt(r.game.seed,r.game.players[0].nextIndex,r.game.rules.breakerRate):null,
+  opponent:e.kind==='duel'?{...clone(e.opponent),board:r.game?clone(r.game.players[1]):null,nextPair:r.game?pairAt(r.game.seed,previewIndex(r.game.players[1]),r.rules.breakerRate):null,patternName:room?.opponentPatternName??null,queuedWaves:r.game?.players[1].incoming.length??0}:null,
+  sentSprinkles:room?.sentSprinkles??0,sentSwords:room?.sentSwords??0,board:r.game?clone(r.game.players[0]):null,rules:clone(r.game?.rules??r.rules),nextPair:r.game?pairAt(r.game.seed,previewIndex(r.game.players[0]),r.game.rules.breakerRate):null,
   results:clone(r.results),lastResult:clone(r.lastResult),events:clone(r.events),canStart:r.phase==='ready',canChoose:r.phase==='reward',canPlay:playing,finished};
 }

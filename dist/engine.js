@@ -42,6 +42,9 @@ export function rotateLimited(board,piece,direction,wellFlip,popsLeft){
  const other={...piece,r:(piece.r-direction+4)%4};if(fits(board,other))return {piece:other,popped:false};
  return null;
 }
+// The NEXT box: while the pair in play is still wholly above the board (it has only just appeared), it is the one
+// you haven't seen yet, so the box shows it; once it's on the board, the box shows the pair after it.
+export const previewIndex=p=>p?.active&&cells(p.active).every(c=>c.y>=H)?p.nextIndex-1:(p?.nextIndex??0);
 export function landing(board,piece){let p=clone(piece),n;while((n=move(board,p,0,-1)))p=n;return p;}
 export function gemRects(board){const map=new Map();for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=board[y][x];if(!c?.gem)continue;let g=map.get(c.gem);if(!g){g={id:c.gem,x,y,w:1,h:1,color:c.color};map.set(c.gem,g);}g.w=Math.max(g.w,x-g.x+1);g.h=Math.max(g.h,y-g.y+1);}return [...map.values()];}
 // Existing fused rectangles are indivisible. Expand/merge only if the new

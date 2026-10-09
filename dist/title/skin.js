@@ -61,12 +61,17 @@ function emblemTransform(g, uw, uh, s = .9) { const k = Math.min(uw / 32, uh / 4
 
 // ---------- tiles ----------
 // body: outline, vertical light, bevelled rim, recessed plate
+// Piece finish (Settings → Pieces): shiny (cut facets, glints, glow), satin (softer light, no glints or glow),
+// matte (flat colour, gentle edges). Sprites are cached per finish.
+export const FINISHES = ['shiny', 'satin', 'matte'];
+let finish = 'shiny';
+const shine = () => finish === 'shiny' ? 1 : finish === 'satin' ? .45 : .15;
 function body(g, uw, uh, r, {plate = true, rad = 4.6} = {}) {
   rr(g, .4, .4, uw - .8, uh - .8, rad + .6); g.fillStyle = r[0]; g.fill();
-  const grad = g.createLinearGradient(0, 1, 0, uh - 1); grad.addColorStop(0, r[4]); grad.addColorStop(.45, r[3]); grad.addColorStop(1, r[2]);
+  const grad = g.createLinearGradient(0, 1, 0, uh - 1); grad.addColorStop(0, finish === 'matte' ? r[3] : r[4]); grad.addColorStop(.45, r[3]); grad.addColorStop(1, finish === 'shiny' ? r[2] : r[3]);
   rr(g, 1.5, 1.5, uw - 3, uh - 3, rad); g.fillStyle = grad; g.fill();
   g.save(); rr(g, 1.5, 1.5, uw - 3, uh - 3, rad); g.clip();
-  g.fillStyle = alpha(r[5], .7); g.beginPath(); g.moveTo(1.5, 1.5); g.lineTo(uw - 1.5, 1.5); g.lineTo(uw - 3.6, 3.6); g.lineTo(3.6, 3.6); g.lineTo(3.6, uh - 3.6); g.lineTo(1.5, uh - 1.5); g.closePath(); g.fill();
+  g.fillStyle = alpha(r[5], .7 * shine()); g.beginPath(); g.moveTo(1.5, 1.5); g.lineTo(uw - 1.5, 1.5); g.lineTo(uw - 3.6, 3.6); g.lineTo(3.6, 3.6); g.lineTo(3.6, uh - 3.6); g.lineTo(1.5, uh - 1.5); g.closePath(); g.fill();
   g.fillStyle = alpha(r[1], .85); g.beginPath(); g.moveTo(uw - 1.5, uh - 1.5); g.lineTo(1.5, uh - 1.5); g.lineTo(3.6, uh - 3.6); g.lineTo(uw - 3.6, uh - 3.6); g.lineTo(uw - 3.6, 3.6); g.lineTo(uw - 1.5, 1.5); g.closePath(); g.fill();
   g.restore();
   if (plate) {
@@ -104,10 +109,11 @@ function drawBlock(g, color, kind, uw, uh) {
   g.save(); emblemTransform(g, uw, uh); engrave(g, EMBLEMS[color], r); g.restore();
   // a cut facet across the upper corner: reads as a polished gem rather than a flat tile
   g.save(); rr(g, 1.5, 1.5, uw - 3, uh - 3, 4.6); g.clip();
-  g.fillStyle = alpha(r[5], .55); g.beginPath(); g.moveTo(1.5, uh * .2); g.lineTo(uw * .32, 1.5); g.lineTo(uw * .46, 1.5); g.lineTo(1.5, uh * .3); g.closePath(); g.fill();
+  if (finish === 'matte') { g.restore(); return; }
+  g.fillStyle = alpha(r[5], .55 * shine()); g.beginPath(); g.moveTo(1.5, uh * .2); g.lineTo(uw * .32, 1.5); g.lineTo(uw * .46, 1.5); g.lineTo(1.5, uh * .3); g.closePath(); g.fill();
   g.fillStyle = alpha(r[1], .5); g.beginPath(); g.moveTo(uw - 1.5, uh * .8); g.lineTo(uw * .68, uh - 1.5); g.lineTo(uw * .56, uh - 1.5); g.lineTo(uw - 1.5, uh * .7); g.closePath(); g.fill();
   g.restore();
-  glint(g, 7.2, 7.4, .9); glint(g, uw - 7, uh - 9, .45);
+  if (finish === 'shiny') { glint(g, 7.2, 7.4, .9); glint(g, uw - 7, uh - 9, .45); }
 }
 // Breakers: the free-standing blade lit from inside (no tile). Bold is the look in play; the others are
 // kept for reference only:
@@ -128,16 +134,16 @@ function drawBreakerStyle(g, color, uw, uh, style = 'classic') {
   g.save(); emblemTransform(g, uw, uh, L.scale); g.lineJoin = 'round';
   if (L.ink) { g.strokeStyle = INK; g.lineWidth = L.ink; g.stroke(e.all); }
   g.strokeStyle = r[0]; g.lineWidth = L.edge; g.stroke(e.all);
-  const grad = g.createLinearGradient(11, 0, 21, 0); grad.addColorStop(0, r[5]); grad.addColorStop(.5, r[4]); grad.addColorStop(1, r[2]);
+  const grad = g.createLinearGradient(11, 0, 21, 0); grad.addColorStop(0, finish === 'matte' ? r[4] : r[5]); grad.addColorStop(.5, finish === 'matte' ? r[3] : r[4]); grad.addColorStop(1, finish === 'shiny' ? r[2] : r[3]);
   g.fillStyle = grad; g.fill(e.all);
-  g.save(); g.clip(e.blade); g.strokeStyle = L.core ? r[5] : '#ffffff'; g.lineWidth = L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
+  g.save(); g.clip(e.blade); g.strokeStyle = L.core ? r[5] : finish === 'shiny' ? '#ffffff' : r[5]; g.lineWidth = finish === 'matte' ? L.ridge * .6 : L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
   g.strokeStyle = alpha(r[5], .9); g.lineWidth = .5; g.stroke(e.all);
   g.restore();
 }
 function drawBreaker(g, color, uw, uh) { drawBreakerStyle(g, color, uw, uh, 'classic'); }
 // the light behind a breaker, drawn live (not part of the pixel sprite)
 function breakerGlow(ctx, x, y, w, h, color, style, t) {
-  const G = (BREAKER_LOOK[style] || BREAKER_LOOK.classic).glow; if (!G) return;
+  const G = (BREAKER_LOOK[style] || BREAKER_LOOK.classic).glow; if (!G || finish !== 'shiny') return;
   const p = G.speed ? .5 + .5 * Math.sin(t * G.speed + color * 1.3 + x * .07) : .5;
   ctx.globalCompositeOperation = 'lighter'; glow(ctx, x + w / 2, y + h * .55, w * G.r, RGB[color], (G.a + G.amp * p) * nightGlow); ctx.globalCompositeOperation = 'source-over';
 }
@@ -145,15 +151,16 @@ function drawGem(g, color, uw, uh) {        // fused rectangle: one large facete
   const r = RAMP[color];
   body(g, uw, uh, r, {plate: false, rad: 5.5});
   const b = Math.min(7, Math.min(uw, uh) * .16), x0 = b, y0 = b, x1 = uw - b, y1 = uh - b;
-  g.fillStyle = alpha(r[5], .55); g.beginPath(); g.moveTo(3, 3); g.lineTo(uw - 3, 3); g.lineTo(x1, y0); g.lineTo(x0, y0); g.closePath(); g.fill();
-  g.fillStyle = alpha(r[4], .7); g.beginPath(); g.moveTo(3, 3); g.lineTo(x0, y0); g.lineTo(x0, y1); g.lineTo(3, uh - 3); g.closePath(); g.fill();
+  const k = shine();
+  g.fillStyle = alpha(r[5], .55 * k); g.beginPath(); g.moveTo(3, 3); g.lineTo(uw - 3, 3); g.lineTo(x1, y0); g.lineTo(x0, y0); g.closePath(); g.fill();
+  g.fillStyle = alpha(r[4], .7 * k); g.beginPath(); g.moveTo(3, 3); g.lineTo(x0, y0); g.lineTo(x0, y1); g.lineTo(3, uh - 3); g.closePath(); g.fill();
   g.fillStyle = alpha(r[1], .85); g.beginPath(); g.moveTo(uw - 3, uh - 3); g.lineTo(3, uh - 3); g.lineTo(x0, y1); g.lineTo(x1, y1); g.closePath(); g.fill();
   g.fillStyle = alpha(r[2], .9); g.beginPath(); g.moveTo(uw - 3, 3); g.lineTo(uw - 3, uh - 3); g.lineTo(x1, y1); g.lineTo(x1, y0); g.closePath(); g.fill();
-  const tg = g.createLinearGradient(x0, y0, x1, y1); tg.addColorStop(0, r[4]); tg.addColorStop(.5, r[3]); tg.addColorStop(1, r[2]);
+  const tg = g.createLinearGradient(x0, y0, x1, y1); tg.addColorStop(0, finish === 'shiny' ? r[4] : r[3]); tg.addColorStop(.5, r[3]); tg.addColorStop(1, finish === 'matte' ? r[3] : r[2]);
   g.fillStyle = tg; g.fillRect(x0, y0, x1 - x0, y1 - y0);
   g.strokeStyle = alpha(r[0], .5); g.lineWidth = .8; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
   g.save(); emblemTransform(g, uw, uh, .74); engrave(g, EMBLEMS[color], r); g.restore();
-  glint(g, x0 + 3, y0 + 3, 1.3); glint(g, x1 - 4, y1 - 5, .7);
+  if (finish === 'shiny') { glint(g, x0 + 3, y0 + 3, 1.3); glint(g, x1 - 4, y1 - 5, .7); }
 }
 function drawSword(g, uw, uh) {             // incoming strike, tip down
   const cx = uw / 2, pomH = Math.max(3, uh * .055), gripTop = pomH, guardY = Math.max(pomH + 8, uh * .2), gh = Math.max(3, uh * .045);
@@ -235,7 +242,7 @@ const scaleOf = ctx => { const m = ctx.getTransform(); return [Math.hypot(m.a, m
 
 // ---------- effects ----------
 let reduced = false;
-const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; nightGlow = p.night && p.night !== 'off' ? .55 : 1; const st = 'bold'; if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
+const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; nightGlow = p.night && p.night !== 'off' ? .55 : 1; const st = 'bold', fin = FINISHES.includes(p.pieceFinish) ? p.pieceFinish : 'shiny'; if (fin !== finish) { finish = fin; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
 function glow(ctx, x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
 const RGB = RAMP.map(r => { const h = r[4]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(','); });
@@ -246,7 +253,7 @@ const skin = {
     if (c.color == null || !RAMP[c.color]) return false;
     const [sx, sy] = scaleOf(ctx), pw = Math.max(4, Math.round(w * sx)), ph = Math.max(6, Math.round(h * sy));
     const kind = c.breaker && !c.stage ? 'k' : c.stage > 1 ? 's' : c.stage === 1 ? 'd' : 'b';
-    const s = sprite(kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? palOf(c.color, 'k') : palOf(c.color, kind));
+    const s = sprite((kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color) + finish, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? palOf(c.color, 'k') : palOf(c.color, kind));
     ctx.save(); ctx.globalAlpha = a;
     if (kind === 'k' && !reduced && a > .5) breakerGlow(ctx, x, y, w, h, c.color, breakerStyle, now());
     ctx.imageSmoothingEnabled = false; ctx.drawImage(s, x, y, w, h); ctx.restore();
@@ -256,9 +263,9 @@ const skin = {
   gem(ctx, x, y, w, h, gm) {
     fusion.see(ctx.canvas, gm);
     const [sx, sy] = scaleOf(ctx), pw = Math.round(w * sx), ph = Math.round(h * sy), uw = gm.w * 32, uh = gm.h * 48;
-    const s = sprite('g' + gm.color + '-' + gm.w + 'x' + gm.h, pw, ph, uw, uh, g => drawGem(g, gm.color, uw, uh), palOf(gm.color, 'g'));
+    const s = sprite('g' + gm.color + '-' + gm.w + 'x' + gm.h + finish, pw, ph, uw, uh, g => drawGem(g, gm.color, uw, uh), palOf(gm.color, 'g'));
     ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(s, x, y, w, h);
-    if (!reduced) {
+    if (!reduced && finish === 'shiny') {
       const t = (now() * .35 + (gm.x * 7 + gm.y * 3) * .13) % 2.6; if (t < 1) {
         ctx.beginPath(); ctx.rect(x + 5, y + 5, w - 10, h - 10); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
         const lx = x - h + (w + h * 2) * t; ctx.fillStyle = 'rgba(255,255,255,.14)';
@@ -296,16 +303,16 @@ const skin = {
 function publishTiles() {
   const css = [];
   for (let c = 0; c < 4; c++) {
-    const t = (kind, draw) => sprite('tile-' + kind + c, 78, 117, 32, 48, draw, palOf(c, kind)).toDataURL();
+    const t = (kind, draw) => sprite('tile-' + kind + c + finish, 78, 117, 32, 48, draw, palOf(c, kind)).toDataURL();
     css.push(`--tile-${c}:url(${t('b', g => drawBlock(g, c, 'block', 32, 48))})`);
     css.push(`--tile-stone-${c}:url(${t('s', g => drawBlock(g, c, 'stone', 32, 48))})`);
-    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), palOf(c, 'k')).toDataURL()})`);
+    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c + finish, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), palOf(c, 'k')).toDataURL()})`);
   }
   const st = document.createElement('style'); st.id = 'scraps-tiles'; st.textContent = `:root{${css.join(';')}}`; document.head.append(st);
 }
 // one-off renders for menus and exports
 globalThis.scrapsSkinRefresh = () => readReduced();
-skin.render = {block: drawBlock, breaker: drawBreaker, breakerStyle: drawBreakerStyle, breakerGlow, styles: BREAKER_STYLES, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
+skin.render = {setFinish: f => { finish = FINISHES.includes(f) ? f : 'shiny'; }, finishes: FINISHES, block: drawBlock, breaker: drawBreaker, breakerStyle: drawBreakerStyle, breakerGlow, styles: BREAKER_STYLES, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
 
 if (hasDom) { try { mk(1, 1)[1].roundRect || (CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); }); publishTiles(); readReduced(); setInterval(readReduced, 2000); skin.ready = true; } catch (e) { console.warn('skin disabled', e); } }
 // Gem fusion sound: a new gem id on the player's own board means blocks just fused (or a gem
@@ -428,7 +435,7 @@ function drawBursts(ctx, cv) {
     const age = t - q.t0, x = q.x + q.vx * age, y = q.y + q.vy * age + (q.kind === 'chunk' ? .5 * G * age * age : 0);
     if (q.kind === 'chunk') {
       ctx.globalAlpha = 1 - .9 * age / 420;
-      const img = sprite('b' + q.color, Math.max(4, Math.round(32 * sx)), Math.max(6, Math.round(48 * sy)), 32, 48, g => drawBlock(g, q.color, 'block', 32, 48), palOf(q.color, 'b'));
+      const img = sprite('b' + q.color + finish, Math.max(4, Math.round(32 * sx)), Math.max(6, Math.round(48 * sy)), 32, 48, g => drawBlock(g, q.color, 'block', 32, 48), palOf(q.color, 'b'));
       ctx.imageSmoothingEnabled = false; ctx.drawImage(img, q.sx * img.width / 2, q.sy * img.height / 2, img.width / 2, img.height / 2, x - 6, y - 9, 12, 18);
     } else {
       ctx.globalAlpha = 1 - .9 * age / 450; ctx.fillStyle = RAMP[q.color][5]; ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - .7, y - .7, 1.4, 1.4);

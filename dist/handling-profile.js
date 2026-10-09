@@ -49,12 +49,12 @@ export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
 export const HANDLING_PRESETS=[{id:'default',label:'Default',rules:HOUSE_RULES}];
-// v4: everyone moves onto the Default timings once, with "Default timings" ticked; whatever they had is kept
-// as their custom scheme, back the moment they untick it.
+// v5: everyone moves onto the current Default timings once (ticked), whatever they had chosen; their own timings
+// are kept as their custom scheme for whenever they untick it. Key bindings are never touched.
 export function migrateToHouse(prefs={}){
- const v=prefs.houseVersion??0;if(v>=4)return prefs;
- const had=prefs.rules&&typeof prefs.rules==='object'?handlingRules({...PREVIOUS_HOUSE_RULES,...prefs.rules}):null;
- return {...prefs,houseVersion:4,useDefaultTimings:true,customRules:had??{...PREVIOUS_HOUSE_RULES},rules:{...HOUSE_RULES}};
+ const v=prefs.houseVersion??0;if(v>=5)return prefs;
+ const had=prefs.useDefaultTimings===false&&prefs.rules&&typeof prefs.rules==='object'?handlingRules(prefs.rules):prefs.customRules??(prefs.rules&&v<4?handlingRules({...PREVIOUS_HOUSE_RULES,...prefs.rules}):null);
+ return {...prefs,houseVersion:5,useDefaultTimings:true,customRules:had??{...PREVIOUS_HOUSE_RULES},rules:{...HOUSE_RULES}};
 }
 
 // Key bindings: each action can have several keys (e.g. fast fall on Space or G).

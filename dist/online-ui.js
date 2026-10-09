@@ -3,7 +3,7 @@
 // Your board is simulated here with zero added input delay (engine mode 'online'); rivals'
 // boards are drawn from the snapshots they stream. Attack batches travel as messages and land
 // on your next lock, exactly as they would locally. The server referees who topped out first.
-import {createMatch,step,receiveBatch,pairAt,DEFAULT_RULES,H} from './engine.js';
+import {createMatch,step,receiveBatch,pairAt,previewIndex,DEFAULT_RULES,H} from './engine.js';
 import {actionFor} from './handling-profile.js';
 import {handlingRules,HOUSE_RULES} from './handling-profile.js';
 import {drawBoard,drawNext} from './render.js';
@@ -362,7 +362,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   function snapshot(p) {
     return {b: p.board, a: p.active, ph: p.phase, tm: Math.round(p.timer || 0), w: p.phase === 'clear' ? p.wave : undefined, cd: p.clearDuration, cc: p.clearCellMs,
       mo: p.phase === 'settle' ? p.motion : undefined, md: p.motionDuration, av: p.phase === 'attack' ? p.attackVisual : undefined, f: Math.round(p.fall || 0), fa: p.fast, sg: Math.round(p.spawnGrace || 0),
-      n: p.nextIndex, q: p.incoming.length, d: p.dead, c: p.stats.bestChain};
+      n: previewIndex(p), q: p.incoming.length, d: p.dead, c: p.stats.bestChain};
   }
   // my combos: logged as they build, and announced to the table when they end
   function myEvents(m, events) {
@@ -408,7 +408,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     const m = match; if (!m || screen !== 'match') return;
     const me = m.game.players[0], now = performance.now();
     drawBoard($('#challenge-board-0'), me, {time, gravityMs: m.rules.gravityMs, fastFallMs: m.rules.fastFallMs, ghost: prefs.ghost && !m.over, reduced: prefs.reduced, renderAheadMs: m.started && (!m.over || (m.playout && !m.playout.done)) ? acc : 0});
-    drawNext($('#obn-me'), pairAt(m.seed, me.nextIndex, m.rules.breakerRate));
+    drawNext($('#obn-me'), pairAt(m.seed, previewIndex(me), m.rules.breakerRate));
     for (const r of m.rivals.values()) {
       drawRival(r);
       const el = $('#ob-' + r.id); if (el) { el.classList.toggle('eliminated', r.out); el.classList.toggle('is-target', m.mode === 'ffa' && m.target === r.id && !r.out); el.classList.toggle('ol-away', r.connected === false); }
