@@ -367,6 +367,16 @@ const stages = (() => {
 // Incoming attacks on the player's own board are voiced as they are drawn: the swords' impact when
 // they land, then a patter as each sprinkle settles on top (same timing as render.js draws them).
 const attacks = new WeakMap();
+// Warning: a new attack queued against the player's own board sounds a warning, longer for bigger attacks.
+const warned = new WeakMap();
+skin.incoming = (cv, list) => {
+  if (!MINE.test(cv?.id || '')) return;
+  const ids = new Set((list || []).map(b => b.id)), seen = warned.get(cv); warned.set(cv, ids);
+  if (!seen) return;                                   // first frame on this board: nothing is new yet
+  let area = 0, fresh = false;
+  for (const b of list || []) { if (seen.has(b.id)) continue; fresh = true; for (const a of b.attacks ?? [b]) area += a.kind === 'sprinkle' ? (a.count | 0) * .5 : (a.width | 0) * (a.length | 0); }
+  if (fresh) globalThis.scrapsSfx?.('warn', area >= 24 ? 4 : area >= 12 ? 3 : area >= 4 ? 2 : 1, sfxPrefs());
+};
 skin.attack = (cv, incoming, timer) => {
   if (!MINE.test(cv?.id || '') || !incoming) return;
   const id = incoming.batchId ?? incoming; if (attacks.get(cv) === id) return; attacks.set(cv, id);
@@ -374,6 +384,12 @@ skin.attack = (cv, incoming, timer) => {
   const swords = hits.filter(a => a.kind !== 'sprinkle' && a.placement).length, placed = hits.filter(a => a.kind === 'sprinkle').flatMap(a => a.placed || []), prefs = sfxPrefs();
   const at = p => Math.max(0, (p - p0) * dur);
   if (swords) globalThis.scrapsSfx?.('strike', swords, prefs, at(.55));
+  // side swords scrape in from their edge before they bite
+  for (const a of hits) if (a.kind === 'horizontal' && a.placement?.hand && !a.converted) globalThis.scrapsSfx?.('slide', a.placement.hand, prefs, at(0));
+  // pieces a sword lands on are crushed: a crunch when it bites
+  const before = incoming.before; let crushed = 0;
+  if (before) for (const a of hits) { const q = a.placement; if (a.kind === 'sprinkle' || !q) continue; for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) if (before[y]?.[x]) crushed++; }
+  if (crushed) globalThis.scrapsSfx?.('crush', crushed, prefs, at(.57));
   const n = placed.length, voices = Math.min(n, 6);
   for (let i = 0; i < voices; i++) { const lag = voices > 1 ? i / (voices - 1) * .3 : 0, land = Math.min(1, lag + (n > 1 ? .7 : 1)); globalThis.scrapsSfx?.('patter', n, prefs, at(swords ? .5 + .5 * land : land)); }
 };
