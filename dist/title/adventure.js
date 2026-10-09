@@ -31,7 +31,7 @@ function trail(depth, nextCheckpoint) {
 }
 // what a relic gives right now, in a few words
 const GIVES = {scorePercent: n => `+${n}% clear points`, chainBonus: n => `+${n} per chain stage`, breakerBonus: n => `+${Math.round(n * 100)}% breakers`,
-  attackDelayMs: n => `waves ${n / 1000}s later`, sprinkleBonus: n => `+${n} sprinkle${n === 1 ? '' : 's'} per attack`, strikeHeightBonus: n => `+${n} sword height`,
+  attackDelayMs: n => `timed waves ${n / 1000}s slower`, sprinkleBonus: n => `+${n} sprinkle${n === 1 ? '' : 's'} per attack`, strikeHeightBonus: n => `+${n} sword height`,
   waveWard: n => `${n} wave${n === 1 ? '' : 's'} turned aside`, swordWidthBonus: n => `+${n} sword width`, blockBounty: n => `+${n} per block broken`,
   secondWind: () => 'ready once per encounter', attackHasteMs: n => `waves ${n / 1000}s sooner`, chainSprinkles: n => `+${n} sprinkles on ×3 chains`};
 const gives = u => (u.effects || []).map(e => GIVES[e.kind]?.(e.current ?? e.amount ?? 0)).filter(Boolean).join(' · ');
@@ -75,7 +75,6 @@ function screen(host, v) {
   for (const btn of host.querySelectorAll('[data-rogue-reward]')) {
     const u = v.offers?.find(o => o.id === btn.dataset.rogueReward); if (!u || btn.querySelector('.relic-tag')) continue;
     btn.insertAdjacentHTML('afterbegin', `<small class="relic-tag">${RARITY_LABEL[u.rarity || 'common'] || ''}</small>`);
-    if (u.flavor) btn.querySelector('strong')?.insertAdjacentHTML('afterend', `<em class="relic-flavor">${u.flavor}</em>`);
   }
   const head = host.querySelector('.game-heading');
   if (head && !host.querySelector('.adv-trail')) {

@@ -155,3 +155,12 @@ test('the lobby lists live tables; anyone can watch one, and open tables can be 
   const open = w.last('lobby') && relay.lobby().games.find(x => x.open); assert.ok(open);
   j.say({t: 'join', code: open.code}); assert.equal(j.last('room').players.length, 2);
 });
+
+test('finished combos go to everyone at the table, cleaned; boards keep streaming into the results', () => {
+  const {client, advance} = harness(), a = client('Ann'), b = client('Bo');
+  a.say({t: 'quick', mode: 'duel'}); b.say({t: 'quick', mode: 'duel'}); advance(4000);
+  a.say({t: 'combo', c: {chain: 3, steps: [{n: 1, g: 4, s: [], p: 1}, {n: 2, g: 5, s: [[2, 3]], p: 0}, {n: 3, g: 999, s: [[9, 99]], p: 2}]}, to: 'nobody'});
+  const m = b.last('combo'); assert.equal(m.from, a.id); assert.equal(m.c.chain, 3); assert.equal(m.to, null);
+  assert.deepEqual(m.c.steps[2], {n: 3, g: 78, p: 2, s: [[6, 13]]}); assert.equal(a.last('combo'), undefined);
+  b.say({t: 'dead'}); a.say({t: 'state', s: {b: []}, score: 0}); assert.ok(b.last('state'));
+});

@@ -102,6 +102,10 @@ const SOUNDS = {
     [69, 72, 76, 79, 81, 84].forEach((m, i) => pluck(t + i * .055, m, .11 * v, 1.2, (i - 2.5) * .15));
     bell(t + .33, hz(88), .07 * v, 1.8, -.2); bell(t + .40, hz(93), .06 * v, 1.8, .2); sweep(t + .3, 3000, 9000, .5, .05 * v, 1.5);
   },
+  finisher(t, v) {                                                // a finishing blow: a rising run, two bells and a long shimmer
+    [57, 64, 69, 73, 76, 81, 85, 88].forEach((m, i) => pluck(t + i * .05, m, .13 * v, 1.6, (i - 3.5) * .12));
+    bell(t + .42, hz(93), .09 * v, 2.4, -.2); bell(t + .5, hz(81), .08 * v, 2.4, .2); sweep(t + .35, 2000, 8000, .6, .06 * v, 1.8);
+  },
   start(t, v) { [57, 64, 69].forEach((m, i) => pluck(t + i * .045, m, .14 * v, 1.4, (i - 1) * .3)); bell(t + .16, hz(81), .08 * v, 1.4); },
   win(t, v) { [69, 73, 76, 81].forEach((m, i) => pluck(t + i * .11, m, .16 * v, 1.6, (i - 1.5) * .2)); [57, 64].forEach(m => pluck(t + .44, m, .12 * v, 2.2)); bell(t + .44, hz(93), .07 * v, 2); },
   end(t, v) { [69, 67, 64, 60].forEach((m, i) => pluck(t + i * .16, m, .14 * v, 1.4)); pluck(t + .64, 45, .12 * v, 2); },

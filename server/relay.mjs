@@ -151,7 +151,8 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       const r = roomOf(c); if (!r || r.state !== 'results') return; r.rematch.add(c.id); sync(r);
       if (r.players.length >= MODES[r.mode].min && r.players.every(id => r.rematch.has(id))) begin(r);
     },
-    state(c, m) { const r = roomOf(c); if (!r || (r.state !== 'playing' && r.state !== 'countdown') || !r.players.includes(c.id)) return; if (typeof m.score === 'number') r.scores[c.id] = m.score | 0; r.snaps[c.id] = {s: m.s, score: m.score}; broadcast(r, {t: 'state', from: c.id, s: m.s, score: m.score}, c.id); },
+    // boards keep streaming into the results screen so the winner's last combo finishes on everyone's screen
+    state(c, m) { const r = roomOf(c); if (!r || (r.state !== 'playing' && r.state !== 'countdown' && r.state !== 'results') || !r.players.includes(c.id)) return; if (typeof m.score === 'number') r.scores[c.id] = m.score | 0; r.snaps[c.id] = {s: m.s, score: m.score}; broadcast(r, {t: 'state', from: c.id, s: m.s, score: m.score}, c.id); },
     attack(c, m) {
       const r = roomOf(c); if (!r || r.state !== 'playing' || !r.alive.has(c.id) || !Array.isArray(m.attacks) || m.attacks.length > 40) return;
       let to = r.mode === 'duel' ? r.players.find(id => id !== c.id) : m.to;
@@ -159,6 +160,15 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       const target = clients.get(to); if (!target) return;
       send(target, {t: 'attack', from: c.id, attacks: m.attacks, turn: m.turn | 0});
       if (r.mode === 'ffa') broadcast(r, {t: 'aimed', from: c.id, to, size: m.attacks.length}, to);
+    },
+    // a finished combo, for everyone's combo log: {chain, steps: [{n, g, s: [[w, l]], p}]}
+    combo(c, m) {
+      const r = roomOf(c); if (!r || (r.state !== 'playing' && r.state !== 'results') || !r.players.includes(c.id) || !m.c || !Array.isArray(m.c.steps)) return;
+      const num = (v, hi) => Math.max(0, Math.min(hi, v | 0));
+      const steps = m.c.steps.slice(0, 24).map(s => ({n: num(s?.n, 99), g: num(s?.g, 78), p: num(s?.p, 999), s: Array.isArray(s?.s) ? s.s.slice(0, 16).map(x => [num(x?.[0], 6), num(x?.[1], 13)]) : []}));
+      if (!steps.length) return;
+      const to = r.players.includes(m.to) && m.to !== c.id ? m.to : null;
+      broadcast(r, {t: 'combo', from: c.id, c: {chain: num(m.c.chain, 99), steps}, to}, c.id);
     },
     dead(c) { const r = roomOf(c); if (r && r.state === 'playing') eliminate(r, c.id, 'out'); },
     ping(c, m) { send(c, {t: 'pong', at: m.at, server: now()}); },

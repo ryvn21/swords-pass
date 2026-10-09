@@ -154,7 +154,11 @@ function applyStyles() {
 
 // ---------- notifications ----------
 let toastHost = null;
-function toast(canvas, small, title, line) {
+// While a game is in play, unlocks wait and arrive together when it ends.
+const waiting = [];
+setInterval(() => { if (waiting.length && !globalThis.scrapsInPlay?.()) waiting.splice(0).forEach((args, i) => setTimeout(() => show(...args), i * 450)); }, 700);
+function toast(...args) { if (globalThis.scrapsInPlay?.()) waiting.push(args); else show(...args); }
+function show(canvas, small, title, line) {
   if (!toastHost) { toastHost = document.createElement('div'); toastHost.className = 'pg-toasts'; toastHost.setAttribute('role', 'status'); document.body.append(toastHost); }
   const t = document.createElement('div'); t.className = 'pg-toast'; canvas.classList.add('pg-toast-icon');
   const txt = document.createElement('div'); for (const [tag, v] of [['small', small], ['strong', title], ['span', line]]) if (v) { const e = document.createElement(tag); e.textContent = v; txt.append(e); }

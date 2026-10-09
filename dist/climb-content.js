@@ -46,7 +46,7 @@ export const DEFAULT_CLIMB={version:1,id:'endless-climb',name:'The Long Road',de
  upgrades:[
   {id:'breaker-supply',name:'Lodestone',rarity:'common',flavor:'It pulls breakers out of the pile.',description:'+2 points of breaker chance per rank, up to 40%.',maxStacks:3,effects:[{kind:'breakerBonus',amount:.02}]},
   {id:'clear-value',name:"Miner's Lamp",rarity:'common',flavor:'More light, more gold in the seams.',description:'+20% points from every clear per rank.',maxStacks:3,effects:[{kind:'scorePercent',amount:20}]},
-  {id:'breathing-room',name:'Hourglass of Ash',rarity:'common',flavor:'Sand that falls a little slower.',description:'Attack waves arrive 1 second later per rank.',maxStacks:3,effects:[{kind:'attackDelayMs',amount:1000}]},
+  {id:'breathing-room',name:'Hourglass of Ash',rarity:'common',flavor:'Sand that falls a little slower.',description:'Timed waves come 1 second slower per rank. Attacks still land between pairs.',maxStacks:3,effects:[{kind:'attackDelayMs',amount:1000}]},
   {id:'extra-sprinkles',name:'Scatter Pouch',rarity:'common',flavor:'A handful of grit for every strike.',description:'+1 sprinkle on each of your attacks per rank.',maxStacks:3,effects:[{kind:'sprinkleBonus',amount:1}]},
   {id:'miners-tithe',name:"Miner's Tithe",rarity:'common',flavor:'Every stone pays its toll.',description:'+3 points for every block you break, per rank.',maxStacks:3,effects:[{kind:'blockBounty',amount:3}]},
   {id:'taller-swords',name:'Whetstone',rarity:'rare',flavor:'Longer edges, deeper cuts.',description:'Your upright swords strike 1 row taller per rank.',maxStacks:3,effects:[{kind:'strikeHeightBonus',amount:1}]},

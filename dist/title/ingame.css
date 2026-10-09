@@ -265,7 +265,8 @@ body:has(#im-ask[open]) .game-overlay .pause-card{visibility:hidden}
 /* ---------- combos: chain size coloured and growing with each stage ---------- */
 .chain-log{display:flex;flex-direction:column;gap:8px}
 .chain-entry{--tc:#cdb894;display:grid;grid-template-columns:52px 1fr;align-items:center;gap:10px;padding:6px 10px 6px 4px;
-  background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 22%,transparent),transparent 80%);border-left:3px solid var(--tc);animation:chain-in .35s steps(4) both}
+  background:linear-gradient(90deg,color-mix(in srgb,var(--tc) 22%,transparent),transparent 80%);border-left:3px solid var(--tc)}
+.chain-entry.enter{animation:chain-in .35s steps(4) both}
 .chain-entry.theirs{opacity:.72;border-left-style:dashed}
 .chain-n{justify-self:center;font:700 22px/1 var(--tt-ui);color:var(--tc);text-shadow:0 2px 0 #0d0807,var(--px-o1)}
 .chain-entry strong{display:block;font:600 16px/1.1 var(--tt-ui);color:var(--tc);text-shadow:var(--px-o1)}
@@ -285,6 +286,11 @@ body:has(#im-ask[open]) .game-overlay .pause-card{visibility:hidden}
 @keyframes chain-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
 @keyframes chain-glow{to{filter:brightness(1.35)}}
 .match-notes .chain-entry .muted{margin:0}
+.sent-sword i{font-style:normal;font-weight:400;color:#d8c49c;margin-left:1px}
+.chain-entry.live{border-left-style:solid;box-shadow:inset 3px 0 0 color-mix(in srgb,var(--tc) 50%,transparent)}
+.chain-entry.live .chain-n{animation:chain-glow .5s steps(2) infinite alternate}
+.chain-steps{list-style:none;margin:4px 0 0;padding:3px 0 0;border-top:1px solid color-mix(in srgb,var(--tc) 30%,transparent);display:flex;flex-wrap:wrap;gap:1px 10px;font:400 11px/1.35 var(--tt-ui);color:#b9a684}
+.chain-steps b{font-weight:600;color:var(--tc);margin-right:4px}
 
 /* ---------- Zen ---------- */
 body[data-scene=zen]{background:#150d1d url(vista.png) center 62%/cover fixed no-repeat}
@@ -850,3 +856,130 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .ol-watch-ffa .challenge-board{width:clamp(110px,calc((100dvh - 270px)*.28),220px)}
 .ol-watch .challenge-board.eliminated{opacity:.45;filter:grayscale(.8)}
 @media (max-width:480px){.ol-tabs{gap:4px}.ol-tabs button:not(#_){font-size:13px;padding:0 4px;border-width:8px}}
+
+/* =================== online stage: the boards first, sized to the window; rails around them =================== */
+#app:has(>.ol-stage){padding-top:14px}
+.ol-head:not(#_){margin-bottom:6px;min-height:0}
+.ol-head h1:not(#_){font-size:24px!important;margin:0}
+.ol-stage{--bw:200px;--mw:100px;--rows:1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:0 clamp(24px,3vw,56px);align-items:start;width:100%;margin:0}
+.ol-boards{display:flex;align-items:flex-start;justify-content:center;gap:clamp(36px,4vw,64px);padding:0 66px}
+.ol-rail{min-width:0;width:min(300px,100%);display:flex;flex-direction:column;gap:12px;padding-top:44px}
+.ol-rail-l{justify-self:end}.ol-rail-r{justify-self:start}
+@media (min-width:980px){.ol-rail{max-height:var(--bh,none);overflow:hidden}.ol-rail-l .ol-card{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}}
+.ol-card{padding:10px 14px;background:linear-gradient(180deg,#140c0ce6,#0d0807d9);border:2px solid #4a2f16;box-shadow:0 0 0 2px #0d0807;text-shadow:var(--px-o1)}
+.ol-card>.eyebrow{margin:0 0 8px}
+.ol-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 12px;background:linear-gradient(180deg,#140c0ce6,#0d0807d9);border:2px solid #4a2f16;box-shadow:0 0 0 2px #0d0807;text-shadow:var(--px-o1)}
+.ol-stats div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ol-stats span{font:600 9px var(--tt-ui);letter-spacing:.16em;color:#cdb894;white-space:nowrap}
+.ol-stats strong{font:600 22px/1.1 var(--tt-ui);color:var(--parchment)}
+.ol-stats div.warn strong{color:#ff8a6a}
+.ol-caption{margin:0;font:400 13px/1.4 var(--tt-ui);color:#d8c49c;text-shadow:var(--px-o1)}
+.ol-rail .ol-net{justify-content:flex-start}
+#ol-combos{flex:1 1 auto;min-height:40px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 80%,transparent);mask-image:linear-gradient(#000 80%,transparent)}
+#ol-combos .muted{margin:0;font:400 13px var(--tt-ui);color:#a8967a}
+.ol-rank:not(#_){grid-template-columns:24px 1fr auto auto;padding:6px 0!important;gap:8px;font:600 14px var(--tt-ui);color:var(--parchment)}
+.ol-rank:not(#_) small{font:400 11px var(--tt-ui);color:#cdb894}.ol-rank:not(#_)>span{color:var(--gold);font-size:11px}
+.ol-rank:not(#_) b{font:600 14px var(--tt-ui);color:var(--gold)}
+.ol-rank.is-you strong{color:var(--gold)}
+
+/* boards: one width for every full board; headers one height so the frames line up */
+.ol-stage .challenge-board.ol-board:not(#_){width:var(--bw)!important;min-width:0!important;max-width:none!important;margin:0;flex:none}
+.ol-stage .challenge-board.ol-board.mini:not(#_){width:var(--mw)!important}
+.ol-stage .ol-board .board-header:not(#_){position:relative;height:38px;min-height:0;margin:0 0 6px;padding:0;display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
+.ol-stage .ol-board .board-header strong{font:600 16px/1.1 var(--tt-ui);color:var(--parchment);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.ol-stage .ol-board .board-header>div>span{font:400 12px var(--tt-ui);color:#cdb894;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ol-stage .ol-board .board-header>div:first-child{min-width:0}
+.ol-stage .ol-board .challenge-board-foot:not(#_){height:20px;margin:6px 0 0;display:flex;justify-content:space-between;gap:6px;overflow:hidden;white-space:nowrap}
+.ol-stage .game-overlay{inset:0!important}
+.ol-stage .mini .board-header:not(#_){height:30px;min-height:0;margin-bottom:4px}.ol-stage .mini .board-header strong{font-size:13px}.ol-stage .mini .board-header>div>span{font-size:11px}
+.ol-rivals{display:grid;grid-template-rows:repeat(var(--rows),auto);grid-auto-flow:column;gap:10px 16px;align-content:start}
+.ol-rivals .next-piece{display:none!important}
+/* a duel rival's next pair: the same black box, on the board's right shoulder */
+@media (min-width:760px){
+ .ol-duel .ol-rival.next-right .next-piece:not(#_),.ol-watching .next-left:not(.ol-mine) .next-piece:not(#_),.ol-watching .next-right .next-piece:not(#_){position:absolute;top:calc(100% + 10px);z-index:3;display:block;background:#050307;border:2px solid #6b4a22;box-shadow:inset 0 0 0 1px #000,0 3px 0 #000a;padding:5px 6px 7px;width:auto!important}
+ .ol-duel .ol-rival.next-right .next-piece:not(#_),.ol-watching .next-right .next-piece:not(#_){left:calc(100% + 14px)}
+ .ol-watching .next-left .next-piece:not(#_){right:calc(100% + 14px)}
+ .ol-duel .ol-rival .next-piece:not(#_) span,.ol-watching .next-piece:not(#_) span{display:block!important;font-size:10px!important}
+ .ol-duel .ol-rival .next-piece:not(#_) canvas,.ol-watching .next-piece:not(#_) canvas{width:34px!important;height:102px!important;margin:0!important}
+}
+.ol-watching.ol-ffa .ol-boards{gap:24px;padding:0}.ol-watching.ol-ffa .next-piece{display:none!important}
+/* the combo name over a board */
+.ol-stage .board-banner.ol-banner{--tc:#cdb894;top:36%;font:700 22px/1.2 var(--tt-ui);letter-spacing:.04em;color:var(--tc);background:linear-gradient(90deg,transparent,#0d0807cc 20%,#0d0807cc 80%,transparent);text-shadow:0 2px 0 #0d0807,var(--px-o1);padding:6px 0;z-index:4;white-space:nowrap}
+.ol-banner.tier-2{--tc:#74e283}.ol-banner.tier-3{--tc:#6ec8ff}.ol-banner.tier-4{--tc:#cf98ff}.ol-banner.tier-5{--tc:#ffa257}.ol-banner.tier-6{--tc:#ffd75e;font-size:26px!important}
+.ol-stage .mini .board-banner.ol-banner{font-size:14px}
+.ol-touch{grid-column:1/-1;justify-self:center}
+
+/* narrow windows: boards on top, the rails folded underneath */
+@media (max-width:979px){
+ .ol-stage{grid-template-columns:minmax(0,1fr);gap:12px}
+ .ol-boards{order:-1;padding:0;gap:16px}
+ .ol-rail{justify-self:center!important;width:min(560px,100%);padding-top:0}
+ .ol-rail-l .ol-card{display:none}
+ .ol-touch{order:-1}
+}
+
+/* the end card sits over the settled boards */
+.ol-veil{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:radial-gradient(ellipse at center,#0d0807b3,#0d0807e6);animation:im-in .25s steps(3) both;overflow:auto;padding:16px}
+.ol-end:not(#_){margin:0;max-width:min(680px,94vw)}
+.ol-end .ol-placements li{grid-template-columns:48px 1fr auto;align-items:baseline}.ol-end .ol-placements small{font:400 13px var(--tt-ui);color:#cdb894}
+
+/* finisher: a gold band over everything, before the result */
+.fin-banner{position:fixed;left:50%;top:40%;z-index:60;transform:translate(-50%,-50%);width:min(760px,96vw);text-align:center;pointer-events:none;padding:16px 0 14px;
+  background:linear-gradient(90deg,transparent,#5a3a08e6 14%,#a8761a 50%,#5a3a08e6 86%,transparent);border-top:2px solid #ffe9b0;border-bottom:2px solid #ffe9b0;animation:fin-in 2.3s steps(14) both}
+.fin-banner small{display:block;font:600 14px var(--tt-ui);letter-spacing:.4em;color:#ffe9b0;text-shadow:var(--px-o1)}
+.fin-banner strong{display:block;font:700 clamp(40px,8vmin,80px)/1.05 var(--tt-ui);letter-spacing:.06em;color:#fff3c8;text-shadow:0 5px 0 #7d1b20,var(--px-outline),0 0 24px #ffd75e99}
+.fin-banner span{display:block;margin-top:4px;font:400 16px var(--tt-ui);color:#fff3c8;text-shadow:var(--px-o1)}
+.fin-banner.blow{background:linear-gradient(90deg,transparent,#5a0e12e6 14%,#a32a2a 50%,#5a0e12e6 86%,transparent)}
+@keyframes fin-in{0%{opacity:0;clip-path:inset(0 50%);transform:translate(-50%,-50%) scale(1.15)}10%{opacity:1;clip-path:inset(0 0);transform:translate(-50%,-50%) scale(1)}85%{opacity:1}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.fin-banner{animation:none}}
+
+/* =================== Play vs AI / practice: boards sized to the window (fit-boards.js), level with each other =================== */
+@media (min-width:1000px){
+ .match-grid[style*="--fit-w"] .board-wrap:not(#_),.match-grid[style*="--fit-w"] .boards.single #wrap-0:not(#_){width:var(--fit-w)!important;max-width:none!important;min-width:0}
+ .match-grid:not(#_){column-gap:clamp(56px,6vw,96px)}
+ .match-grid .board-header:not(#_){position:relative;min-height:0;height:44px;align-items:flex-end}
+ /* the rival's next pair: the same black box as yours, on the far shoulder of their board */
+ .match-grid #wrap-1 .next-piece:not(#_){position:absolute;left:calc(100% + 14px);top:calc(100% + 10px);z-index:3;display:block;background:#050307;border:2px solid #6b4a22;box-shadow:inset 0 0 0 1px #000,0 3px 0 #000a;padding:5px 6px 7px;width:auto!important}
+ .match-grid #wrap-1 .next-piece:not(#_) span{display:block!important;font-size:10px!important}
+ .match-grid #wrap-1 .next-piece:not(#_) canvas{width:34px!important;height:102px!important;margin:0!important}
+}
+#app:has(>.match-grid){padding-top:14px}
+#app:has(>.match-grid) .game-heading:not(#_){margin-bottom:6px;min-height:0}
+#app:has(>.match-grid) .game-heading h1:not(#_){font-size:24px!important;margin:0}
+
+/* =================== Adventure while playing: boards in the middle, sized to the window; rail left, your run right =================== */
+@media (min-width:1000px){
+ .rogue-layout:has(.rogue-arena):not(#_){display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;column-gap:clamp(84px,7vw,110px)!important;max-width:none;align-items:start}
+ .rogue-layout:has(.rogue-arena)>.table-surface:not(#_),.rogue-layout:has(.rogue-arena) #rogue-stage,.rogue-arena{display:contents}
+ .rogue-rail{grid-column:1;grid-row:1;justify-self:end;width:min(300px,100%);display:flex;flex-direction:column;gap:8px;max-height:var(--rail-h,none);overflow:hidden}
+ .rogue-layout:has(.rogue-arena) .rogue-playfield:not(#_){grid-column:2;grid-row:1}
+ .rogue-playfield>.challenge-board{flex:none}
+ .rogue-layout:has(.rogue-arena)>.rogue-sidebar:not(#_){grid-column:3;grid-row:1;justify-self:start;width:min(300px,100%)}
+ .rogue-rail .challenge-hud:not(#_){display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:0!important;padding:8px 12px!important;background:linear-gradient(180deg,#140c0ce6,#0d0807d9);border:2px solid #4a2f16;box-shadow:0 0 0 2px #0d0807}
+ .rogue-rail .challenge-hud strong:not(#_){font-size:17px!important;white-space:nowrap}
+ .rogue-rail .fine-print{margin:0}
+ .rogue-rail .rogue-feed{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+ .rogue-rail #rogue-feed{flex:1 1 auto;min-height:40px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 80%,transparent);mask-image:linear-gradient(#000 80%,transparent)}
+ .rogue-rail .button-row{margin:0;justify-content:flex-start}
+ .rogue-playfield[style*="--fit-w"] .challenge-board:not(#_){width:var(--fit-w)!important;min-width:0!important;max-width:none!important}
+ .rogue-playfield.duel:not(#_){gap:clamp(36px,4vw,64px)}
+ .rogue-playfield .board-header:not(#_){position:relative;min-height:0!important;height:44px;align-items:flex-end;margin-bottom:6px}
+ .rogue-playfield .board-header>div>span{display:block}
+ .rogue-playfield .rogue-foot:not(#_){height:20px;margin:6px 0 0;white-space:nowrap;overflow:hidden}
+ /* the rival's next pair, boxed on the far shoulder like yours */
+ .rogue-playfield .rogue-opponent .next-piece:not(#_){position:absolute;left:calc(100% + 14px);top:calc(100% + 10px);z-index:3;display:block;background:#050307;border:2px solid #6b4a22;box-shadow:inset 0 0 0 1px #000,0 3px 0 #000a;padding:5px 6px 7px;width:auto!important}
+ .rogue-playfield .rogue-opponent .next-piece:not(#_) span{display:block!important;font-size:10px!important}
+ .rogue-playfield .rogue-opponent .next-piece:not(#_) canvas{width:34px!important;height:102px!important;margin:0!important}
+ .rogue-arena>.touch-controls{grid-column:1/-1}
+}
+.rogue-feed .chain-entry.wave{--tc:#d8a08a}
+.rogue-feed .muted{margin:0;font:400 13px var(--tt-ui);color:#a8967a}
+/* reward cards: name, one line, rank pips */
+.rogue-rewards .relic-gives:not(#_){font:400 15px/1.35 var(--tt-ui);color:var(--parchment)}
+.rogue-rewards button:not(#_){align-content:start;gap:6px 14px}
+@media (max-width:759px){
+ .ol-stage.online-arena .ol-board.challenge-board .next-piece:not(#_){position:absolute;right:0;bottom:0;top:auto;left:auto;padding:2px 3px;background:#050307;border:1px solid #6b4a22;box-shadow:none}
+ .ol-stage.online-arena .ol-board.challenge-board .next-piece:not(#_) span{display:none!important}
+ .ol-stage.online-arena .ol-board.challenge-board .next-piece:not(#_) canvas{width:11px!important;height:33px!important;margin:0!important}
+ .ol-stage .ol-board .board-header>div:first-child{padding-right:22px}
+}
