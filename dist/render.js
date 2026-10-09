@@ -121,7 +121,7 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
    }
   }
  }
- // Warning: where the next incoming attack will land, as blinking shadows (the Puzzle Pirates way).
+ // Warning: where the next incoming attack will land, as blinking shadows.
  // Worked out against the board as it is now, so it can shift if your next pair changes the board.
  if(!incoming&&p.incoming?.length&&!p.dead)drawIncomingShadow(ctx,canvas,p,time,reduced);
  S?.ready&&S.incoming?.(canvas,p.incoming,p.turn);

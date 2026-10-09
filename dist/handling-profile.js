@@ -30,24 +30,26 @@ export function handlingRules(input={}){
  if(input?.wellFlip===true)out.wellFlip=true;
  return out;
 }
-// The house setup: what new players start with, what "Restore defaults" returns to, and the
+// The Default timings: what new players start with, what ticking "Default timings" returns to, and the
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
-export const HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
-// Legacy: Puzzle Pirates' own timings, converted from its 40 px rows (velocity in px/ms; a row takes 40 ÷ velocity ms).
-//   natural fall  0.01 px/ms (its difficulty 0 start), held steady: no speed-ups      → 4000 ms a row
-//   landing lock  5 ÷ velocity ms at that speed                                        → 500 ms
-//   Space         0.8 px/ms, off again when each new pair spawns; no early-press window → 50 ms a row, 0 ms buffer
-//   strikes and loose blocks 1.2 px/ms                                                 → 33 ms a row, ~430 ms down the board
-//   breaks        75 ms between depth levels, then the 500 ms explosion and a 150 ms pause → wave 75 ms, clear 650 ms
-//   held left/right 300 ms, then 7 presses a second                                     → 300 / 142 ms
-export const LEGACY_RULES=handlingRules({...HOUSE_RULES,gravityMs:4000,lockMs:500,fastFallMs:50,dropBufferMs:0,attackMs:430,settleMs:33,waveMs:75,clearMs:650,repeatDelayMs:300,repeatMs:142});
-export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES},{id:'legacy',label:'Legacy (Puzzle Pirates)',rules:LEGACY_RULES}];
-// One-time switch of every saved timing setup to the house presets (key bindings are left alone).
-// v3: natural fall slowed to 2400 ms (topping out by accident was too easy); anyone still on 1600 moves.
+// Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
+//   natural fall  0.01 px/ms, steady (no speed-ups)                            → 4000 ms a row
+//   landing lock  5 ÷ speed                                                    → 500 ms
+//   Space         0.8 px/ms, off again when each new pair spawns; no early press → 50 ms a row, 0 ms window
+//   strikes and loose blocks 1.2 px/ms                                         → 33 ms a row, ~430 ms down the board
+//   breaks        75 ms between depth levels, then a 500 ms burst and a 150 ms pause → wave 75, clear 650
+//   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
+export const HOUSE_RULES=handlingRules({gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:650,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
+export const DEFAULT_TIMINGS=HOUSE_RULES;
+// the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
+export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
+export const HANDLING_PRESETS=[{id:'default',label:'Default',rules:HOUSE_RULES}];
+// v4: everyone moves onto the Default timings once, with "Default timings" ticked; whatever they had is kept
+// as their custom scheme, back the moment they untick it.
 export function migrateToHouse(prefs={}){
- const v=prefs.houseVersion??0;if(v>=3)return prefs;
- if(v<2)return {...prefs,houseVersion:3,rules:{...(prefs.rules||{}),...HOUSE_RULES}};
- const r=prefs.rules||{};return {...prefs,houseVersion:3,rules:r.gravityMs===1600||r.gravityMs===undefined?{...r,gravityMs:HOUSE_RULES.gravityMs}:r};
+ const v=prefs.houseVersion??0;if(v>=4)return prefs;
+ const had=prefs.rules&&typeof prefs.rules==='object'?handlingRules({...PREVIOUS_HOUSE_RULES,...prefs.rules}):null;
+ return {...prefs,houseVersion:4,useDefaultTimings:true,customRules:had??{...PREVIOUS_HOUSE_RULES},rules:{...HOUSE_RULES}};
 }
 
 // Key bindings: each action can have several keys (e.g. fast fall on Space or G).

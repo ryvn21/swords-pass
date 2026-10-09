@@ -1149,3 +1149,10 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .handling-presets{display:flex;gap:16px;flex-wrap:wrap}
 .zen-night{display:block;font:400 11px var(--tt-ui);color:#9f8a6c;letter-spacing:.06em;margin:-2px 0 6px}
 #zm-night::before,#zm-night::after{content:none!important;display:none!important}
+/* timings: the Default checkbox at the top; while it's ticked the sliders are locked to the defaults */
+.timing-default{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;margin:0 0 12px;border:2px solid #4a2f16;background:#140c0ccc;cursor:pointer}
+.timing-default input{width:20px;height:20px;margin-top:2px;accent-color:var(--gold);flex:none}
+.timing-default strong{display:block;font:600 16px var(--tt-ui);color:var(--parchment)}
+.timing-default small{display:block;font:400 13px var(--tt-ui);color:#b8a688;margin-top:2px}
+.handling-editor.locked .field-label{opacity:.55}
+.handling-editor.locked input[type=range]{cursor:not-allowed}
