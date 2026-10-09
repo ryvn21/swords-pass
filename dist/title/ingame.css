@@ -1139,3 +1139,7 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .ol-others{width:100%;max-width:640px;margin-top:6px}
 .ol-open-note{max-width:520px;text-align:center}
 .ol-others .ol-sub{text-align:center}
+/* the blade picker drops down over the page instead of pushing it (no jump in size) */
+.ol-you:not(#_){position:relative}
+.ol-you .ol-picker:not(#_){background:#120b08;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:30;box-shadow:0 0 0 2px #0d0807,0 14px 30px #000c}
+
