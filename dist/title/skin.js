@@ -109,6 +109,44 @@ function drawBlock(g, color, kind, uw, uh) {
   g.restore();
   glint(g, 7.2, 7.4, .9); glint(g, uw - 7, uh - 9, .45);
 }
+// Breaker styles (drafts to choose between; Settings → Breakers):
+//   classic: the free-standing lit blade with a pulsing glow (the original)
+//   bold:    the same blade, larger, flat colour and a heavy ink outline; no glow
+//   socket:  a dark recessed tile holding a bold blade, so it never reads as a block; no glow
+//   orb:     a round coloured orb in a dark socket with the colour's blade on it; no glow
+export const BREAKER_STYLES = ['classic', 'bold', 'socket', 'orb'];
+let breakerStyle = 'classic';
+function boldBlade(g, color, uw, uh, scale) {
+  const r = RAMP[color], e = EMBLEMS[color];
+  g.save(); emblemTransform(g, uw, uh, scale); g.lineJoin = 'round';
+  g.strokeStyle = INK; g.lineWidth = 3.2; g.stroke(e.all);
+  g.fillStyle = r[3]; g.fill(e.all);
+  g.save(); g.clip(e.all); g.fillStyle = r[4]; g.fillRect(0, 0, 16, 48); g.fillStyle = alpha(r[1], .35); g.fillRect(0, 34, 32, 14); g.restore();
+  g.save(); g.clip(e.blade); g.strokeStyle = r[5]; g.lineWidth = 1.5; g.stroke(e.ridge); g.restore();
+  g.strokeStyle = r[0]; g.lineWidth = .9; g.stroke(e.all);
+  g.restore();
+}
+function drawBreakerStyle(g, color, uw, uh, style) {
+  const r = RAMP[color];
+  if (style === 'bold') { boldBlade(g, color, uw, uh, 1.3); return; }
+  if (style === 'socket' || style === 'orb') {
+    rr(g, .4, .4, uw - .8, uh - .8, 5.2); g.fillStyle = INK; g.fill();
+    const sg = g.createLinearGradient(0, 1, 0, uh - 1); sg.addColorStop(0, '#0f0b0d'); sg.addColorStop(1, '#241c20');
+    rr(g, 1.6, 1.6, uw - 3.2, uh - 3.2, 4.4); g.fillStyle = sg; g.fill();
+    rr(g, 1.6, 1.6, uw - 3.2, uh - 3.2, 4.4); g.strokeStyle = r[2]; g.lineWidth = 1.6; g.stroke();
+    g.strokeStyle = alpha('#000000', .5); g.lineWidth = 1; g.beginPath(); g.moveTo(3.4, uh - 4); g.lineTo(3.4, 3.4); g.lineTo(uw - 4, 3.4); g.stroke();
+    if (style === 'socket') { boldBlade(g, color, uw, uh, 1.22); return; }
+    const cx = uw / 2, cy = uh / 2, rad = uw * .4;
+    g.beginPath(); g.arc(cx, cy, rad + 1.4, 0, Math.PI * 2); g.fillStyle = INK; g.fill();
+    const og = g.createRadialGradient(cx - rad * .35, cy - rad * .4, rad * .1, cx, cy, rad); og.addColorStop(0, r[5]); og.addColorStop(.35, r[4]); og.addColorStop(.75, r[3]); og.addColorStop(1, r[1]);
+    g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI * 2); g.fillStyle = og; g.fill();
+    g.save(); g.beginPath(); g.arc(cx, cy, rad, 0, Math.PI * 2); g.clip();
+    g.save(); emblemTransform(g, uw, uh, .62); g.fillStyle = alpha(r[0], .75); g.fill(EMBLEMS[color].all); g.restore();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(cx - rad * .35, cy - rad * .5, rad * .32, rad * .16, -.6, 0, Math.PI * 2); g.fill();
+    g.restore(); return;
+  }
+  drawBreaker(g, color, uw, uh);
+}
 function drawBreaker(g, color, uw, uh) {    // a free-standing blade lit from inside, no tile
   const r = RAMP[color], e = EMBLEMS[color];
   g.save(); emblemTransform(g, uw, uh, 1.12);
@@ -213,7 +251,7 @@ const scaleOf = ctx => { const m = ctx.getTransform(); return [Math.hypot(m.a, m
 
 // ---------- effects ----------
 let reduced = false;
-const readReduced = () => { try { reduced = !!JSON.parse(localStorage.getItem('scraps.preferences') || '{}').reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; } catch {} };
+const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; const st = BREAKER_STYLES.includes(p.breakerStyle) ? p.breakerStyle : 'classic'; if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
 function glow(ctx, x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
 const RGB = RAMP.map(r => { const h = r[4]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(','); });
@@ -224,9 +262,9 @@ const skin = {
     if (c.color == null || !RAMP[c.color]) return false;
     const [sx, sy] = scaleOf(ctx), pw = Math.max(4, Math.round(w * sx)), ph = Math.max(6, Math.round(h * sy));
     const kind = c.breaker && !c.stage ? 'k' : c.stage > 1 ? 's' : c.stage === 1 ? 'd' : 'b';
-    const s = sprite(kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreaker(g, c.color, 32, 48) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), palOf(c.color, kind));
+    const s = sprite(kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? [...STONE, ...RAMP[c.color], ...LIGHT, '#0f0b0d', '#241c20', '#000000'] : palOf(c.color, kind));
     ctx.save(); ctx.globalAlpha = a;
-    if (kind === 'k' && !reduced && a > .5) {
+    if (kind === 'k' && breakerStyle === 'classic' && !reduced && a > .5) {
       const t = now(), p = .5 + .5 * Math.sin(t * 2.6 + c.color * 1.3 + x * .07);
       ctx.globalCompositeOperation = 'lighter'; glow(ctx, x + w / 2, y + h * .55, w * .9, RGB[c.color], .2 + .16 * p); ctx.globalCompositeOperation = 'source-over';
     }
@@ -281,12 +319,13 @@ function publishTiles() {
     const t = (kind, draw) => sprite('tile-' + kind + c, 78, 117, 32, 48, draw, palOf(c, kind)).toDataURL();
     css.push(`--tile-${c}:url(${t('b', g => drawBlock(g, c, 'block', 32, 48))})`);
     css.push(`--tile-stone-${c}:url(${t('s', g => drawBlock(g, c, 'stone', 32, 48))})`);
-    css.push(`--tile-breaker-${c}:url(${t('k', g => drawBreaker(g, c, 32, 48))})`);
+    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), [...STONE, ...RAMP[c], ...LIGHT, '#0f0b0d', '#241c20', '#000000']).toDataURL()})`);
   }
   const st = document.createElement('style'); st.id = 'scraps-tiles'; st.textContent = `:root{${css.join(';')}}`; document.head.append(st);
 }
 // one-off renders for menus and exports
-skin.render = {block: drawBlock, breaker: drawBreaker, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
+globalThis.scrapsSkinRefresh = () => readReduced();
+skin.render = {block: drawBlock, breaker: drawBreaker, breakerStyle: drawBreakerStyle, styles: BREAKER_STYLES, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
 
 if (hasDom) { try { mk(1, 1)[1].roundRect || (CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); }); publishTiles(); readReduced(); setInterval(readReduced, 2000); skin.ready = true; } catch (e) { console.warn('skin disabled', e); } }
 // Gem fusion sound: a new gem id on the player's own board means blocks just fused (or a gem
