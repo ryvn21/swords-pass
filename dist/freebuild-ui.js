@@ -3,7 +3,6 @@
 import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,applyAttackBatch,horizontalBase,decay,DEFAULT_RULES} from './engine.js';
 import {drawBoard} from './render.js';
 import {CATEGORIES, patternCategory} from './pattern-library.js';
-import {onlineLegal} from './pattern-strength.js';
 const thumb = rows => `<span class="pattern-thumb" style="--cols:${rows[0]?.length || 6}">${[...rows].reverse().map(r => r.map(c => `<i style="background-image:var(--tile-${c})"></i>`).join('')).join('')}</span>`;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -93,7 +92,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
   <div class="divider"></div><p class="eyebrow">THEIR BOARD</p>
   <label class="fb-toggle"><input type="checkbox" id="fb-show-target" ${showTarget ? 'checked' : ''}> Show what lands on them</label>
   <div class="fb-blade"><small>YOUR BLADE (THE COLOURS THEY GET)</small><button id="fb-blade-btn" aria-expanded="${pickerOpen}">${thumb(attacker().rows)}<strong>${esc(attacker().name)}</strong><span>${pickerOpen ? '▴' : '▾'}</span></button>
-   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}${onlineLegal(p.rows) ? '' : '<small>too strong online</small>'}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
+   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
   <div class="fb-target-tools"><button id="fb-target-crack" title="Turn the landed swords into the coloured blocks they will play with">Crack them</button><button id="fb-target-clear" class="fb-clear">Clear their board</button></div>
  </aside>
 </div>`;

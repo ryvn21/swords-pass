@@ -10,7 +10,6 @@ import {drawBoard,drawNext} from './render.js';
 import {hazardAt,scoreClear} from './challenge.js';
 import {DEFAULT_PROGRESSION,progressionAt} from './progression.js';
 import {connectOnline} from './online-net.js';
-import {onlineLegal, strength, ONLINE_CAP} from './pattern-strength.js';
 import {CATEGORIES, patternCategory} from './pattern-library.js';
 import {createComboLog, stepOf, comboHTML, comboName} from './combo-log.js';
 import {offensive} from './name-filter.js';
@@ -37,10 +36,8 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   const rowsAttr = rows => rows?.length ? ` data-rows="${esc(JSON.stringify(rows))}"` : '';
   const vsLine = pub => { const r = pub && h2h[pub]; return r && (r.w || r.l) ? `you ${r.w}\u2013${r.l}` : ''; };
   const facts = p => [p.rating ? p.rating + ' rating' : '', vsLine(p.pub), p.aka?.length ? 'aka ' + p.aka.slice(0, 2).join(', ') : ''].filter(Boolean).join(' \u00b7 ');
-  // online takes blades no stronger than the game's own (pattern-strength.js); a stronger one plays as the Forgotten Falchion
-  const FALCHION = {id: 'forgotten-falchion', iconId: 'forgotten-falchion', name: 'Forgotten Falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
   const ownBlade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
-  const blade = () => { const b = ownBlade(); return b.rows.length && !onlineLegal(b.rows) ? {...FALCHION, rows: FALCHION.rows.map(r => [...r])} : b; };
+  const blade = ownBlade;
   const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1, pid, aka: oldNames})});
   const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: 3, wellFlip: true});
   const set = (q, v) => { const el = $(q); if (el && el.textContent !== String(v)) el.textContent = String(v); };
@@ -88,7 +85,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     let body = '';
     if (screen === 'home') {
       body = `<div class="ol-modes">${['duel', 'ffa'].map(k => `<button class="pm-diff-item ${k === mode ? 'selected' : ''}" data-mode="${k}"><strong>${k === 'duel' ? 'Duel' : 'Free-for-All'}</strong><small>${k === 'duel' ? 'One on one. First to top out loses' : 'Two to four players. Last board standing'}</small></button>`).join('')}</div>
-        <div class="ol-you"><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>CHOOSE YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</button><div class="ol-blade-side"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div></div>${pickerOpen ? pickerHTML() : ''}</div>
+        <div class="ol-you"><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>CHOOSE YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}</button><div class="ol-blade-side"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div></div>${pickerOpen ? pickerHTML() : ''}</div>
         <nav class="ol-menu">
           <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button><p class="ol-hint">Sits you at an open table, or puts one up for you</p>
           <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Put up a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
@@ -146,7 +143,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   let pickerCtl = null; const pickerLife = () => { pickerCtl?.abort(); pickerCtl = new AbortController(); return pickerCtl.signal; };
   function pickerHTML() {
     const cur = ownBlade().id;
-    return `<div class="ol-picker" role="listbox" aria-label="Choose your blade">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p><div class="ol-picker-row">${list.map(p => { const v = strength(p.rows), ok = v <= ONLINE_CAP; return `<button type="button" role="option" aria-selected="${p.id === cur}" class="ol-pick ${p.id === cur ? 'on' : ''}" data-pick="${esc(p.id)}"${rowsAttr(p.rows)}>${swordIcon(p.iconId ?? p.id)}<span><strong>${esc(p.name)}</strong><small>${v} strength${ok ? '' : ' \u00b7 too strong online'}</small></span></button>`; }).join('')}</div>` : ''; }).join('')}</div>`;
+    return `<div class="ol-picker" role="listbox" aria-label="Choose your blade">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p><div class="ol-picker-row">${list.map(p => { return `<button type="button" role="option" aria-selected="${p.id === cur}" class="ol-pick ${p.id === cur ? 'on' : ''}" data-pick="${esc(p.id)}"${rowsAttr(p.rows)}>${swordIcon(p.iconId ?? p.id)}<span><strong>${esc(p.name)}</strong></span></button>`; }).join('')}</div>` : ''; }).join('')}</div>`;
   }
   // ---------- pattern on hover: any element with data-rows shows its pattern beside the pointer ----------
   let tip = null;
@@ -154,7 +151,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     const el = e.target.closest?.('[data-rows]'); if (!el) { tip?.remove(); tip = null; return; }
     let rows; try { rows = JSON.parse(el.dataset.rows); } catch { return; }
     tip?.remove(); tip = document.createElement('div'); tip.className = 'ol-tip';
-    tip.innerHTML = `${thumb(rows)}<small>${strength(rows)} strength</small>`; document.body.append(tip);
+    tip.innerHTML = thumb(rows); document.body.append(tip);
     const r = el.getBoundingClientRect(); tip.style.left = Math.min(innerWidth - 120, r.right + 8) + 'px'; tip.style.top = Math.max(8, r.top) + 'px';
   }, {signal: life.signal});
   host.addEventListener('pointerleave', () => { tip?.remove(); tip = null; }, {signal: life.signal});
