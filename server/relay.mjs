@@ -4,7 +4,7 @@
 // snapshots and attack batches, and decides who topped out first.
 import {publicId as pubId} from './scores.mjs';
 import {onlineLegal} from '../dist/pattern-strength.js';
-// a blade busier than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
+// a blade stronger than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
 const FALLBACK_BLADE = {name: 'Forgotten Falchion', iconId: 'forgotten-falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
 export const PROTOCOL = 1;
 const MODES = {duel: {min: 2, max: 2}, ffa: {min: 2, max: 4}};

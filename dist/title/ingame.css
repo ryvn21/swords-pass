@@ -1078,3 +1078,4 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .pt-frame canvas{display:block;width:100%;height:auto;aspect-ratio:4/13}
 .strike-tools button:not(#_){font-size:14px!important;white-space:nowrap;padding:2px 6px!important}.strike-tools button:not(#_)::before,.strike-tools button:not(#_)::after{display:none!important}.strike-tools{flex-wrap:wrap}
 .fb-target-tools{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}.fb-target-tools #fb-target-clear:not(#_){margin-top:0}.fb-target-tools button:not(#_){font-size:14px!important;white-space:nowrap}
+.strength-meter u{position:absolute;top:-2px;bottom:-2px;width:1px;background:#cdb894aa}

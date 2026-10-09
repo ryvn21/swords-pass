@@ -1,6 +1,6 @@
 // Freebuild: a Solo sandbox. Paint any board with the game's own pieces, watch the break play out
 // step by step, test incoming strikes, keep your setups, share them as codes, and play from them.
-import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,horizontalBase,decay,DEFAULT_RULES} from './engine.js';
+import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,applyAttackBatch,horizontalBase,decay,DEFAULT_RULES} from './engine.js';
 import {drawBoard} from './render.js';
 import {CATEGORIES, patternCategory} from './pattern-library.js';
 import {onlineLegal} from './pattern-strength.js';
@@ -93,7 +93,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
   <div class="divider"></div><p class="eyebrow">THEIR BOARD</p>
   <label class="fb-toggle"><input type="checkbox" id="fb-show-target" ${showTarget ? 'checked' : ''}> Show what lands on them</label>
   <div class="fb-blade"><small>YOUR BLADE (THE COLOURS THEY GET)</small><button id="fb-blade-btn" aria-expanded="${pickerOpen}">${thumb(attacker().rows)}<strong>${esc(attacker().name)}</strong><span>${pickerOpen ? '▴' : '▾'}</span></button>
-   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}${onlineLegal(p.rows) ? '' : '<small>too busy online</small>'}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
+   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}${onlineLegal(p.rows) ? '' : '<small>too strong online</small>'}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
   <div class="fb-target-tools"><button id="fb-target-crack" title="Turn the landed swords into the coloured blocks they will play with">Crack them</button><button id="fb-target-clear" class="fb-clear">Clear their board</button></div>
  </aside>
 </div>`;
@@ -175,9 +175,12 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
   }
   // the break's swords and sprinkles, landed on their board the way the game would land them
   function land() {
-    const rows = attacker().rows; let i = 0;
-    for (const r of results) for (const sw of r.swords) { const a = {...sw, stage: r.chain, index: i, hand: i % 2 ? -1 : 1, id: ++i}; if (a.kind === 'horizontal') a.base = horizontalBase(target, a.width); applyAttack(target, a, rows); }
-    const spr = results.reduce((n, r) => n + r.sprinkles, 0); if (spr) applyAttack(target, {kind: 'sprinkle', count: spr, hand: 1, id: ++i}, rows);
+    // exactly as a match does it: swords numbered and handed alternately, one batch, the game's own batch rules, then the board settles
+    const rows = attacker().rows, attacks = []; let n = 0;
+    for (const r of results) for (const sw of r.swords) { const a = {...sw, stage: r.chain, index: n, hand: n % 2 === 0 ? 1 : -1, id: 100 + n, pattern: rows}; if (a.kind === 'horizontal') a.base = horizontalBase(target, a.width); attacks.push(a); n++; }
+    const spr = results.reduce((k, r) => k + r.sprinkles, 0); if (spr) attacks.push({kind: 'sprinkle', count: spr, hand: 1, id: 99, pattern: rows});
+    if (!attacks.length) return;
+    applyAttackBatch(target, attacks); while (gravity(target, 1)); fuse(target);
     sound('hit');
   }
   function finish() {

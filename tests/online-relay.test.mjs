@@ -165,12 +165,12 @@ test('finished combos go to everyone at the table, cleaned; boards keep streamin
   b.say({t: 'dead'}); a.say({t: 'state', s: {b: []}, score: 0}); assert.ok(b.last('state'));
 });
 
-test('a blade busier than the curated set plays online as the Forgotten Falchion', async () => {
-  const {busyness, ONLINE_CAP} = await import('../dist/pattern-strength.js');
+test('a blade stronger than the curated set plays online as the Forgotten Falchion', async () => {
+  const {strength, ONLINE_CAP} = await import('../dist/pattern-strength.js');
   const {client} = harness(), a = client('Ann');
   const checker = [[0,1,0,1,0,1],[1,0,1,0,1,0],[0,1,0,1,0,1],[1,0,1,0,1,0]];
-  assert.ok(busyness(checker) > ONLINE_CAP);
+  assert.ok(strength(checker) > ONLINE_CAP);
   a.say({t: 'hello', name: 'Ann', blade: {name: 'Checker', iconId: 'custom', rows: checker}}); a.say({t: 'create', mode: 'duel'});
   const me = a.last('room').players[0]; assert.equal(me.blade.name, 'Forgotten Falchion');
-  assert.ok(busyness(me.blade.rows) <= ONLINE_CAP);
+  assert.ok(strength(me.blade.rows) <= ONLINE_CAP);
 });

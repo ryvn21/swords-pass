@@ -10,7 +10,7 @@ import {drawBoard,drawNext} from './render.js';
 import {hazardAt,scoreClear} from './challenge.js';
 import {DEFAULT_PROGRESSION,progressionAt} from './progression.js';
 import {connectOnline} from './online-net.js';
-import {onlineLegal, busyness, ONLINE_CAP} from './pattern-strength.js';
+import {onlineLegal, strength, ONLINE_CAP} from './pattern-strength.js';
 import {createComboLog, stepOf, comboHTML, comboName} from './combo-log.js';
 import {createPlayout, finisherOf, showFinisher, batchArea} from './finisher.js';
 
@@ -28,7 +28,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   // this browser's own id for the leaderboard (an account-free "this browser's record"); never shown to anyone
   let pid = read('player-id', ''); if (!/^[A-Za-z0-9_-]{12,64}$/.test(pid)) { pid = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); save('player-id', pid); }
   const record = read('online-record', {duel: {w: 0, l: 0}, ffa: {w: 0, played: 0}});
-  // online takes blades no busier than the game's own (pattern-strength.js); a busier one plays as the Forgotten Falchion
+  // online takes blades no stronger than the game's own (pattern-strength.js); a stronger one plays as the Forgotten Falchion
   const FALCHION = {id: 'forgotten-falchion', iconId: 'forgotten-falchion', name: 'Forgotten Falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
   const ownBlade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
   const blade = () => { const b = ownBlade(); return b.rows.length && !onlineLegal(b.rows) ? {...FALCHION, rows: FALCHION.rows.map(r => [...r])} : b; };
@@ -79,7 +79,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     let body = '';
     if (screen === 'home') {
       body = `<div class="ol-modes">${['duel', 'ffa'].map(k => `<button class="pm-diff-item ${k === mode ? 'selected' : ''}" data-mode="${k}"><strong>${k === 'duel' ? 'Duel' : 'Free-for-All'}</strong><small>${k === 'duel' ? 'One on one. First to top out loses' : 'Two to four players. Last board standing'}</small></button>`).join('')}</div>
-        <div class="ol-you"><span class="ol-blade">${swordIcon(b.iconId)}</span><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}"></label><div class="ol-blade-name"><small>YOUR BLADE</small><strong>${esc(b.name)}</strong>${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too busy for online (${busyness(ownBlade().rows).toFixed(2)} &gt; ${ONLINE_CAP})</em>` : ''}</div></div>
+        <div class="ol-you"><span class="ol-blade">${swordIcon(b.iconId)}</span><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}"></label><div class="ol-blade-name"><small>YOUR BLADE</small><strong>${esc(b.name)}</strong>${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (strength ${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</div></div>
         <nav class="ol-menu">
           <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button>
           <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Host a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
