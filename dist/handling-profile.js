@@ -9,7 +9,7 @@ export function migrateSpawnAdjustment(prefs={}){
  return {...prefs,spawnAdjustmentVersion:2,rules:{...prefs.rules,spawnGraceMs}};
 }
 export const HANDLING_FIELDS=[
- ['gravityMs','Natural fall per row',150,1600,10],
+ ['gravityMs','Natural fall per row',150,3000,10],
  ['fastFallMs','Fast fall per row',16,600,5],
  ['lockMs','Landing grace',0,650,10],
  ['entryMs','Next pair delay',0,300,5],
@@ -32,12 +32,14 @@ export function handlingRules(input={}){
 }
 // The house setup: what new players start with, what "Restore defaults" returns to, and the
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
-export const HOUSE_RULES=handlingRules({gravityMs:1600,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
+export const HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
 export const HANDLING_PRESETS=[{id:'house',label:'Default',rules:HOUSE_RULES}];
 // One-time switch of every saved timing setup to the house presets (key bindings are left alone).
+// v3: natural fall slowed to 2400 ms (topping out by accident was too easy); anyone still on 1600 moves.
 export function migrateToHouse(prefs={}){
- if((prefs.houseVersion??0)>=2)return prefs;
- return {...prefs,houseVersion:2,rules:{...(prefs.rules||{}),...HOUSE_RULES}};
+ const v=prefs.houseVersion??0;if(v>=3)return prefs;
+ if(v<2)return {...prefs,houseVersion:3,rules:{...(prefs.rules||{}),...HOUSE_RULES}};
+ const r=prefs.rules||{};return {...prefs,houseVersion:3,rules:r.gravityMs===1600||r.gravityMs===undefined?{...r,gravityMs:HOUSE_RULES.gravityMs}:r};
 }
 
 // Key bindings: each action can have several keys (e.g. fast fall on Space or G).

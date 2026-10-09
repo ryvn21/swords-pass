@@ -27,6 +27,13 @@ test('saved timing setups switch to the house presets once; later changes stay',
   const {DEFAULT_RULES} = await import('../dist/engine.js');
   const moved = migrateToHouse({houseVersion: 1, keys: {drop: ['g']}, rules: {...DEFAULT_RULES, gravityMs: 900, repeatMs: 72}});
   for (const k of Object.keys(HOUSE_RULES)) assert.equal(moved.rules[k], HOUSE_RULES[k], k);
-  assert.equal(moved.houseVersion, 2); assert.deepEqual(moved.keys, {drop: ['g']});
+  assert.equal(moved.houseVersion, 3); assert.deepEqual(moved.keys, {drop: ['g']});
   assert.equal(migrateToHouse({...moved, rules: {...moved.rules, gravityMs: 800}}).rules.gravityMs, 800);   // runs only once
+});
+
+test('house natural fall is 2400 ms; saved setups on the old 1600 move once, other choices stay', async () => {
+  const {migrateToHouse, HOUSE_RULES} = await import('../dist/handling-profile.js');
+  assert.equal(HOUSE_RULES.gravityMs, 2400);
+  assert.equal(migrateToHouse({houseVersion: 2, rules: {...HOUSE_RULES, gravityMs: 1600}}).rules.gravityMs, 2400);
+  assert.equal(migrateToHouse({houseVersion: 2, rules: {...HOUSE_RULES, gravityMs: 900}}).rules.gravityMs, 900);
 });
