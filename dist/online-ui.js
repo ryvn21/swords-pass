@@ -368,7 +368,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     if (screen === 'watch' && watch) { renderWatchFrame(); return; }
     const m = match; if (!m || screen !== 'match') return;
     const me = m.game.players[0], now = performance.now();
-    drawBoard($('#challenge-board-0'), me, {time, gravityMs: m.rules.gravityMs, fastFallMs: m.rules.fastFallMs, ghost: prefs.ghost && !m.over, reduced: prefs.reduced, renderAheadMs: m.started && !m.over ? acc : 0});
+    drawBoard($('#challenge-board-0'), me, {time, gravityMs: m.rules.gravityMs, fastFallMs: m.rules.fastFallMs, ghost: prefs.ghost && !m.over, reduced: prefs.reduced, renderAheadMs: m.started && (!m.over || (m.playout && !m.playout.done)) ? acc : 0});
     drawNext($('#obn-me'), pairAt(m.seed, me.nextIndex, m.rules.breakerRate));
     for (const r of m.rivals.values()) {
       drawRival(r);
@@ -466,7 +466,9 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function frame(t) {
     if (disposed) return;
     const dt = Math.min(100, t - (last || t)); last = t;
-    if (match && !match.over && screen === 'match') { acc += dt; while (acc >= DT) { tick(); acc -= DT; } } else acc = 0;
+    // keep ticking after the result while the winner's last combo plays out
+    const live = match && screen === 'match' && (!match.over || (match.playout && !match.playout.done));
+    if (live) { acc += dt; while (acc >= DT) { tick(); acc -= DT; } } else acc = 0;
     render(t); raf = requestAnimationFrame(frame);
   }
   addEventListener('keydown', e => {
@@ -485,7 +487,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     inPlay: () => !!match && screen === 'match' && (!match.over || !match.shownAt),
     pause: () => {},
     leave: leaveMatch,
-    getState: () => ({screen, mode, status: net.status, room, match: match ? {mode: match.mode, you: match.you, seed: match.seed, started: match.started, over: match.over, result: match.result, sent: match.sent, score: match.score, target: match.target, dead: match.game.players[0].dead, turn: match.game.players[0].turn, incoming: match.game.players[0].incoming.length, rivals: [...match.rivals.values()].map(r => ({id: r.id, name: r.name, out: r.out, hasState: !!r.s}))} : null}),
+    getState: () => ({screen, mode, status: net.status, room, match: match ? {phase: match.game.players[0].phase, playout: match.playout ? {done: match.playout.done, phase: match.game.players[0].phase} : null, shown: !!match.shownAt, mode: match.mode, you: match.you, seed: match.seed, started: match.started, over: match.over, result: match.result, sent: match.sent, score: match.score, target: match.target, dead: match.game.players[0].dead, turn: match.game.players[0].turn, incoming: match.game.players[0].incoming.length, rivals: [...match.rivals.values()].map(r => ({id: r.id, name: r.name, out: r.out, hasState: !!r.s}))} : null}),
     destroy() { disposed = true; clearInterval(listTick); life.abort(); cancelAnimationFrame(raf); held.clear(); net.close(); if (globalThis.__scrapsOnline === api) delete globalThis.__scrapsOnline; },
     _net: net,
   };
