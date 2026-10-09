@@ -93,10 +93,17 @@ export function receiveBatch(state,side,attacks,sourceTurn=0){
  const list=attacks.map(a=>{const x={...clone(a),id:state.nextAttackId++};if(x.kind==='horizontal')x.base=horizontalBase(p.board,x.width);return x;});
  p.incoming.push({kind:'batch',id:state.nextAttackId++,sourceTurn,due:p.turn+1,attacks:list});return true;
 }
-export function createPlayer(seed,rules,pattern){return {board:grid(),active:null,nextIndex:0,turn:0,phase:'entry',timer:0,fall:0,lock:0,fast:false,chain:0,incoming:[],pendingAttack:[],pattern:clone(pattern),stats:{pieces:0,cleared:0,swords:0,sprinkles:0,bestChain:0},dead:false};}
+export function createPlayer(seed,rules,pattern){return {...speedStart(rules),board:grid(),active:null,nextIndex:0,turn:0,phase:'entry',timer:0,fall:0,lock:0,fast:false,chain:0,incoming:[],pendingAttack:[],pattern:clone(pattern),stats:{pieces:0,cleared:0,swords:0,sprinkles:0,bestChain:0},dead:false};}
 export function createMatch(options={}){if(options.engineVersion===9)return legacy9.createMatch(options);if(options.engineVersion===10)return legacy10.createMatch(options);if(options.engineVersion!==undefined&&options.engineVersion!==VERSION)throw Error('Unsupported engine version.');const rules={...DEFAULT_RULES,...options.rules},seed=options.seed??1;const state={version:VERSION,seed,rules,mode:options.mode??'duel',tick:0,elapsed:0,swordIndex:0,sprinkleIndex:0,nextAttackId:1,players:[createPlayer(seed,rules,options.pattern??PATTERNS[0].rows),createPlayer(seed,rules,options.opponentPattern??PATTERNS[1].rows)],winner:null,events:[]};for(const p of state.players)spawn(state,p);return state;}
 // v11: a new pair enters one row above the board (its first cell hidden) and falls into view, so it starts
 // a row higher without the board growing. You still top out when column 4's top cell is filled.
+// Speed-ups (rules.speedUp): the fall starts at 40 ÷ gravityMs px/ms and, each time the blocks you've landed reach
+// lastCount + dropFreq, rises by 1/300 px/ms (capped at 0.25); dropFreq starts at 10 and becomes trunc(dropFreq + 3.33),
+// so the gaps run 10, 13, 16, 19, 22 … blocks. A row takes 40 ÷ speed ms and the landing lock 5 ÷ speed ms.
+function speedStart(rules){return rules?.speedUp?{velocity:40/rules.gravityMs,blocksSeen:0,lastCount:0,dropFreq:10}:{};}
+const gravOf=(state,p)=>state.rules.speedUp&&p.velocity?40/p.velocity:state.rules.gravityMs;
+const lockOf=(state,p)=>state.rules.speedUp&&p.velocity?5/p.velocity:state.rules.lockMs;
+function landedBlocks(state,p,n){if(!state.rules.speedUp||!p.velocity)return;for(let i=0;i<n;i++){p.blocksSeen++;if(p.blocksSeen>=p.lastCount+p.dropFreq){p.velocity=Math.min(.25,p.velocity+1/300);p.dropFreq=Math.trunc(p.dropFreq+3.33);p.lastCount=p.blocksSeen;}}}
 export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}if(p.fastAfterAttack){p.fast=true;p.spawnGrace=0;}p.fastAfterAttack=false;p.underAttack=false;const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
 export function command(state,side,action){
  if(state.version===9)return legacy9.command(state,side,action);
@@ -108,10 +115,10 @@ export function command(state,side,action){
   // rules give an early-press window (dropBufferMs): a fresh press that close to the spawn counts.
   if(!fast){p.fastBuffered=null;p.fastAfterAttack=false;}   // a press during an attack only carries over while it's still held
   // a press while an attack is landing on you (or settling after it) drops the next pair at once if you're still holding it
-  if(fast){if(p.phase!=='fall'||!p.active){if(p.underAttack)p.fastAfterAttack=true;if(state.rules.dropBufferMs>0)p.fastBuffered=state.elapsed;return false;}p.spawnGrace=0;}
+  if(fast){if(p.phase!=='fall'||!p.active){if(p.underAttack&&state.rules.dropBufferMs>0)p.fastAfterAttack=true;if(state.rules.dropBufferMs>0)p.fastBuffered=state.elapsed;return false;}p.spawnGrace=0;}
   if(fast!==p.fast){
-   const oldSpeed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;
-   const newSpeed=fast?state.rules.fastFallMs:state.rules.gravityMs;
+   const oldSpeed=p.fast?state.rules.fastFallMs:gravOf(state,p);
+   const newSpeed=fast?state.rules.fastFallMs:gravOf(state,p);
    // Preserve progress within the current row; old slow-fall time is not a drop budget.
    p.fall=Math.min(1,p.fall/oldSpeed)*newSpeed;p.fast=fast;
   }
@@ -197,7 +204,7 @@ function beginResolution(state,side,hooks){
 function lockPair(state,side,hooks){
 
  const p=state.players[side];for(const {x,y,cell} of cells(p.active)){if(y<H)p.board[y][x]=clone(cell);}
- p.active=null;p.fast=false;p.turn++;p.stats.pieces++;state.events.push({type:'lock',side});
+ p.active=null;p.fast=false;p.turn++;p.stats.pieces++;landedBlocks(state,p,2);state.events.push({type:'lock',side});
  decay(p.board,false);
  p.readyAttacks=[];if(p.incoming[0]?.due<=p.turn)p.readyAttacks.push(p.incoming.shift());
  beginSettle(state,side,hooks);
@@ -212,9 +219,9 @@ export function step(state,dt=1000/60,actions=[],hooks={}){
    // Positioning time is controllable, bounded, and consumes neither fall nor lock time.
    const grace=Math.min(dt,p.spawnGrace??0);p.spawnGrace=Math.max(0,(p.spawnGrace??0)-dt);
    const fallingDt=dt-grace;if(fallingDt<=0)continue;
-   const speed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;p.fall+=fallingDt;
+   const speed=p.fast?state.rules.fastFallMs:gravOf(state,p);p.fall+=fallingDt;
    while(p.fall>=speed){p.fall-=speed;const next=move(p.board,p.active,0,-1);if(!next){p.fall=0;break;}p.active=next;entered(p);p.lock=0;}
-   if(!move(p.board,p.active,0,-1)){p.lock+=fallingDt;if(p.lock>=state.rules.lockMs)lockPair(state,side,hooks);}else p.lock=0;
+   if(!move(p.board,p.active,0,-1)){p.lock+=fallingDt;if(p.lock>=lockOf(state,p))lockPair(state,side,hooks);}else p.lock=0;
   }else{
    p.timer-=dt;
    if(p.phase==='clear'){

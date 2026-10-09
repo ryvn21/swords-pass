@@ -28,18 +28,19 @@ export function handlingRules(input={}){
  out.fastFallMs=Math.min(out.fastFallMs,out.gravityMs);
  if(Number.isInteger(input?.stallFlips))out.stallFlips=Math.max(0,Math.min(3,input.stallFlips));
  if(input?.wellFlip===true)out.wellFlip=true;
+ if(input?.speedUp===true)out.speedUp=true;
  return out;
 }
 // The Default timings: what new players start with, what ticking "Default timings" returns to, and the
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 // Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
-//   natural fall  0.01 px/ms, steady (no speed-ups)                            → 4000 ms a row
-//   landing lock  5 ÷ speed                                                    → 500 ms
+//   natural fall  starts at 0.01 px/ms (4000 ms a row) and speeds up as you land blocks (engine: rules.speedUp)
+//   landing lock  5 ÷ speed                                                    → 500 ms at the start, 20 ms at the cap
 //   Space         0.8 px/ms, off again when each new pair spawns; no early press → 50 ms a row, 0 ms window
 //   strikes and loose blocks 1.2 px/ms                                         → 33 ms a row, ~430 ms down the board
 //   breaks        75 ms between depth levels, then a 500 ms burst and a 150 ms pause → wave 75, clear 650
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:650,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:650,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
@@ -59,4 +60,4 @@ export const keysOf=(keys,action)=>{const k=keys?.[action];return Array.isArray(
 export function normalizeKeys(keys={}){const out={};for(const a of Object.keys(KEY_ACTIONS)){const k=keysOf(keys,a);out[a]=k.length?[...new Set(k)].slice(0,4):[...DEFAULT_KEYS[a]];}return out;}
 export const actionFor=(keys,code)=>Object.keys(KEY_ACTIONS).find(a=>keysOf(keys,a).includes(code));
 export const handlingKey=rules=>Object.entries(handlingRules(rules)).filter(([k])=>k!=='stallFlips'&&k!=='wellFlip'&&k!=='dropBufferMs').map(([k,v])=>k+'='+v).join(',');
-export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}
+export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s${r.speedUp?' to start, speeding up as you land blocks (up to 6.25)':''} · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}
