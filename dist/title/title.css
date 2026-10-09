@@ -207,3 +207,14 @@ body.tt-open{overflow:hidden}
 .pn-big{font:400 14px var(--tt-ui);color:#cdb894}.pn-big b{font-size:20px;color:var(--gold)}
 .pn kbd{font:600 11px var(--tt-ui);color:var(--parchment);padding:2px 5px;border:1px solid #6b4a22;background:#0d0807}
 @media (max-width:600px){.pn-inner>section>ol>li{grid-template-columns:1fr}.pn-art{align-items:flex-start}}
+/* who's in the tavern: beside Multiplayer, and beside the patch notes */
+.tt-menu button{position:relative}
+.tt-count{position:absolute;left:calc(100% + 1.4em);top:50%;transform:translateY(-50%);white-space:nowrap;font:400 clamp(10px,1.4vmin,13px) var(--tt-ui);letter-spacing:.06em;color:#9fd38a;vertical-align:middle;text-shadow:1px 1px 0 var(--tt-ink)}
+.tt-count:empty{display:none}
+.tt-corner.tt-bl{left:16px;display:flex;align-items:baseline;gap:14px;max-width:70vw}
+.tt-bl .tt-notes{display:block;background:none;border:0;padding:2px 4px;cursor:pointer;opacity:.7;font:400 clamp(11px,1.5vmin,14px) var(--tt-ui);color:#bfae93}
+.tt-bl .tt-notes:hover,.tt-bl .tt-notes:focus-visible{opacity:1;color:var(--gold)}
+.tt-who{font:400 clamp(11px,1.5vmin,14px) var(--tt-ui);color:#9f8a6c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-who:not(:empty)::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;background:#7ad36a;transform:rotate(45deg);box-shadow:0 0 0 2px #0d0807}
+.tt:not(.tt-entered) .tt-bl{visibility:hidden}
+@media (max-width:600px){.tt-who{display:none}}

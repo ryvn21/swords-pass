@@ -1130,3 +1130,34 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .ol-spin::before,.ol-spin::after{content:none!important;display:none!important}
 .ol-spin:hover:not(#_){color:var(--parchment)}
 .adv-pips.rank small{font:600 10px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--crimson-lit);margin-left:6px}
+/* lobby card: name on the left, your blade (name, pattern, sword) together on the right */
+.ol-you:not(#_){grid-template-columns:1fr auto auto;gap:14px}
+.ol-blade-side{display:flex;align-items:center}
+.ol-blade-side .ol-blade .sword-icon{width:34px;height:68px}
+@media(max-width:640px){.ol-you:not(#_){grid-template-columns:1fr auto}.ol-name{grid-column:1/-1}.ol-blade-name{grid-column:auto!important;align-items:flex-end!important;text-align:right!important}}
+.ol-hint{margin:-2px 0 4px;font:400 13px var(--tt-ui);color:#9f8a6c}
+.ol-others{width:100%;max-width:640px;margin-top:6px}
+.ol-open-note{max-width:520px;text-align:center}
+.ol-others .ol-sub{text-align:center}
+/* the blade picker drops down over the page instead of pushing it (no jump in size) */
+.ol-you:not(#_){position:relative}
+.ol-you .ol-picker:not(#_){background:#120b08;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:30;box-shadow:0 0 0 2px #0d0807,0 14px 30px #000c}
+
+.fb-them-tools{display:flex;gap:10px;justify-content:center;margin-top:4px}
+.fb-them-tools button:not(#_){font-size:13px;min-height:0;padding:2px 6px}
+.fb-them-tools button::before,.fb-them-tools button::after{content:none!important;display:none!important}
+.handling-presets{display:flex;gap:16px;flex-wrap:wrap}
+.zen-night{display:block;font:400 11px var(--tt-ui);color:#9f8a6c;letter-spacing:.06em;margin:-2px 0 6px}
+#zm-night::before,#zm-night::after{content:none!important;display:none!important}
+/* timings: the Default checkbox at the top; while it's ticked the sliders are locked to the defaults */
+.timing-default{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;margin:0 0 12px;border:2px solid #4a2f16;background:#140c0ccc;cursor:pointer}
+.timing-default input{width:20px;height:20px;margin-top:2px;accent-color:var(--gold);flex:none}
+.timing-default strong{display:block;font:600 16px var(--tt-ui);color:var(--parchment)}
+.timing-default small{display:block;font:400 13px var(--tt-ui);color:#b8a688;margin-top:2px}
+.handling-editor.locked .field-label{opacity:.55}
+.handling-editor.locked input[type=range]{cursor:not-allowed}
+.timing-more{margin-top:10px;border-top:1px solid #4a2f16;padding-top:6px}
+.timing-more summary{cursor:pointer;font:600 14px var(--tt-ui);color:var(--gold);list-style:none;padding:4px 0}
+.timing-more summary::-webkit-details-marker{display:none}
+.timing-more summary::before{content:"\25b8";display:inline-block;margin-right:8px;transition:transform .2s}
+.timing-more[open] summary::before{transform:rotate(90deg)}

@@ -8,6 +8,8 @@ import {gzipSync} from 'node:zlib';
 import {resolve, extname, sep, relative} from 'node:path';
 import {attachWebSockets} from './server/ws.mjs';
 import {createRelay} from './server/relay.mjs';
+import {createPresence} from './server/presence.mjs';
+const presence = createPresence();
 import {createScores} from './server/scores.mjs';
 
 const root = resolve('dist');
@@ -38,6 +40,18 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/health') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({ok: true, build: BUILD, scores: scores.remote ? 'supabase' : 'memory', ...relay.stats()})); return; }
   if (url.pathname === '/api/lobby') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify(relay.lobby())); return; }
+  // presence: POST {id, a} with what this page is doing; answers (and GET answers) with the counts
+  if (url.pathname === '/api/presence') {
+    const head = {'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'};
+    if (req.method === 'OPTIONS') { res.writeHead(204, head).end(); return; }
+    if (req.method === 'POST') {
+      let body = ''; req.setEncoding('utf8');
+      req.on('data', d => { body += d; if (body.length > 300) req.destroy(); });
+      req.on('end', () => { try { const m = JSON.parse(body); presence.report(String(m.id), String(m.a)); } catch {} res.writeHead(200, head); res.end(JSON.stringify(presence.counts())); });
+      return;
+    }
+    res.writeHead(200, head); res.end(JSON.stringify(presence.counts())); return;
+  }
   if (url.pathname === '/build.json') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({build: BUILD})); return; }
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }

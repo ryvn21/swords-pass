@@ -3,7 +3,8 @@
 // Kinds used by the game: move, rotate, lock, clear (with combo stage), hit, start, win, end.
 // skin.js adds the board-driven ones, timed to what is drawn on the player's own board:
 // fuse (gem size in cells), strike (incoming swords land), patter (sprinkles land), crack and free
-// (garbage waking up). The scheduled strike/patter replace the generic hit.
+// (garbage waking up), warn (an attack is queued), slide (a side sword comes in) and crush (pieces
+// under a sword). The scheduled strike/patter replace the generic hit.
 // Follows the player's Sound toggle and volume (prefs.sound / prefs.volume, default .16).
 
 let ctx = null, out = null, verb = null, noise = null;
@@ -89,6 +90,23 @@ const SOUNDS = {
   },
   patter(t, v, n) {                                               // sprinkles: small stones clacking down one after another
     hiss(t, {f: jit(2300, .15), q: 5, peak: .15 * v, d: .018}); tone(t, jit(560, .15), {type: 'triangle', peak: .10 * v, d: .03, pan: (Math.random() - .5) * .5});
+  },
+  warn(t, v, n) {                                                 // an attack is coming: war-drum beats and a low horn, more for bigger attacks
+    const k = Math.max(1, Math.min(4, n || 1));
+    for (let i = 0; i < k + 1; i++) { thud(t + i * .17, i % 2 ? 98 : 82, (.22 + .03 * k) * v, .16); hiss(t + i * .17, {f: 900, q: 1.5, peak: .05 * v, d: .04}); }
+    if (k >= 2) tone(t, hz(45 + (k > 2 ? 2 : 0)), {type: 'sawtooth', peak: (.03 + .01 * k) * v, a: .12, d: .28 * k + .2, wet: .35});
+    if (k >= 3) tone(t + .05, hz(52), {type: 'sawtooth', peak: .025 * v, a: .15, d: .3 * k, wet: .35});
+  },
+  slide(t, v, hand) {                                            // a side sword grinding in from the edge
+    const pan = (hand === 1 ? .6 : -.6);
+    sweep(t, 600, 2600, .32, .16 * v, 3); hiss(t, {f: 4200, q: 6, peak: .05 * v, a: .08, d: .25});
+    tone(t, jit(880, .03), {type: 'triangle', peak: .03 * v, a: .1, d: .3, glide: 1.4, pan});
+  },
+  crush(t, v, n) {                                               // pieces under a sword crumble: a gritty crunch, bigger for more
+    const k = Math.max(1, Math.min(5, Math.ceil((n || 1) / 2)));
+    thud(t, 64, (.22 + .04 * k) * v, .22);
+    for (let i = 0; i < 3 + k * 2; i++) hiss(t + i * .014 + Math.random() * .01, {f: jit(900 + Math.random() * 1600, .2), q: 2.5, peak: (.12 + .02 * k) * v, d: .025, type: 'bandpass'});
+    hiss(t + .02, {f: 500, q: .7, peak: .12 * v, d: .16, type: 'lowpass'});
   },
   crack(t, v, n) {                                                // grey stone splits to show its colour
     const k = Math.min(3, Math.max(1, Math.round((n || 1) / 3)));

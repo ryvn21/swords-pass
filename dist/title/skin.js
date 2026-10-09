@@ -109,15 +109,37 @@ function drawBlock(g, color, kind, uw, uh) {
   g.restore();
   glint(g, 7.2, 7.4, .9); glint(g, uw - 7, uh - 9, .45);
 }
-function drawBreaker(g, color, uw, uh) {    // a free-standing blade lit from inside, no tile
-  const r = RAMP[color], e = EMBLEMS[color];
-  g.save(); emblemTransform(g, uw, uh, 1.12);
-  g.lineJoin = 'round'; g.strokeStyle = r[0]; g.lineWidth = 2.2; g.stroke(e.all);
+// Breakers: the free-standing blade lit from inside (no tile). Bold is the look in play; the others are
+// kept for reference only:
+//   classic: the original thin blade with a strong pulsing glow
+//   steady:  a little bigger, a dark edge so it reads on any background, a soft glow that doesn't pulse
+//   bold:    bigger and thicker with an ink outline; the glow breathes slowly and faintly
+//   ember:   bold blade, no glow; a bright core line instead, so it still looks lit
+export const BREAKER_STYLES = ['classic', 'steady', 'bold', 'ember'];
+const BREAKER_LOOK = {
+  classic: {scale: 1.12, ink: 0, edge: 2.2, ridge: 1.1, glow: {a: .2, amp: .16, r: .9, speed: 2.6}},
+  steady: {scale: 1.22, ink: 2.6, edge: 1.6, ridge: 1.2, glow: {a: .1, amp: 0, r: .62, speed: 0}},
+  bold: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 1.5, glow: {a: .07, amp: .05, r: .66, speed: 1.1}},
+  ember: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 2.2, core: true, glow: null},
+};
+let breakerStyle = 'bold', nightGlow = 1;
+function drawBreakerStyle(g, color, uw, uh, style = 'classic') {
+  const L = BREAKER_LOOK[style] || BREAKER_LOOK.classic, r = RAMP[color], e = EMBLEMS[color];
+  g.save(); emblemTransform(g, uw, uh, L.scale); g.lineJoin = 'round';
+  if (L.ink) { g.strokeStyle = INK; g.lineWidth = L.ink; g.stroke(e.all); }
+  g.strokeStyle = r[0]; g.lineWidth = L.edge; g.stroke(e.all);
   const grad = g.createLinearGradient(11, 0, 21, 0); grad.addColorStop(0, r[5]); grad.addColorStop(.5, r[4]); grad.addColorStop(1, r[2]);
   g.fillStyle = grad; g.fill(e.all);
-  g.save(); g.clip(e.blade); g.strokeStyle = '#ffffff'; g.lineWidth = 1.1; g.stroke(e.ridge); g.restore();
+  g.save(); g.clip(e.blade); g.strokeStyle = L.core ? r[5] : '#ffffff'; g.lineWidth = L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
   g.strokeStyle = alpha(r[5], .9); g.lineWidth = .5; g.stroke(e.all);
   g.restore();
+}
+function drawBreaker(g, color, uw, uh) { drawBreakerStyle(g, color, uw, uh, 'classic'); }
+// the light behind a breaker, drawn live (not part of the pixel sprite)
+function breakerGlow(ctx, x, y, w, h, color, style, t) {
+  const G = (BREAKER_LOOK[style] || BREAKER_LOOK.classic).glow; if (!G) return;
+  const p = G.speed ? .5 + .5 * Math.sin(t * G.speed + color * 1.3 + x * .07) : .5;
+  ctx.globalCompositeOperation = 'lighter'; glow(ctx, x + w / 2, y + h * .55, w * G.r, RGB[color], (G.a + G.amp * p) * nightGlow); ctx.globalCompositeOperation = 'source-over';
 }
 function drawGem(g, color, uw, uh) {        // fused rectangle: one large faceted stone
   const r = RAMP[color];
@@ -213,7 +235,7 @@ const scaleOf = ctx => { const m = ctx.getTransform(); return [Math.hypot(m.a, m
 
 // ---------- effects ----------
 let reduced = false;
-const readReduced = () => { try { reduced = !!JSON.parse(localStorage.getItem('scraps.preferences') || '{}').reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; } catch {} };
+const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; nightGlow = p.night && p.night !== 'off' ? .55 : 1; const st = 'bold'; if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
 function glow(ctx, x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
 const RGB = RAMP.map(r => { const h = r[4]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(','); });
@@ -224,12 +246,9 @@ const skin = {
     if (c.color == null || !RAMP[c.color]) return false;
     const [sx, sy] = scaleOf(ctx), pw = Math.max(4, Math.round(w * sx)), ph = Math.max(6, Math.round(h * sy));
     const kind = c.breaker && !c.stage ? 'k' : c.stage > 1 ? 's' : c.stage === 1 ? 'd' : 'b';
-    const s = sprite(kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreaker(g, c.color, 32, 48) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), palOf(c.color, kind));
+    const s = sprite(kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? palOf(c.color, 'k') : palOf(c.color, kind));
     ctx.save(); ctx.globalAlpha = a;
-    if (kind === 'k' && !reduced && a > .5) {
-      const t = now(), p = .5 + .5 * Math.sin(t * 2.6 + c.color * 1.3 + x * .07);
-      ctx.globalCompositeOperation = 'lighter'; glow(ctx, x + w / 2, y + h * .55, w * .9, RGB[c.color], .2 + .16 * p); ctx.globalCompositeOperation = 'source-over';
-    }
+    if (kind === 'k' && !reduced && a > .5) breakerGlow(ctx, x, y, w, h, c.color, breakerStyle, now());
     ctx.imageSmoothingEnabled = false; ctx.drawImage(s, x, y, w, h); ctx.restore();
     if (a > .5) stages.tile(ctx, x, y, w, h, c.color, kind);
     return true;
@@ -259,18 +278,17 @@ const skin = {
     const [sx, sy] = scaleOf(ctx), pw = Math.round(w * sx), ph = Math.round(h * sy);
     ctx.drawImage(sprite('tray-' + style + w + 'x' + h, pw, ph, w, h, g => drawTray(g, w, h, 32, 48, style)), 0, 0, w, h); return true;
   },
-  clear(ctx, cx, cy, color, age, life) {            // shatter: flash, shards, sparkles
+  clear(ctx, cx, cy, color, age, life) {            // a bright pop, then the piece bursts into four chunks and sparks
     if (reduced) return false;
-    const t = age / life, r = RAMP[color]; if (!r) return false; ctx.save();
-    if (age < 90) { ctx.globalAlpha = (1 - age / 90) * .8; ctx.fillStyle = r[5]; ctx.beginPath(); ctx.roundRect(cx - 14, cy - 22, 28, 44, 5); ctx.fill(); }
-    let s = (cx * 31 + cy * 17) | 0; const rnd = () => ((s = (s * 16807 + 7) % 2147483647) / 2147483647);
-    ctx.globalAlpha = 1 - t;
-    for (let i = 0; i < 8; i++) {
-      const a = rnd() * Math.PI * 2, v = 14 + rnd() * 28, sz = 2 + rnd() * 3, px = cx + Math.cos(a) * v * t, py = cy + Math.sin(a) * v * t + 46 * t * t;
-      ctx.fillStyle = i % 3 ? r[3] : r[5]; ctx.beginPath(); ctx.moveTo(px, py - sz); ctx.lineTo(px + sz * .7, py); ctx.lineTo(px, py + sz); ctx.lineTo(px - sz * .7, py); ctx.closePath(); ctx.fill();
+    const r = RAMP[color]; if (!r) return false;
+    if (age >= 70) burst(ctx, cx, cy, color);
+    if (age < 120) {                                     // the pop: the cell flares white and a ring opens
+      const t = age / 120; ctx.save();
+      ctx.globalAlpha = (1 - t) * .85; ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.roundRect(cx - 15, cy - 23, 30, 46, 5); ctx.fill();
+      ctx.globalAlpha = (1 - t) * .8; ctx.strokeStyle = r[5]; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy, 8 + t * 10, 12 + t * 14, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
-    if (t < .7) { ctx.globalAlpha = 1 - t / .7; ctx.fillStyle = '#fff8e0'; const k = 4 + t * 12; ctx.fillRect(cx - 1, cy - k, 2, k * 2); ctx.fillRect(cx - k, cy - 1, k * 2, 2); }
-    ctx.restore(); return true;
+    return true;
   },
 };
 
@@ -281,12 +299,13 @@ function publishTiles() {
     const t = (kind, draw) => sprite('tile-' + kind + c, 78, 117, 32, 48, draw, palOf(c, kind)).toDataURL();
     css.push(`--tile-${c}:url(${t('b', g => drawBlock(g, c, 'block', 32, 48))})`);
     css.push(`--tile-stone-${c}:url(${t('s', g => drawBlock(g, c, 'stone', 32, 48))})`);
-    css.push(`--tile-breaker-${c}:url(${t('k', g => drawBreaker(g, c, 32, 48))})`);
+    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), palOf(c, 'k')).toDataURL()})`);
   }
   const st = document.createElement('style'); st.id = 'scraps-tiles'; st.textContent = `:root{${css.join(';')}}`; document.head.append(st);
 }
 // one-off renders for menus and exports
-skin.render = {block: drawBlock, breaker: drawBreaker, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
+globalThis.scrapsSkinRefresh = () => readReduced();
+skin.render = {block: drawBlock, breaker: drawBreaker, breakerStyle: drawBreakerStyle, breakerGlow, styles: BREAKER_STYLES, gem: drawGem, sword: drawSword, emblems: EMBLEMS, ramp: RAMP};
 
 if (hasDom) { try { mk(1, 1)[1].roundRect || (CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); }); publishTiles(); readReduced(); setInterval(readReduced, 2000); skin.ready = true; } catch (e) { console.warn('skin disabled', e); } }
 // Gem fusion sound: a new gem id on the player's own board means blocks just fused (or a gem
@@ -347,6 +366,16 @@ const stages = (() => {
 // Incoming attacks on the player's own board are voiced as they are drawn: the swords' impact when
 // they land, then a patter as each sprinkle settles on top (same timing as render.js draws them).
 const attacks = new WeakMap();
+// Warning: a new attack queued against the player's own board sounds a warning, longer for bigger attacks.
+const warned = new WeakMap();
+skin.incoming = (cv, list) => {
+  if (!MINE.test(cv?.id || '')) return;
+  const ids = new Set((list || []).map(b => b.id)), seen = warned.get(cv); warned.set(cv, ids);
+  if (!seen) return;                                   // first frame on this board: nothing is new yet
+  let area = 0, fresh = false;
+  for (const b of list || []) { if (seen.has(b.id)) continue; fresh = true; for (const a of b.attacks ?? [b]) area += a.kind === 'sprinkle' ? (a.count | 0) * .5 : (a.width | 0) * (a.length | 0); }
+  if (fresh) globalThis.scrapsSfx?.('warn', area >= 24 ? 4 : area >= 12 ? 3 : area >= 4 ? 2 : 1, sfxPrefs());
+};
 skin.attack = (cv, incoming, timer) => {
   if (!MINE.test(cv?.id || '') || !incoming) return;
   const id = incoming.batchId ?? incoming; if (attacks.get(cv) === id) return; attacks.set(cv, id);
@@ -354,6 +383,12 @@ skin.attack = (cv, incoming, timer) => {
   const swords = hits.filter(a => a.kind !== 'sprinkle' && a.placement).length, placed = hits.filter(a => a.kind === 'sprinkle').flatMap(a => a.placed || []), prefs = sfxPrefs();
   const at = p => Math.max(0, (p - p0) * dur);
   if (swords) globalThis.scrapsSfx?.('strike', swords, prefs, at(.55));
+  // side swords scrape in from their edge before they bite
+  for (const a of hits) if (a.kind === 'horizontal' && a.placement?.hand && !a.converted) globalThis.scrapsSfx?.('slide', a.placement.hand, prefs, at(0));
+  // pieces a sword lands on are crushed: a crunch when it bites
+  const before = incoming.before; let crushed = 0;
+  if (before) for (const a of hits) { const q = a.placement; if (a.kind === 'sprinkle' || !q) continue; for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) if (before[y]?.[x]) crushed++; }
+  if (crushed) globalThis.scrapsSfx?.('crush', crushed, prefs, at(.57));
   const n = placed.length, voices = Math.min(n, 6);
   for (let i = 0; i < voices; i++) { const lag = voices > 1 ? i / (voices - 1) * .3 : 0, land = Math.min(1, lag + (n > 1 ? .7 : 1)); globalThis.scrapsSfx?.('patter', n, prefs, at(swords ? .5 + .5 * land : land)); }
 };
@@ -368,7 +403,41 @@ function fullClearPop(cv) {
   el.style.left = (r.left + r.width / 2) + 'px'; el.style.top = (r.top + r.height * .32) + 'px';
   document.body.append(el); setTimeout(() => el.remove(), 1900);
 }
+// Break bursts: each broken piece splits into four small chunks (2x2) tossed up and out, falling back under
+// gravity and fading, with a couple of sparks. Speeds in board units
+// per ms (a row is 48 units): chunks up to 0.06 sideways (outward from the half they came from) and 0.32 up,
+// gravity 0.000626, fading over 420 ms; two sparks each. They outlive the break, so they finish in the air.
+const bursts = new WeakMap();
+function burst(ctx, cx, cy, color) {
+  const cv = ctx.canvas; let b = bursts.get(cv); if (!b) bursts.set(cv, b = {list: [], seen: new Map()});
+  const t0 = now() * 1000, key = Math.round(cx) + ',' + Math.round(cy), last = b.seen.get(key);
+  if (last && t0 - last < 700) return; b.seen.set(key, t0);
+  if (b.list.length > 400) b.list.splice(0, b.list.length - 400);
+  for (let q = 0; q < 4; q++) {
+    const sx = q % 2, sy = q >> 1, dir = sx ? 1 : -1;
+    b.list.push({kind: 'chunk', color, t0, x: cx - 6 + sx * 12, y: cy - 9 + sy * 18, vx: dir * (.02 + Math.random() * .04), vy: -(.12 + Math.random() * .2), sx, sy});
+  }
+  for (let i = 0; i < 2; i++) { const a = Math.random() * Math.PI * 2, v = .12 + Math.random() * .14; b.list.push({kind: 'spark', color, t0, x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v}); }
+}
+function drawBursts(ctx, cv) {
+  const b = bursts.get(cv); if (!b || !b.list.length) return;
+  const t = now() * 1000, [sx, sy] = scaleOf(ctx), G = .000626;
+  b.list = b.list.filter(q => t - q.t0 < (q.kind === 'chunk' ? 420 : 450));
+  ctx.save();
+  for (const q of b.list) {
+    const age = t - q.t0, x = q.x + q.vx * age, y = q.y + q.vy * age + (q.kind === 'chunk' ? .5 * G * age * age : 0);
+    if (q.kind === 'chunk') {
+      ctx.globalAlpha = 1 - .9 * age / 420;
+      const img = sprite('b' + q.color, Math.max(4, Math.round(32 * sx)), Math.max(6, Math.round(48 * sy)), 32, 48, g => drawBlock(g, q.color, 'block', 32, 48), palOf(q.color, 'b'));
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(img, q.sx * img.width / 2, q.sy * img.height / 2, img.width / 2, img.height / 2, x - 6, y - 9, 12, 18);
+    } else {
+      ctx.globalAlpha = 1 - .9 * age / 450; ctx.fillStyle = RAMP[q.color][5]; ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - .7, y - .7, 1.4, 1.4);
+    }
+  }
+  ctx.restore();
+}
 skin.after = (ctx, cv, p, w, h) => {
+  if (!reduced) drawBursts(ctx, cv);
   if (!MINE.test(cv?.id || '') || !p) return;
   let m = clears.get(cv); const t = now();
   if (!m || (p.stats?.pieces ?? 0) < (m.pieces ?? 0)) { m = {start: t, pieces: 0, before: 0, armed: false, fx: -1}; clears.set(cv, m); }   // a new game on this board

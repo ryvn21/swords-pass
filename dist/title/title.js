@@ -6,6 +6,9 @@ import {createTavernAudio} from './audio.js';
 import {renderGallery, drawDecor, decorFlags} from './progress.js';
 import {readMix, writeMix} from './audio-settings.js';
 import {openPatchNotes} from './patch-notes.js';
+import {offensive} from '../name-filter.js';
+import {setActivity, onPresence, presenceCounts, ACTIVITY_LABEL} from '../presence.js';
+import {cycleNight, nightLabel, onNight} from './night.js';
 
 const META = {W: 960, H: 540, window: [372, 588, 103, 367], portrait: {x: 703, y: 158}, vista: [400, 359, 130],
   lanterns: [[65, 88], [896, 88]], fire: [753, 418],
@@ -16,7 +19,7 @@ const META = {W: 960, H: 540, window: [372, 588, 103, 367], portrait: {x: 703, y
 const MENUS = {
   root: {items: [
     {label: 'Solo', hint: 'A duel against the AI, or Zen', to: 'solo', art: 'solo'},
-    {label: 'Multiplayer', hint: 'Duels and free-for-alls', to: 'multi', art: 'multi'},
+    {label: 'Multiplayer', hint: 'Duels and free-for-alls', to: 'multi', art: 'multi', count: 'online'},
     {label: 'Adventure', hint: 'The endless climb: a new board every encounter', run: () => go('solo'), art: 'adventure'},
     {label: 'Forge', hint: 'Design and test your blades', run: () => go('workshop'), art: 'workshop'},
     {label: 'Gallery', hint: 'Your swords of honour and achievements', run: () => openGallery(), art: 'gallery'},
@@ -67,11 +70,22 @@ function el(tag, attrs = {}, kids = []) {
   for (const k of kids) e.append(k); return e;
 }
 
+// players in the tavern: a count beside Multiplayer, and who's doing what beside the patch notes
+let who = null;
+function showCounts(c = presenceCounts()) {
+  for (const sm of nav?.querySelectorAll('[data-count]') || []) { const n = c?.by?.[sm.dataset.count]; sm.textContent = c ? `${n} online` : ''; }
+  if (!who) return;
+  if (!c) { who.textContent = ''; return; }
+  const parts = Object.entries(c.by).filter(([k, n]) => n && k !== 'menu').sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${ACTIVITY_LABEL[k] || k}`);
+  who.textContent = `${c.total} in the tavern${parts.length ? ' · ' + parts.join(' · ') : ''}`;
+}
+onPresence(c => showCounts(c));
 function renderMenu(key, focusFirst = false) {
   menuKey = key; const m = MENUS[key];
   nav.replaceChildren(); head.textContent = m.title || ''; head.hidden = !m.title; hint.textContent = '';
   for (const item of m.items) {
     const b = el('button', {type: 'button', text: item.label, class: item.back ? 'tt-back' : ''});
+    if (item.count) b.append(el('small', {class: 'tt-count', 'data-count': item.count}));
     b.addEventListener('pointerenter', () => setActive(b, true, item));
     b.addEventListener('focus', () => setActive(b, false, item));
     b.addEventListener('click', () => pick(item));
@@ -80,6 +94,7 @@ function renderMenu(key, focusFirst = false) {
   nav.classList.remove('tt-swap'); void nav.offsetWidth; nav.classList.add('tt-swap');
   nav.querySelector('button')?.classList.add('is-active'); hint.textContent = m.items[0]?.hint || ''; showArt(m.items[0]);   // one item is always lit
   if (focusFirst) setTimeout(() => nav.querySelector('button')?.focus({preventScroll: true}), 20);
+  showCounts();
 }
 function pick(item) {
   if (performance.now() - enteredAt < 350) return;   // the press that opened the menu never also picks from it
@@ -98,6 +113,8 @@ function buildDom() {
   const musicBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-music'});
   const ambBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-ambience'});
   const setBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-settings', text: 'Settings'});
+  const nightBtn = el('button', {type: 'button', class: 'tt-toggle', id: 'tt-night', text: nightLabel()});
+  nightBtn.onclick = e => { e.stopPropagation(); cycleNight(); }; onNight(n => { nightBtn.textContent = nightLabel(n); });
   syncToggles = () => {
     musicBtn.textContent = 'Music ' + (mix.musicOn ? 'on' : 'off'); musicBtn.setAttribute('aria-pressed', String(mix.musicOn));
     ambBtn.textContent = 'Ambience ' + (mix.ambienceOn ? 'on' : 'off'); ambBtn.setAttribute('aria-pressed', String(mix.ambienceOn));
@@ -108,7 +125,8 @@ function buildDom() {
   syncToggles();
   const version = (document.querySelector('.footer span')?.textContent || '').replace(/\s+/g, ' ').trim();
   // a small, quiet way into the patch notes, bottom left
-  const notesBtn = el('button', {type: 'button', class: 'tt-corner tt-left tt-notes', text: 'Patch notes'});
+  const notesBtn = el('button', {type: 'button', class: 'tt-notes', text: 'Patch notes'});
+  who = el('span', {class: 'tt-who', 'aria-live': 'polite'});
   notesBtn.onclick = e => { e.stopPropagation(); audio.select?.(); openPatchNotes(); };
   gallery = el('section', {class: 'tt-gallery', hidden: '', 'aria-label': 'Sword gallery'});
   // the title: the full wordmark over the tavern, then it settles above the window while the menu opens
@@ -118,8 +136,8 @@ function buildDom() {
     cv,
     el('div', {class: 'tt-ui'}, [
       logo, prompt, menuWrap, gallery,
-      notesBtn,
-      el('div', {class: 'tt-corner tt-right'}, [musicBtn, ambBtn, setBtn]),
+      el('div', {class: 'tt-corner tt-bl'}, [notesBtn, who]),
+      el('div', {class: 'tt-corner tt-right'}, [musicBtn, ambBtn, nightBtn, setBtn]),
     ]),
   ]);
   document.body.append(root);
@@ -203,7 +221,7 @@ function askName() {
     naming = false; root.classList.remove('tt-naming'); card.remove(); requestAnimationFrame(placeHint);
     setTimeout(() => nav.querySelector('button')?.focus({preventScroll: true}), 30);
   };
-  card.addEventListener('submit', e => { e.preventDefault(); done(input.value); });
+  card.addEventListener('submit', e => { e.preventDefault(); if (offensive(input.value)) { const note = card.querySelector('.tt-namecard-note'); note.textContent = 'That name isn\u2019t allowed. Pick another.'; input.select(); return; } done(input.value); });
   card.querySelector('.tt-namecard-skip').onclick = () => done('');
   card.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); done(''); } });
   root.querySelector('.tt-ui').append(card); setTimeout(() => input.focus(), 60);
@@ -223,6 +241,7 @@ function closeGallery() { gallery.hidden = true; root.classList.remove('tt-galle
 
 function show(key) {
   if (!root) buildDom();
+  setActivity('menu');
   open = true; root.hidden = false; root.classList.remove('tt-leaving');
   document.body.classList.add('tt-open');
   reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || gamePrefs().reduced === true;

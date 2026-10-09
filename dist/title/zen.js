@@ -48,7 +48,7 @@ function panel() {
 function player() {
   return `<div class="zen-music"><p class="eyebrow">NOW PLAYING</p>
     <div class="zen-track"><span class="zen-disc" aria-hidden="true"></span><div><strong id="zm-title">…</strong><small id="zm-artist"></small></div></div>
-    <div class="zen-controls"><button type="button" id="zm-prev" aria-label="Previous track">&#9198;</button><button type="button" id="zm-play" aria-label="Play or pause">&#9208;</button><button type="button" id="zm-next" aria-label="Next track">&#9197;</button></div>
+    <div class="zen-controls"><button type="button" id="zm-prev" aria-label="Previous track">&#9198;</button><button type="button" id="zm-play" aria-label="Play or pause">&#9208;</button><button type="button" id="zm-next" aria-label="Next track">&#9197;</button><button type="button" id="zm-night" aria-label="Night mode" title="Night mode: dim the screen">&#9790;</button></div><small class="zen-night" id="zm-night-label"></small>
     <label class="zen-vol"><span>Music</span><input type="range" id="zm-vol" min="0" max="100"></label>
   </div>`;
 }
@@ -71,6 +71,8 @@ function decorate(app) {
   const vol = document.getElementById('zm-vol'); if (vol) { vol.value = Math.round(zenVolume() * 100); vol.oninput = () => { try { localStorage.setItem('scraps.zen-music', JSON.stringify(vol.value / 100)); } catch {} music.setVolume(zenVolume() * (m.master ?? .8)); }; }
   document.getElementById('zm-play').onclick = () => { decorate.paused = music.state().playing; music.toggle(); };
   document.getElementById('zm-next').onclick = () => music.next(1);
+  const nl = () => { const el = document.getElementById('zm-night-label'); if (el) el.textContent = globalThis.scrapsNight?.nightLabel() || ''; };
+  document.getElementById('zm-night').onclick = () => { globalThis.scrapsNight?.cycleNight(); nl(); }; nl();
   document.getElementById('zm-prev').onclick = () => music.next(-1);
   unsub?.(); unsub = music.on(syncPlayer); syncPlayer();
   if (!music.state().playing && !decorate.paused) music.start();

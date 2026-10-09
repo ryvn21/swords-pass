@@ -22,18 +22,19 @@ test('score identity separates different handling profiles and presets are valid
  for(const preset of HANDLING_PRESETS)assert.deepEqual(handlingRules(preset.rules),preset.rules);
 });
 
-test('saved timing setups switch to the house presets once; later changes stay', async () => {
+test('everyone moves onto the Default timings once, with their own kept as a custom scheme', async () => {
   const {migrateToHouse, HOUSE_RULES} = await import('../dist/handling-profile.js');
   const {DEFAULT_RULES} = await import('../dist/engine.js');
-  const moved = migrateToHouse({houseVersion: 1, keys: {drop: ['g']}, rules: {...DEFAULT_RULES, gravityMs: 900, repeatMs: 72}});
+  const moved = migrateToHouse({houseVersion: 3, keys: {drop: ['g']}, rules: {...DEFAULT_RULES, gravityMs: 900, repeatMs: 72}});
   for (const k of Object.keys(HOUSE_RULES)) assert.equal(moved.rules[k], HOUSE_RULES[k], k);
-  assert.equal(moved.houseVersion, 3); assert.deepEqual(moved.keys, {drop: ['g']});
-  assert.equal(migrateToHouse({...moved, rules: {...moved.rules, gravityMs: 800}}).rules.gravityMs, 800);   // runs only once
+  assert.equal(moved.houseVersion, 4); assert.equal(moved.useDefaultTimings, true); assert.deepEqual(moved.keys, {drop: ['g']});
+  assert.equal(moved.customRules.gravityMs, 900); assert.equal(moved.customRules.repeatMs, 72);
+  const mine = {...moved, useDefaultTimings: false, rules: {...moved.rules, gravityMs: 800}};
+  assert.equal(migrateToHouse(mine).rules.gravityMs, 800);   // runs only once
 });
 
-test('house natural fall is 2400 ms; saved setups on the old 1600 move once, other choices stay', async () => {
-  const {migrateToHouse, HOUSE_RULES} = await import('../dist/handling-profile.js');
-  assert.equal(HOUSE_RULES.gravityMs, 2400);
-  assert.equal(migrateToHouse({houseVersion: 2, rules: {...HOUSE_RULES, gravityMs: 1600}}).rules.gravityMs, 2400);
-  assert.equal(migrateToHouse({houseVersion: 2, rules: {...HOUSE_RULES, gravityMs: 900}}).rules.gravityMs, 900);
+test('the Default timings: 4 s natural fall, no landing grace, 50 ms Space, no early press, 430 ms strikes, 300/142 ms held moves', async () => {
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const r = HOUSE_RULES;
+  assert.deepEqual([r.gravityMs, r.lockMs, r.fastFallMs, r.dropBufferMs, r.attackMs, r.settleMs, r.waveMs, r.clearMs, r.repeatDelayMs, r.repeatMs], [4000, 0, 50, 0, 430, 33, 75, 550, 300, 142]);
 });

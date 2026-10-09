@@ -1,4 +1,4 @@
-import {W,H,DEFAULT_RULES,cells,gemRects,landing,move} from './engine.js';
+import {W,H,DEFAULT_RULES,cells,gemRects,landing,move,applyAttackBatch} from './engine.js';
 export const COLORS=['#df3939','#f2cf28','#47bf56','#369dde'];
 export const COLOR_NAMES=['Red','Yellow','Green','Blue'];
 export const CELL_W=32,CELL_H=48;
@@ -58,12 +58,12 @@ function drawPile(ctx,board,p,reduced){
   const c=board[y][x];if(!c)continue;
   if(c.stage===3){const a=strikes.get(c.strike)||{x,y,maxX:x,maxY:y,axis:c.axis,hand:c.hand};a.x=Math.min(a.x,x);a.y=Math.min(a.y,y);a.maxX=Math.max(a.maxX,x);a.maxY=Math.max(a.maxY,y);strikes.set(c.strike,a);continue;}
   if(c.gem)continue;
-  const age=waveAge(p,x,y),alpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,p.clearCellMs??180));
+  const age=waveAge(p,x,y),fade=globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180),alpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,fade));
   const yy=drawPosition(p,x,y);tile(ctx,x*X,(H-1-yy)*Y,c,X,alpha);
  }
  for(const g of rects){
   const yy=drawPosition(p,g.x,g.y),x=g.x*X+1,y=(H-yy-g.h)*Y+1,w=g.w*X-2,h=g.h*Y-2;
-  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,p.clearCellMs??180));const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
+  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180)));const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
   ctx.fillStyle=COLORS[g.color];rect(ctx,x,y,w,h,4);ctx.fill();ctx.strokeStyle='#fff6';ctx.lineWidth=1.5;ctx.stroke();
   ctx.fillStyle='#ffffff18';ctx.beginPath();ctx.moveTo(x+4,y+4);ctx.lineTo(x+w-4,y+4);ctx.lineTo(x+w-12,y+12);ctx.lineTo(x+12,y+12);ctx.lineTo(x+12,y+h-12);ctx.lineTo(x+4,y+h-4);ctx.closePath();ctx.fill();
   ctx.strokeStyle='#0003';ctx.strokeRect(x+9,y+10,w-18,h-20);
@@ -71,6 +71,30 @@ function drawPile(ctx,board,p,reduced){
   ctx.restore();
  }
  for(const a of strikes.values())sword(ctx,a.x*X+1,(H-1-a.maxY)*Y+1,(a.maxX-a.x+1)*X-2,(a.maxY-a.y+1)*Y-2,a.axis==='horizontal',a.hand??1);
+}
+const shadowCache=new WeakMap();
+function incomingShapes(canvas,p){
+ const due=p.incoming.filter(b=>(b.due??0)<=p.turn+1);if(!due.length)return [];
+ const filled=p.board.reduce((n,r)=>n+r.filter(Boolean).length,0),key=due.map(b=>b.id).join(',')+':'+p.turn+':'+filled,hit=shadowCache.get(canvas);
+ if(hit?.key===key)return hit.shapes;
+ const shapes=[];
+ try{const b=p.board.map(r=>r.map(c=>c&&{...c}));for(const batch of due){const res=applyAttackBatch(b,batch.attacks??[batch]);for(const a of res.hits){if(a.kind==='sprinkle')for(const c of a.placed||[])shapes.push({x:c.x,y:c.y,w:1,h:1,sprinkle:true});else if(a.placement)shapes.push({...a.placement,horizontal:a.kind==='horizontal'&&!a.converted});}}}catch{}
+ shadowCache.set(canvas,{key,shapes});return shapes;
+}
+function drawIncomingShadow(ctx,canvas,p,time,reduced){
+ const shapes=incomingShapes(canvas,p);if(!shapes.length)return;
+ const on=reduced?true:Math.floor(time/150)%2===0;ctx.save();
+ for(const q of shapes){const x=q.x*X,y=(H-q.y-q.h)*Y,w=q.w*X,h=q.h*Y;
+  if(q.sprinkle){ctx.globalAlpha=on?.6:.25;ctx.fillStyle='#05030a';rect(ctx,x+X*.18,y+Y*.2,X*.64,Y*.6,4);ctx.fill();ctx.globalAlpha=on?.8:.35;ctx.strokeStyle='#f0cf7a';ctx.lineWidth=1.5;ctx.stroke();continue;}
+  ctx.globalAlpha=on?.75:.3;ctx.fillStyle='#05030a';rect(ctx,x+2,y+2,w-4,h-4,5);ctx.fill();
+  ctx.globalAlpha=on?.9:.4;ctx.strokeStyle='#f0cf7a';ctx.lineWidth=2;ctx.setLineDash([6,5]);rect(ctx,x+3,y+3,w-6,h-6,5);ctx.stroke();ctx.setLineDash([]);
+  // a sword silhouette pointing the way it will come in
+  ctx.globalAlpha=on?.55:.22;ctx.fillStyle='#f0cf7a';const cx=x+w/2,cy=y+h/2;ctx.beginPath();
+  if(q.horizontal){const d=q.hand===1?-1:1,len=Math.min(w-14,90);ctx.moveTo(cx-d*len/2,cy-3);ctx.lineTo(cx+d*len/2-d*10,cy-3);ctx.lineTo(cx+d*len/2,cy);ctx.lineTo(cx+d*len/2-d*10,cy+3);ctx.lineTo(cx-d*len/2,cy+3);}
+  else{const len=Math.min(h-16,120);ctx.moveTo(cx-3,cy-len/2);ctx.lineTo(cx+3,cy-len/2);ctx.lineTo(cx+3,cy+len/2-10);ctx.lineTo(cx,cy+len/2);ctx.lineTo(cx-3,cy+len/2-10);}
+  ctx.closePath();ctx.fill();
+ }
+ ctx.restore();
 }
 export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RULES.gravityMs,fastFallMs=DEFAULT_RULES.fastFallMs,ghost=false,particles=[],reduced=false}={}){
  if(!canvas)return;const entryRows=p.entryRows??0,ctx=prepareCanvas(canvas,W*X,(H+entryRows)*Y);ctx.clearRect(0,0,W*X,(H+entryRows)*Y);
@@ -97,12 +121,16 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
    }
   }
  }
+ // Warning: where the next incoming attack will land, as blinking shadows.
+ // Worked out against the board as it is now, so it can shift if your next pair changes the board.
+ if(!incoming&&p.incoming?.length&&!p.dead)drawIncomingShadow(ctx,canvas,p,time,reduced);
+ S?.ready&&S.incoming?.(canvas,p.incoming,p.turn);
  if(p.active){
   if(ghost)for(const c of cells(landing(p.board,p.active)))if(c.y<H)tile(ctx,c.x*X,(H-1-c.y)*Y,c.cell,X,.15);
   // Look-ahead between simulation ticks. While fast-falling it runs one tick behind (it shows where the pair
   // was, moving toward where it is), so it never predicts past the truth: letting go of fast fall, or the pair
   // stopping, never pops it back up, and a pair that can no longer fall sits exactly in its cell.
-  const canFall=!!move(p.board,p.active,0,-1),speed=p.fast?fastFallMs:gravityMs,ahead=Math.max(0,renderAheadMs-(p.spawnGrace??0))-(p.fast?1000/60:0);
+  const canFall=!!move(p.board,p.active,0,-1),speed=p.fast?fastFallMs:(p.velocity?40/p.velocity:gravityMs),ahead=Math.max(0,renderAheadMs-(p.spawnGrace??0))-(p.fast?1000/60:0);
   const fraction=canFall?Math.max(-1,Math.min(1,(p.fall+ahead)/speed)):0;
   for(const c of cells(p.active))tile(ctx,c.x*X,(H-1-c.y+fraction)*Y,c.cell);
  }

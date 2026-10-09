@@ -3,7 +3,6 @@
 import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,applyAttackBatch,horizontalBase,decay,DEFAULT_RULES} from './engine.js';
 import {drawBoard} from './render.js';
 import {CATEGORIES, patternCategory} from './pattern-library.js';
-import {onlineLegal} from './pattern-strength.js';
 const thumb = rows => `<span class="pattern-thumb" style="--cols:${rows[0]?.length || 6}">${[...rows].reverse().map(r => r.map(c => `<i style="background-image:var(--tile-${c})"></i>`).join('')).join('')}</span>`;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -85,7 +84,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
  </aside>
  <section class="table-surface fb-table">
   <p class="fb-lesson" id="fb-lesson">${esc(lesson)}</p>
-  <div class="fb-boards ${showTarget ? 'two' : ''}"><div class="fb-board-col"><small>YOU</small><div class="board-frame fb-frame"><canvas id="fb-board" role="img" aria-label="Freebuild board, six columns and thirteen rows"></canvas></div></div>${showTarget ? `<div class="fb-board-col"><small>THEM</small><div class="board-frame fb-frame fb-target"><canvas id="fb-target" role="img" aria-label="Their board: what your break sends"></canvas></div></div>` : ''}</div>
+  <div class="fb-boards ${showTarget ? 'two' : ''}"><div class="fb-board-col"><small>YOU</small><div class="board-frame fb-frame"><canvas id="fb-board" role="img" aria-label="Freebuild board, six columns and thirteen rows"></canvas></div></div>${showTarget ? `<div class="fb-board-col"><small>THEM</small><div class="board-frame fb-frame fb-target"><canvas id="fb-target" role="img" aria-label="Their board: what your break sends"></canvas></div><div class="fb-them-tools"><button id="fb-target-turn" title="One turn passes: their swords crack one stage and the board settles">Next turn</button><button id="fb-target-clear2" class="fb-clear">Clear</button></div></div>` : ''}</div>
   <div class="fb-actions"><button id="fb-settle">Settle</button><button class="primary" id="fb-break">Break it</button><button id="fb-step">One step</button></div>
  </section>
  <aside class="panel fb-result"><p class="eyebrow">WHAT IT SENDS</p><div id="fb-out">${resultHTML()}</div>
@@ -93,7 +92,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
   <div class="divider"></div><p class="eyebrow">THEIR BOARD</p>
   <label class="fb-toggle"><input type="checkbox" id="fb-show-target" ${showTarget ? 'checked' : ''}> Show what lands on them</label>
   <div class="fb-blade"><small>YOUR BLADE (THE COLOURS THEY GET)</small><button id="fb-blade-btn" aria-expanded="${pickerOpen}">${thumb(attacker().rows)}<strong>${esc(attacker().name)}</strong><span>${pickerOpen ? '▴' : '▾'}</span></button>
-   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}${onlineLegal(p.rows) ? '' : '<small>too strong online</small>'}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
+   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
   <div class="fb-target-tools"><button id="fb-target-crack" title="Turn the landed swords into the coloured blocks they will play with">Crack them</button><button id="fb-target-clear" class="fb-clear">Clear their board</button></div>
  </aside>
 </div>`;
@@ -132,6 +131,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
     };
     $('#fb-copy').onclick = async () => { const code = encodeBoard(board); try { await navigator.clipboard.writeText(code); toast?.('Board code copied.'); } catch { prompt('Copy this board code', code); } };
     $('#fb-paste').onclick = () => { const code = prompt('Paste a board code (starts with SFB1:)'); if (code == null) return; const b = decodeBoard(code); if (!b) { toast?.('That is not a board code.'); return; } remember(); board = b; results = null; keep(); render(); };
+    const on2 = (q, fn) => { const el = $(q); if (el) el.onclick = fn; };
     $('#fb-settle').onclick = () => run('settle');
     $('#fb-break').onclick = () => run('break');
     $('#fb-step').onclick = () => run('step');
@@ -140,6 +140,8 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
     $('#fb-blade-btn').onclick = () => { pickerOpen = !pickerOpen; render(); };
     for (const b of host.querySelectorAll('[data-blade]')) b.onclick = () => { bladeId = b.dataset.blade; save('freebuild-blade', bladeId); pickerOpen = false; render(); };
     $('#fb-target-clear').onclick = () => { target = grid(); render(); };
+    on2('#fb-target-clear2', () => { target = grid(); render(); });
+    on2('#fb-target-turn', () => { decay(target); sound('lock'); render(); });
     $('#fb-target-crack').onclick = () => { for (let i = 0; i < 3; i++) decay(target); render(); };
     const cv = $('#fb-board');
     cv.oncontextmenu = e => e.preventDefault();
@@ -150,10 +152,16 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
 
   // ----- the break, animated with the game's own clear effects
   const rules = () => ({...DEFAULT_RULES, ...(prefs.rules || {})});
+  // One step carries on the same combo each press (×1, ×2, …) and lands that link on their board
+  let stepOpen = false;
   function run(mode) {
-    if (anim) return; remember(); results = mode === 'settle' ? results : [];
-    for (const row of board) for (const c of row) if (c) c.gem = 0;
-    anim = {mode, chain: 0, phase: 'fall', t: performance.now(), wave: null, groups: null};
+    if (anim) return; remember();
+    const carry = mode === 'step' && stepOpen && Array.isArray(results);
+    results = mode === 'settle' ? results : carry ? results : [];
+    if (mode !== 'step') stepOpen = false;
+    if (!carry) for (const row of board) for (const c of row) if (c) c.gem = 0;
+    const from = carry ? results.length : 0;
+    anim = {mode, chain: from, from, phase: 'fall', t: performance.now(), wave: null, groups: null};
     if (mode !== 'settle') lesson = 'Breaking…';
     const l = $('#fb-lesson'); if (l) l.textContent = lesson;
   }
@@ -161,11 +169,11 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
     const a = anim, r = rules();
     if (a.phase === 'fall') {
       if (now - a.t < Math.max(40, r.settleMs)) return;
-      a.t = now; if (gravity(board, 1)) return;                 // one row per beat, so you can watch it settle
+      a.t = now; if (gravity(board, 1)) { a.moved = true; return; }   // one row per beat, so you can watch it settle
       fuse(board);
-      if (a.mode === 'settle') { anim = null; keep(); render(); return; }
+      if (a.mode === 'settle') { anim = null; lesson = a.moved ? 'Settled: floating blocks dropped into place.' : 'Nothing to settle: every block is already resting.'; keep(); render(); return; }
       const groups = clearGroups(board);
-      if (!groups.length || (a.mode === 'step' && a.chain >= 1)) { finish(); return; }
+      if (!groups.length || (a.mode === 'step' && a.chain > a.from)) { finish(); return; }
       a.chain++; a.groups = groups; a.wave = clearWave(groups, r.waveMs); a.duration = Math.max(...a.wave.map(c => c.delay)) + r.clearMs; a.phase = 'clear'; a.t = now;
       sound('clear', a.chain);
     } else if (a.phase === 'clear') {
@@ -174,17 +182,24 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, get
     }
   }
   // the break's swords and sprinkles, landed on their board the way the game would land them
-  function land() {
+  function land(list = results) {
     // exactly as a match does it: swords numbered and handed alternately, one batch, the game's own batch rules, then the board settles
     const rows = attacker().rows, attacks = []; let n = 0;
-    for (const r of results) for (const sw of r.swords) { const a = {...sw, stage: r.chain, index: n, hand: n % 2 === 0 ? 1 : -1, id: 100 + n, pattern: rows}; if (a.kind === 'horizontal') a.base = horizontalBase(target, a.width); attacks.push(a); n++; }
-    const spr = results.reduce((k, r) => k + r.sprinkles, 0); if (spr) attacks.push({kind: 'sprinkle', count: spr, hand: 1, id: 99, pattern: rows});
+    for (const r of list) for (const sw of r.swords) { const a = {...sw, stage: r.chain, index: n, hand: n % 2 === 0 ? 1 : -1, id: 100 + n, pattern: rows}; if (a.kind === 'horizontal') a.base = horizontalBase(target, a.width); attacks.push(a); n++; }
+    const spr = list.reduce((k, r) => k + r.sprinkles, 0); if (spr) attacks.push({kind: 'sprinkle', count: spr, hand: 1, id: 99, pattern: rows});
     if (!attacks.length) return;
     applyAttackBatch(target, attacks); while (gravity(target, 1)); fuse(target);
     sound('hit');
   }
   function finish() {
-    const done = results.length; anim = null; keep();
+    const a = anim, done = results.length; anim = null; keep();
+    if (a?.mode === 'step') {
+      const broke = done > a.from; stepOpen = broke;
+      const r = results.at(-1), sw = broke ? r.swords.length : 0, sp = broke ? r.sprinkles : 0, parts = [sw && `${sw} sword${sw === 1 ? '' : 's'}`, sp && `${sp} sprinkle${sp === 1 ? '' : 's'}`].filter(Boolean);
+      lesson = broke ? `Step ×${done}: ${parts.join(' and ') || 'nothing sent'}${showTarget && parts.length ? ', landed on them' : ''}. Press One step for the next link.` : done ? `The combo ends at ×${done}.` : 'Nothing broke. A breaker has to touch its own colour.';
+      if (broke && showTarget) land([r]);
+      render(); return;
+    }
     const sw = results.flatMap(r => r.swords).length, sp = results.reduce((n, r) => n + r.sprinkles, 0), parts = [sw && `${sw} sword${sw === 1 ? '' : 's'}`, sp && `${sp} sprinkle${sp === 1 ? '' : 's'}`].filter(Boolean);
     lesson = done ? `Chain ×${done}: ${parts.join(' and ') || 'nothing'} on the way to your rival.` : 'Nothing broke. A breaker has to touch its own colour.';
     if (done && showTarget) land();
