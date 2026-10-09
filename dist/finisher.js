@@ -23,19 +23,23 @@ export function finisherOf(c, {area = null} = {}) {
 export function createPlayout(match, {maxMs = 5000, sides = [0, 1]} = {}) {
   if (match.version !== VERSION && match.version !== 9) return {state: match, done: true, step() {}};
   const state = clone(match); let spent = 0;
-  const settled = p => p.dead || !p.active && (p.phase === 'entry') || p.phase === 'fall';
+  // solo boards (Adventure sprints, Zen) have one player: only sides that exist count
+  const all = state.players.map((_, i) => i); sides = sides.filter(s => state.players[s]);
+  const settled = p => !p || p.dead || !p.active && (p.phase === 'entry') || p.phase === 'fall';
   const api = {state, done: sides.every(s => settled(state.players[s])),
     step(dt) {
       if (api.done) return; spent += dt;
       const winner = state.winner; state.winner = null;
       const live = sides.filter(s => !settled(state.players[s]));
       // only the boards still resolving move; the others hold still
-      const held = [0, 1].filter(s => !live.includes(s)).map(s => [s, state.players[s].dead]);
-      for (const [s] of held) state.players[s].dead = true;
-      step(state, dt, []);
+      const held = all.filter(s => !live.includes(s)).map(s => [s, state.players[s].dead]);
+      try {
+        for (const [s] of held) state.players[s].dead = true;
+        step(state, dt, []);
+      } catch { api.done = true; }
       for (const [s, d] of held) state.players[s].dead = d;
       state.winner = winner;
-      api.done = spent >= maxMs || sides.every(s => settled(state.players[s]));
+      api.done = api.done || spent >= maxMs || sides.every(s => settled(state.players[s]));
     }};
   return api;
 }
