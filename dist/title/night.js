@@ -1,14 +1,13 @@
-// Night mode: a warm dimming veil over the whole game (menus, boards, Zen), easier on the eyes in a
-// dark room. Off / Dim / Dark, saved with the other preferences. The breaker glow also softens.
-const LEVELS = ['off', 'dim', 'dark'], LABEL = {off: 'Night off', dim: 'Night: dim', dark: 'Night: dark'};
+// Night mode: the scenery behind the boards turns to night (darker, cooler, a deeper vignette) and the
+// tavern on the title dims; boards, pieces and text stay exactly as crisp as by day. Breaker glow softens.
+// On or off, saved with the other preferences.
+const LEVELS = ['off', 'on'], LABEL = {off: 'Night off', on: 'Night on'};
 const prefs = () => { try { return JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); } catch { return {}; } };
-let veil = null;
-export const nightLevel = () => LEVELS.includes(prefs().night) ? prefs().night : 'off';
+export const nightLevel = () => { const n = prefs().night; return n && n !== 'off' ? 'on' : 'off'; };
 export const nightLabel = (n = nightLevel()) => LABEL[n];
 function apply(n = nightLevel()) {
   if (typeof document === 'undefined') return;
-  if (!veil) { veil = document.createElement('div'); veil.className = 'night-veil'; veil.setAttribute('aria-hidden', 'true'); document.body.append(veil); }
-  veil.dataset.level = n; document.documentElement.dataset.night = n;
+  document.documentElement.dataset.night = n;
   for (const fn of listeners) try { fn(n); } catch {}
 }
 const listeners = new Set();

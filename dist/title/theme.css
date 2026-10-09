@@ -221,8 +221,6 @@ input[type=range]::-moz-range-thumb{width:14px;height:18px;background:#a32a2a;bo
 .key-button.key-add{min-width:40px;color:#9f8a6c}
 .key-button.key-add:hover{color:var(--gold)}
 @media (hover:none){.key-set button.key-remove:not(#_){opacity:1}}
-/* night mode: a warm veil multiplied over everything (no effect on clicks) */
-.night-veil{position:fixed;inset:0;pointer-events:none;z-index:2147483000;mix-blend-mode:multiply;opacity:0;transition:opacity .5s ease,background-color .5s ease;background:#c9ad8e}
-.night-veil[data-level="dim"]{opacity:1;background:#b89c80}
-.night-veil[data-level="dark"]{opacity:1;background:#7e6a58}
-@media (prefers-reduced-motion:reduce){.night-veil{transition:none}}
+/* night mode: only the scenery changes (body::before sits behind everything), boards and text untouched */
+html[data-night=on] body::before{background:radial-gradient(ellipse 60% 70% at 50% 50%,rgba(6,8,22,.5),rgba(6,8,22,.42) 62%,rgba(4,4,12,.78))!important;transition:background .6s ease}
+html[data-night=on] #title-screen .tt-canvas{filter:brightness(.72) saturate(.85) hue-rotate(-8deg);transition:filter .6s ease}

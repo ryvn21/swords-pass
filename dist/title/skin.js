@@ -109,8 +109,8 @@ function drawBlock(g, color, kind, uw, uh) {
   g.restore();
   glint(g, 7.2, 7.4, .9); glint(g, uw - 7, uh - 9, .45);
 }
-// Breakers: the free-standing blade lit from inside (no tile). Variants of the classic look, chosen
-// in Settings → Breakers while we settle on one:
+// Breakers: the free-standing blade lit from inside (no tile). Bold is the look in play; the others are
+// kept for reference only:
 //   classic: the original thin blade with a strong pulsing glow
 //   steady:  a little bigger, a dark edge so it reads on any background, a soft glow that doesn't pulse
 //   bold:    bigger and thicker with an ink outline; the glow breathes slowly and faintly
@@ -122,7 +122,7 @@ const BREAKER_LOOK = {
   bold: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 1.5, glow: {a: .07, amp: .05, r: .66, speed: 1.1}},
   ember: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 2.2, core: true, glow: null},
 };
-let breakerStyle = 'classic', nightGlow = 1;
+let breakerStyle = 'bold', nightGlow = 1;
 function drawBreakerStyle(g, color, uw, uh, style = 'classic') {
   const L = BREAKER_LOOK[style] || BREAKER_LOOK.classic, r = RAMP[color], e = EMBLEMS[color];
   g.save(); emblemTransform(g, uw, uh, L.scale); g.lineJoin = 'round';
@@ -235,7 +235,7 @@ const scaleOf = ctx => { const m = ctx.getTransform(); return [Math.hypot(m.a, m
 
 // ---------- effects ----------
 let reduced = false;
-const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; nightGlow = p.night === 'dark' ? .4 : p.night === 'dim' ? .65 : 1; const st = BREAKER_STYLES.includes(p.breakerStyle) ? p.breakerStyle : 'classic'; if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
+const readReduced = () => { try { const p = JSON.parse(localStorage.getItem('scraps.preferences') || '{}'); reduced = !!p.reduced || matchMedia('(prefers-reduced-motion: reduce)').matches; nightGlow = p.night && p.night !== 'off' ? .55 : 1; const st = 'bold'; if (st !== breakerStyle) { breakerStyle = st; if (typeof document !== 'undefined' && document.getElementById('scraps-tiles')) { document.getElementById('scraps-tiles').remove(); publishTiles(); } } } catch {} };
 const now = () => (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
 function glow(ctx, x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
 const RGB = RAMP.map(r => { const h = r[4]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(','); });
