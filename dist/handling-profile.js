@@ -37,14 +37,14 @@ export function handlingRules(input={}){
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 // Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
 //   natural fall  starts at 0.01 px/ms (4000 ms a row) and speeds up as you land blocks (engine: rules.speedUp)
-//   landing lock  0 ms (it would shrink with the speed if set: lockMs × start speed ÷ speed)
-//                 sliding a landed pair along its row commits it at once (landOnce); stall flips still reset the lock
-//   flips         in a pocket a pair swaps in place; at most 2 kicks (flips that shift the pair) per pair (kickLimit)
+//   landing window 5 ÷ speed ms: 500 at the start, 20 at the cap; starts on the first touch and is never extended
+//                 (landOnce: slid off a ledge it falls when the window ends; resting on the same row again locks at once)
+//   flips         nudged sideways to fit; an upright pair pops up a row at most 2 times (kickLimit), then swaps in place
 //   Space         0.8 px/ms, off again when each new pair spawns; no early press → 50 ms a row, 0 ms window
 //   strikes and loose blocks 1.2 px/ms                                         → 33 ms a row, ~430 ms down the board
-//   breaks        75 ms between depth levels, clear 550 ms
+//   breaks        75 ms between depth levels, then 250 ms before the board moves on (the burst keeps flying)
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:0,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:550,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});

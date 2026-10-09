@@ -31,18 +31,15 @@ export function rotate(board,piece,direction,wellFlip=false){
  if(piece.r%2===0){const flip={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};if(fits(board,flip))return flip;}
  return null;
 }
-// rules.kickLimit: a vertical pair whose lower block sits in a pocket (wall or block on both sides) swaps its
-// colours in place when flipped, never popping up or out; elsewhere a flip that has to shift the pair (a kick)
-// is allowed kickLimit times per pair, after which only flips that fit where the pair is are taken.
-const solid=(board,x,y)=>x<0||x>=W||!!board[y]?.[x];
-function pocketed(board,piece){if(piece.r%2!==0)return false;const low=cells(piece).reduce((a,c)=>c.y<a.y?c:a);return solid(board,low.x-1,low.y)&&solid(board,low.x+1,low.y);}
-export function rotateLimited(board,piece,direction,wellFlip,kicksLeft){
- const swap={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};
- if(pocketed(board,piece))return fits(board,swap)?{piece:swap,kicked:false}:null;
- const next={...piece,r:(piece.r+direction+4)%4};
- if(fits(board,next))return {piece:next,kicked:false};
- if(kicksLeft>0)for(const [dx,dy] of [[1,0],[-1,0],[0,1]]){if(wellFlip&&dy&&piece.r%2===0){if(fits(board,swap))return {piece:swap,kicked:false};}const q={...next,x:next.x+dx,y:next.y+dy};if(fits(board,q))return {piece:q,kicked:true};}
- if(piece.r%2===0&&fits(board,swap))return {piece:swap,kicked:false};
+// rules.kickLimit (with landOnce): a flip that doesn't fit is nudged one column sideways if that fits; an upright pair can also be popped up one row, at most kickLimit times per pair. Past that, the flip
+// still happens without a kick: an upright pair swaps its colours in place, a flat one turns the other way if that fits.
+export function rotateLimited(board,piece,direction,wellFlip,popsLeft){
+ const next={...piece,r:(piece.r+direction+4)%4},swap={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};
+ if(fits(board,next))return {piece:next,popped:false};
+ for(const dx of [1,-1]){const q={...next,x:next.x+dx};if(fits(board,q))return {piece:q,popped:false};}   // one column either way, never through a wall
+ if(piece.r%2===0&&popsLeft>0){const q={...next,y:next.y+1};if(fits(board,q))return {piece:q,popped:true};}
+ if(piece.r%2===0&&fits(board,swap))return {piece:swap,popped:false};
+ const other={...piece,r:(piece.r-direction+4)%4};if(fits(board,other))return {piece:other,popped:false};
  return null;
 }
 export function landing(board,piece){let p=clone(piece),n;while((n=move(board,p,0,-1)))p=n;return p;}
@@ -118,7 +115,17 @@ function speedStart(rules){return rules?.speedUp?{velocity:40/rules.gravityMs,bl
 const gravOf=(state,p)=>state.rules.speedUp&&p.velocity?40/p.velocity:state.rules.gravityMs;
 const lockOf=(state,p)=>state.rules.speedUp&&p.velocity?state.rules.lockMs*(40/state.rules.gravityMs)/p.velocity:state.rules.lockMs;
 function landedBlocks(state,p,n){if(!state.rules.speedUp||!p.velocity)return;for(let i=0;i<n;i++){p.blocksSeen++;if(p.blocksSeen>=p.lastCount+p.dropFreq){p.velocity=Math.min(.25,p.velocity+1/300);p.dropFreq=Math.trunc(p.dropFreq+3.33);p.lastCount=p.blocksSeen;}}}
-export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.kicks=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}if(p.fastAfterAttack){p.fast=true;p.spawnGrace=0;}p.fastAfterAttack=false;p.underAttack=false;const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
+// rules.landOnce, the landing window: when the pair first rests on something it "bounces" and stops falling; a window
+// of lockMs × start speed ÷ speed (5 ÷ speed ms on the Default timings) starts once and is never extended. Moves and
+// flips are still allowed. When it ends, a pair still resting locks; one slid off a ledge carries on falling. Resting
+// again on the same row locks at once; a lower row starts a fresh window. Fast drop only gets you to the touch sooner.
+function bounceStep(state,side,p,dt,hooks){
+ if(p.bouncing){p.lock+=dt;if(p.lock<lockOf(state,p))return;if(!move(p.board,p.active,0,-1)){lockPair(state,side,hooks);return;}p.bouncing=false;p.lock=0;p.fall=0;return;}
+ const speed=p.fast?state.rules.fastFallMs:gravOf(state,p);p.fall+=dt;
+ while(p.fall>=speed){const next=move(p.board,p.active,0,-1);if(!next)break;p.fall-=speed;p.active=next;entered(p);}
+ if(!move(p.board,p.active,0,-1)){p.fall=0;const y=Math.min(...cells(p.active).map(c=>c.y));if(p.touchRow===y){lockPair(state,side,hooks);return;}p.touchRow=y;p.bouncing=true;p.lock=0;}
+}
+export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.kicks=0;p.touchRow=null;p.bouncing=false;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}if(p.fastAfterAttack){p.fast=true;p.spawnGrace=0;}p.fastAfterAttack=false;p.underAttack=false;const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
 export function command(state,side,action){
  if(state.version===9)return legacy9.command(state,side,action);
  if(state.version===10)return legacy10.command(state,side,action);
@@ -143,19 +150,18 @@ export function command(state,side,action){
  let next;
  if(action==='left')next=move(p.board,p.active,-1,0);
  if(action==='right')next=move(p.board,p.active,1,0);
- if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0));if(r){next=r.piece;if(r.kicked)p.kicks=(p.kicks??0)+1;}}
+ // landOnce: past the halfway point of a row, a sideways move also needs the row below clear (no squeezing under overhangs)
+ if(next&&state.rules.landOnce&&(action==='left'||action==='right')&&!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2&&!fits(p.board,{...next,y:next.y-1}))next=null;
+ if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0));if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
  else if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true);
  else if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true);
  if(!next)return false;
- // rules.landOnce: a landed pair slid along the row it landed on commits at once (no slide resets); sliding off an
- // edge to a lower row lands it again with a fresh lock. Stall flips still reset the timers.
- const grounded=!move(p.board,p.active,0,-1),floorY=Math.min(...cells(p.active).map(c=>c.y));
  if((p.lockResets??0)>=6&&Math.min(...cells(next).map(c=>c.y))>Math.min(...cells(p.active).map(c=>c.y)))return false;
  p.active=next;entered(p);
  // Stall: two flips in the same direction reset the fall and lock timers, up to rules.stallFlips times per pair.
  // Absent from older saved rules, so earlier replays and saves play back unchanged.
- if(state.rules.stallFlips){if(action==='cw'||action==='ccw'){const d=action==='cw'?1:-1;if(p.lastFlip===d){p.lastFlip=0;if((p.stalls??0)<state.rules.stallFlips){p.stalls=(p.stalls??0)+1;p.fall=0;p.lock=0;}}else p.lastFlip=d;}else p.lastFlip=0;}
- if(state.rules.landOnce){if((action==='left'||action==='right')&&grounded&&!move(p.board,p.active,0,-1)&&Math.min(...cells(p.active).map(c=>c.y))===floorY)p.lock=Math.max(p.lock,lockOf(state,p));return true;}
+ if(state.rules.stallFlips){if(action==='cw'||action==='ccw'){const d=action==='cw'?1:-1;if(p.lastFlip===d){p.lastFlip=0;if((p.stalls??0)<state.rules.stallFlips&&!(state.rules.landOnce&&p.bouncing)){p.stalls=(p.stalls??0)+1;p.fall=0;if(!state.rules.landOnce)p.lock=0;}}else p.lastFlip=d;}else p.lastFlip=0;}
+ if(state.rules.landOnce)return true;   // moves and flips never extend the landing window
  // Allow a grounded tuck without indefinite rotation stalling.
  if(p.lock>0&&(p.lockResets??0)<6){p.lock=0;p.lockResets=(p.lockResets??0)+1;}
  return true;
@@ -238,6 +244,7 @@ export function step(state,dt=1000/60,actions=[],hooks={}){
    // Positioning time is controllable, bounded, and consumes neither fall nor lock time.
    const grace=Math.min(dt,p.spawnGrace??0);p.spawnGrace=Math.max(0,(p.spawnGrace??0)-dt);
    const fallingDt=dt-grace;if(fallingDt<=0)continue;
+   if(state.rules.landOnce){bounceStep(state,side,p,fallingDt,hooks);continue;}
    const speed=p.fast?state.rules.fastFallMs:gravOf(state,p);p.fall+=fallingDt;
    while(p.fall>=speed){p.fall-=speed;const next=move(p.board,p.active,0,-1);if(!next){p.fall=0;break;}p.active=next;entered(p);p.lock=0;}
    if(!move(p.board,p.active,0,-1)){p.lock+=fallingDt;if(p.lock>=lockOf(state,p))lockPair(state,side,hooks);}else p.lock=0;

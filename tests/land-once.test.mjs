@@ -1,47 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch, step, command, block, H} from '../dist/engine.js';
+import {createMatch, step, command, block} from '../dist/engine.js';
 import {HOUSE_RULES} from '../dist/handling-profile.js';
 
-const rules = {...HOUSE_RULES, speedUp: false, gravityMs: 4000, lockMs: 500};   // a landing grace, so there's time to slide and stall
-function landed(setup) {
+// The landing window (Default timings): first touch "bounces" the pair and starts a window of 5 ÷ speed ms
+// (500 ms at the start) that moves never extend; at the end a resting pair locks, one slid off a ledge falls on.
+const rules = {...HOUSE_RULES, speedUp: false};
+function touch(setup) {
   const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   setup?.(p.board);
   let guard = 0; while (!(p.phase === 'fall' && p.active) && guard++ < 100) step(m, 16, []);
   command(m, 0, 'fastOn'); guard = 0;
-  while (p.active && guard++ < 400) { const before = p.active.y; step(m, 16, []); if (p.active && p.active.y === before && p.lock > 0) break; }
+  while (p.active && !p.bouncing && guard++ < 2000) step(m, 16, []);
   command(m, 0, 'fastOff');
   return {m, p};
 }
 
-test('sliding a landed pair along the row it landed on commits it at once', () => {
-  const {m, p} = landed(); const turn = p.turn;
-  assert.ok(p.active && p.lock > 0);
-  command(m, 0, 'left'); step(m, 16, []);
-  assert.equal(p.turn, turn + 1);
+test('the window is 500 ms at the start and moves do not extend it', () => {
+  const {m, p} = touch(); const turn = p.turn;
+  assert.ok(p.bouncing);
+  step(m, 300, []); command(m, 0, 'left'); command(m, 0, 'right'); command(m, 0, 'cw');
+  step(m, 150, []); assert.equal(p.turn, turn, 'still in the window at 450 ms');
+  step(m, 60, []); assert.equal(p.turn, turn + 1, 'locked at 500 ms despite the moves');
 });
 
-test('sliding off an edge to a lower row lands again with a fresh lock', () => {
-  // a floor one cell high under columns 2-5; columns 0-1 empty
-  const {m, p} = landed(b => { for (let x = 2; x < 6; x++) b[0][x] = block(x % 4); });
-  const turn = p.turn; let moved = 0;
-  while (p.active && moved < 4 && p.turn === turn) { command(m, 0, 'left'); step(m, 16, []); moved++; if (p.active && Math.min(p.active.x) <= 1) break; }
-  if (p.turn === turn) { step(m, 16, []); assert.equal(p.turn, turn, 'still falling or newly landed, not committed'); }
+test('slid off a ledge it stays put until the window ends, then falls and lands with a fresh window', () => {
+  // a step one block high under columns 3-5; the pair touches down on it, then slides left off it
+  const {m, p} = touch(b => { for (let x = 2; x < 6; x++) b[0][x] = block(x % 4); });
+  const turn = p.turn, y0 = Math.min(p.active.y, p.active.y + (p.active.r === 2 ? -1 : 0));
+  for (let i = 0; i < 3; i++) command(m, 0, 'left');
+  step(m, 200, []); assert.equal(Math.min(p.active.y, p.active.y), p.active.y); assert.equal(p.turn, turn);
+  step(m, 400, []);                                           // the window has ended: it is falling now
+  assert.equal(p.turn, turn); assert.equal(p.bouncing, false);
+  let guard = 0; while (p.turn === turn && !p.bouncing && guard++ < 400) step(m, 16, []);
+  assert.ok(p.bouncing || p.turn === turn + 1);
 });
 
-test('stall flips still reset the lock while landed', () => {
-  const {m, p} = landed(); const turn = p.turn;
-  step(m, 300, []); const before = p.lock; assert.ok(before >= 300);
-  command(m, 0, 'cw'); command(m, 0, 'cw');
-  assert.ok(p.lock < before); step(m, 300, []); assert.equal(p.turn, turn);
-});
-
-test('with no landing grace, stalling still works in the air: two flips hold the pair on its row', async () => {
-  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
-  const m = createMatch({mode: 'practice', seed: 11, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0];
-  assert.equal(HOUSE_RULES.lockMs, 0);
+test('stall flips in the air hold the pair on its row', () => {
+  const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   let guard = 0; while (!(p.phase === 'fall' && p.active && !p.active.entering) && guard++ < 2000) step(m, 16, []);
-  step(m, 3000, []); const row = p.active.y;                 // 3 of the 4 s on this row
-  command(m, 0, 'cw'); command(m, 0, 'cw');                   // stall: the fall timer resets
-  step(m, 2000, []); assert.equal(p.active.y, row, 'held on the same row');
+  step(m, 3000, []); const row = p.active.y;
+  command(m, 0, 'cw'); command(m, 0, 'cw');
+  step(m, 2000, []); assert.equal(p.active.y, row);
 });

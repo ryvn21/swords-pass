@@ -130,7 +130,7 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
   // Look-ahead between simulation ticks. While fast-falling it runs one tick behind (it shows where the pair
   // was, moving toward where it is), so it never predicts past the truth: letting go of fast fall, or the pair
   // stopping, never pops it back up, and a pair that can no longer fall sits exactly in its cell.
-  const canFall=!!move(p.board,p.active,0,-1),speed=p.fast?fastFallMs:(p.velocity?40/p.velocity:gravityMs),ahead=Math.max(0,renderAheadMs-(p.spawnGrace??0))-(p.fast?1000/60:0);
+  const canFall=!p.bouncing&&!!move(p.board,p.active,0,-1),speed=p.fast?fastFallMs:(p.velocity?40/p.velocity:gravityMs),ahead=Math.max(0,renderAheadMs-(p.spawnGrace??0))-(p.fast?1000/60:0);
   const fraction=canFall?Math.max(-1,Math.min(1,(p.fall+ahead)/speed)):0;
   for(const c of cells(p.active))tile(ctx,c.x*X,(H-1-c.y+fraction)*Y,c.cell);
  }
