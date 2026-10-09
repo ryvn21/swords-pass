@@ -43,3 +43,27 @@ test('stall flips in the air hold the pair on its row', () => {
   command(m, 0, 'cw'); command(m, 0, 'cw');
   step(m, 2000, []); assert.equal(p.active.y, row);
 });
+
+test('a stall holds the pair still instead of lifting it back up its row, with the same delay as a reset', async () => {
+  const {createMatch, step} = await import('../dist/engine.js');
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0];
+  for (let i = 0; i < 125; i++) step(m, 16);
+  const y = p.active.y, fall = p.fall;
+  step(m, 16, [{side: 0, action: 'cw'}]); step(m, 16, [{side: 0, action: 'cw'}]);
+  assert.ok(p.fall >= fall, 'never lifted back up');
+  const at = m.elapsed; let rows = 0;
+  while (p.active && p.active.y >= y - 1 && m.elapsed - at < 6000) { step(m, 16); if (p.active.y < y - 1) rows++; }
+  assert.ok(m.elapsed - at >= 3900, 'the row still takes a full fall time after the stall');
+});
+
+test('the NEXT box shows the following pair as soon as a pair appears, except the very first pair of the game', async () => {
+  const {createMatch, step, previewIndex} = await import('../dist/engine.js');
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  const m = createMatch({mode: 'practice', seed: 3, rules: HOUSE_RULES}), p = m.players[0];
+  step(m, 16);
+  assert.equal(previewIndex(p), 0, 'first pair shown while it is above the board');
+  for (let i = 0; i < 400 && p.nextIndex === 1; i++) step(m, 16, i % 2 ? [] : [{side: 0, action: 'fastOn'}]);
+  while (p.phase !== 'fall' || !p.active) step(m, 16);
+  assert.equal(previewIndex(p), p.nextIndex, 'later pairs: the box already shows the one after');
+});
