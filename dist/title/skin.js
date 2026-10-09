@@ -246,7 +246,7 @@ const skin = {
     if (c.color == null || !RAMP[c.color]) return false;
     const [sx, sy] = scaleOf(ctx), pw = Math.max(4, Math.round(w * sx)), ph = Math.max(6, Math.round(h * sy));
     const kind = c.breaker && !c.stage ? 'k' : c.stage > 1 ? 's' : c.stage === 1 ? 'd' : 'b';
-    const s = sprite(kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? [...STONE, ...RAMP[c.color], ...LIGHT, '#0f0b0d', '#241c20', '#000000'] : palOf(c.color, kind));
+    const s = sprite(kind === 'k' ? 'k' + breakerStyle + c.color : kind + c.color, pw, ph, 32, 48, g => kind === 'k' ? drawBreakerStyle(g, c.color, 32, 48, breakerStyle) : drawBlock(g, c.color, kind === 's' ? 'stone' : kind === 'd' ? 'decay' : 'block', 32, 48), kind === 'k' ? palOf(c.color, 'k') : palOf(c.color, kind));
     ctx.save(); ctx.globalAlpha = a;
     if (kind === 'k' && !reduced && a > .5) breakerGlow(ctx, x, y, w, h, c.color, breakerStyle, now());
     ctx.imageSmoothingEnabled = false; ctx.drawImage(s, x, y, w, h); ctx.restore();
@@ -300,7 +300,7 @@ function publishTiles() {
     const t = (kind, draw) => sprite('tile-' + kind + c, 78, 117, 32, 48, draw, palOf(c, kind)).toDataURL();
     css.push(`--tile-${c}:url(${t('b', g => drawBlock(g, c, 'block', 32, 48))})`);
     css.push(`--tile-stone-${c}:url(${t('s', g => drawBlock(g, c, 'stone', 32, 48))})`);
-    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), [...STONE, ...RAMP[c], ...LIGHT, '#0f0b0d', '#241c20', '#000000']).toDataURL()})`);
+    css.push(`--tile-breaker-${c}:url(${sprite('tile-k' + breakerStyle + c, 78, 117, 32, 48, g => drawBreakerStyle(g, c, 32, 48, breakerStyle), palOf(c, 'k')).toDataURL()})`);
   }
   const st = document.createElement('style'); st.id = 'scraps-tiles'; st.textContent = `:root{${css.join(';')}}`; document.head.append(st);
 }
