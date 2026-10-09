@@ -22,7 +22,7 @@ const NOTES = [
       art: `<span class="pn-row">${['extra-sprinkles', 'ward-charm', 'miners-tithe'].map(id => `<img src="${icon(id)}" alt="">`).join('')}</span>`},
     {head: 'Second Wind rescues, not tidies', text: 'It only fires when column 4 is one row from the top, and it says so.',
       art: `<span class="pn-row"><img src="${icon('second-wind')}" alt=""></span>`},
-    {head: 'Forge: strength and a test board', text: 'A strength score (the Forgotten Falchion is 100), an online-legal badge, and a board to drop test strikes on. Online caps strength at 105.',
+    {head: 'Forge: strength and a test board', text: 'A strength score from how big the same-colour groups in your attacks are (Forgotten Falchion 90, Stick 42), an online-legal badge, and a board to drop test strikes on. Online allows up to 95.',
       art: `<div class="pn-meter"><i style="width:62%"></i><b style="left:84%"></b></div><small class="pn-cap">72 · Online legal</small>`},
     {head: 'Freebuild', text: 'Opens on a ×5 that clears the board. Their board shows what your break lands on a rival, in your blade’s colours.',
       art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c)).join('')}${[0, 1, 2, 3].map(c => tile(c, true)).join('')}</span>`},
