@@ -31,6 +31,7 @@ export function decodeBoard(code) {
 
 // ----- practice setups, each a small lesson
 const SETUPS = [
+  {id: 'five', name: 'A ×5 to start', hint: 'Press Break it: five steps, four swords, and the whole board clears. Or press Clear to start fresh.', code: 'SFB1:6/..0.....b22...122..133b3.03333b00133a221dc'},
   {id: 'first', name: 'A first sword', hint: 'A 2×2 red gem and a red breaker. Break it to send a 1×4 sword.', code: 'SFB1:a...../10' },
   {id: 'double', name: 'The double', hint: 'Break red. The gold breaker drops into its second connection: chain ×2.'},
   {id: 'sideways', name: 'A sideways thought', hint: 'A wide gem sends a horizontal sword.'},
@@ -39,6 +40,7 @@ const SETUPS = [
   {id: 'garbage', name: 'Under siege', hint: 'Stones and cracked blocks from an attack. Cracked ones are one turn from free.'},
 ];
 function setupBoard(id) {
+  const fixed = SETUPS.find(x => x.id === id && x.code && id !== 'first'); if (fixed) return decodeBoard(fixed.code);
   const b = grid(), put = (x, y, c, br = false) => { b[y][x] = block(c, br); };
   if (id === 'first') { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) put(x, y, 0); put(0, 2, 0, true); }
   else if (id === 'double') { put(0, 0, 1); put(0, 1, 0); put(0, 2, 1, true); put(1, 1, 0, true); put(1, 0, 2); put(2, 0, 1); put(2, 1, 1); put(3, 0, 1); put(3, 1, 1); }
@@ -51,7 +53,8 @@ function setupBoard(id) {
 
 export function createFreebuildUI({host, prefs, read, save, sound, getBlade, playBoard, toast}) {
   const $ = q => host.querySelector(q), scope = new AbortController();
-  let board = read('freebuild-board', null); board = (board && decodeBoard(board)) || setupBoard('first');
+  // a first visit (or one still on the old opening board) starts on a ready-made ×5 to break
+  let board = read('freebuild-board', null); const opening = !board || board === encodeBoard(setupBoard('first')); board = (!opening && decodeBoard(board)) || setupBoard('five');
   let colour = 0, kind = 'block', undo = [], redo = [], anim = null, raf = 0, disposed = false, painting = false, lastCell = '', results = null, lesson = SETUPS[0].hint;
   const saved = () => { const l = read(SAVE_KEY, []); return Array.isArray(l) ? l.filter(x => x && typeof x.name === 'string' && decodeBoard(x.code)) : []; };
   const keep = () => save('freebuild-board', encodeBoard(board));
@@ -63,10 +66,10 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     host.innerHTML = `<section class="room-heading"><div><p class="eyebrow">SOLO · FREEBUILD</p><h1>Build it. Break it.</h1></div></section>
 <div class="fb-grid">
  <aside class="panel fb-box"><p class="eyebrow">PIECE BOX</p>
-  <div class="fb-colours">${COLOUR_NAMES.map((n, i) => `<button class="fb-colour ${colour === i ? 'on' : ''}" data-colour="${i}" style="background-image:var(--tile-${i})" aria-label="${n}" aria-pressed="${colour === i}"></button>`).join('')}</div>
-  <div class="fb-kinds">${KINDS.map(([k, n]) => `<button class="fb-kind ${kind === k ? 'on' : ''}" data-kind="${k}" aria-pressed="${kind === k}">${n}</button>`).join('')}</div>
+  <div class="fb-palette">${['block', 'breaker'].map(k => COLOUR_NAMES.map((n, i) => { const on = kind === k && colour === i; return `<button class="fb-colour ${on ? 'on' : ''}" data-pick="${k}:${i}" style="background-image:var(--tile-${k === 'breaker' ? 'breaker-' : ''}${i})" aria-label="${n} ${k}" aria-pressed="${on}"></button>`; }).join('')).join('')}</div>
+  <button class="fb-eraser ${kind === 'erase' ? 'on' : ''}" data-pick="erase" aria-pressed="${kind === 'erase'}">Eraser</button>
   <p class="fine-print">Click or drag on the board to paint. Right-click erases.</p>
-  <div class="fb-tools"><button id="fb-undo" ${undo.length ? '' : 'disabled'}>Undo</button><button id="fb-redo" ${redo.length ? '' : 'disabled'}>Redo</button><button id="fb-mirror">Mirror</button><button id="fb-clear">Clear</button></div>
+  <div class="fb-tools"><button id="fb-undo" ${undo.length ? '' : 'disabled'}>Undo</button><button id="fb-redo" ${redo.length ? '' : 'disabled'}>Redo</button><button id="fb-clear" class="fb-clear">Clear</button></div>
   <div class="divider"></div><p class="eyebrow">SETUPS</p>
   <div class="fb-setups">${SETUPS.map(s => `<button data-setup="${s.id}">${esc(s.name)}</button>`).join('')}</div>
   <div class="divider"></div><p class="eyebrow">YOUR BOARDS <span>${mine.length}</span></p>
@@ -108,14 +111,12 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     if (JSON.stringify(was) !== JSON.stringify(board[y][x])) sound(k === 'erase' ? 'move' : 'lock');
   }
   function wire() {
-    for (const b of host.querySelectorAll('[data-colour]')) b.onclick = () => { colour = Number(b.dataset.colour); if (kind === 'erase') kind = 'block'; render(); };
-    for (const b of host.querySelectorAll('[data-kind]')) b.onclick = () => { kind = b.dataset.kind; render(); };
+    for (const b of host.querySelectorAll('[data-pick]')) b.onclick = () => { const [k, c] = b.dataset.pick.split(':'); kind = k; if (c != null) colour = Number(c); render(); };
     for (const b of host.querySelectorAll('[data-setup]')) b.onclick = () => { const s = SETUPS.find(x => x.id === b.dataset.setup); remember(); board = setupBoard(s.id); lesson = s.hint; results = null; keep(); render(); };
     for (const b of host.querySelectorAll('[data-load]')) b.onclick = () => { const s = saved()[Number(b.dataset.load)]; remember(); board = decodeBoard(s.code); lesson = s.name; results = null; keep(); render(); };
     for (const b of host.querySelectorAll('[data-del]')) b.onclick = () => { const l = saved(); l.splice(Number(b.dataset.del), 1); save(SAVE_KEY, l); render(); };
     $('#fb-undo').onclick = () => { if (!undo.length) return; redo.push(encodeBoard(board)); board = decodeBoard(undo.pop()); results = null; keep(); render(); };
     $('#fb-redo').onclick = () => { if (!redo.length) return; undo.push(encodeBoard(board)); board = decodeBoard(redo.pop()); results = null; keep(); render(); };
-    $('#fb-mirror').onclick = () => { remember(); for (const row of board) row.reverse(); results = null; keep(); render(); };
     $('#fb-clear').onclick = () => { remember(); board = grid(); results = null; lesson = 'An empty board. Paint something.'; keep(); render(); };
     $('#fb-save').onclick = () => {
       const A = globalThis.scrapsAsk, store = name => { const l = saved(); l.unshift({name: name.slice(0, 40) || 'Untitled board', code: encodeBoard(board)}); save(SAVE_KEY, l.slice(0, 40)); toast?.('Board saved.'); render(); };
