@@ -19,9 +19,9 @@ function harness(opts = {}) {
   return {relay, client, advance};
 }
 
-test('quick duel pairs two players and starts both on the same seed', () => {
+test('quick duel puts up a table, the next quick match sits down, and both start on the same seed', () => {
   const {client, advance} = harness(), a = client('Ann'), b = client('Bo');
-  a.say({t: 'quick', mode: 'duel'}); assert.equal(a.last('queue').waiting, 1);
+  a.say({t: 'quick', mode: 'duel'}); assert.equal(a.last('room').players.length, 1); assert.equal(a.last('room').open, true);
   b.say({t: 'quick', mode: 'duel'});
   const sa = a.last('start'), sb = b.last('start');
   assert.ok(sa && sb); assert.equal(sa.seed, sb.seed); assert.equal(sa.players.length, 2); assert.equal(sa.you, a.id);
@@ -72,10 +72,10 @@ test('free-for-all: up to four, attacks go to the chosen target, last board stan
   assert.deepEqual(r.placements.map(p => p.id), [ps[0].id, ps[2].id, ps[3].id, ps[1].id]);
 });
 
-test('quick free-for-all fills to four at once, or starts with two or more after the wait', () => {
+test('quick free-for-all sits everyone at one table: starts at four, or with two or more after the wait', () => {
   const {client, advance} = harness(), ps = ['A', 'B', 'C'].map(client);
   for (const p of ps) p.say({t: 'quick', mode: 'ffa'});
-  assert.equal(ps[0].last('start'), undefined); assert.equal(ps[2].last('queue').waiting, 3);
+  assert.equal(ps[0].last('start'), undefined); assert.equal(ps[2].last('room').players.length, 3);
   advance(16000); assert.equal(ps[0].last('start').players.length, 3);
 });
 
@@ -184,4 +184,13 @@ test('offensive names are refused by the server and replaced', async () => {
   a.say({t: 'profile', name: 'Ann', blade: {name: 'HitlerBlade', iconId: 'stick', rows: stick.rows}});
   const after = a.last('room').players.find(p => p.id === a.id); assert.equal(after.name, 'Ann'); assert.equal(after.blade.name, 'Custom blade');
   a.say({t: 'profile', name: 'f@ggot'}); assert.equal(a.last('room').players.find(p => p.id === a.id).name, 'Ann');
+});
+
+test('a table put up by a player starts when anyone sits down: a quick match or a Join', () => {
+  const {client, advance} = harness(), h = client('Hal'), q = client('Quinn');
+  h.say({t: 'create', mode: 'duel', public: true}); assert.equal(h.last('room').open, true); assert.equal(h.last('start'), undefined);
+  q.say({t: 'quick', mode: 'duel'}); assert.ok(h.last('start') && q.last('start')); assert.equal(q.last('start').seed, h.last('start').seed);
+  const {client: c2} = harness(), a = c2('Ann'), b = c2('Bo'), w = c2('Wes');
+  a.say({t: 'create', mode: 'duel', public: true}); const code = a.last('room').table;
+  w.say({t: 'lobby'}); b.say({t: 'join', code}); assert.ok(a.last('start') && b.last('start'));
 });

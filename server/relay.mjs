@@ -28,7 +28,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
   // what everyone at a table sees of each other: a short public id (for your record against them), rating, previous names
   const profileOf = c => ({pub: c.pub ?? null, rating: c.pid && scores ? scores.ratingOf(c.pid) : null, aka: c.aka || []});
   function publicPlayer(c, r) { return {id: c.id, name: c.name, blade: c.blade, ...profileOf(c), ready: r.ready.has(c.id), host: r.host === c.id, connected: c.connected, wins: r.wins[c.id] || 0, rematch: r.rematch.has(c.id)}; }
-  function roomView(r) { return {t: 'room', code: r.private ? r.code : null, mode: r.mode, state: r.state, private: r.private, open: !!r.open, players: members(r).map(c => publicPlayer(c, r)), min: MODES[r.mode].min, max: MODES[r.mode].max}; }
+  function roomView(r) { return {t: 'room', code: r.private ? r.code : null, table: r.private ? null : r.code, mode: r.mode, state: r.state, private: r.private, open: !!r.open, players: members(r).map(c => publicPlayer(c, r)), min: MODES[r.mode].min, max: MODES[r.mode].max}; }
   const viewers = r => [...r.watchers].map(id => clients.get(id)).filter(Boolean);
   const broadcast = (r, msg, except) => { for (const c of members(r)) if (c.id !== except) send(c, msg); for (const c of viewers(r)) send(c, msg); };
   const sync = r => { for (const c of members(r)) send(c, {...roomView(r), you: c.id}); for (const c of viewers(r)) send(c, {...roomView(r), you: null, watching: true}); lobbyDirty(); };
@@ -47,7 +47,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
   }
   function lobbyDirty() {
     if (lobbyTimer) return;
-    lobbyTimer = setTimer(() => { lobbyTimer = null; for (const c of clients.values()) if (c.lobby && c.connected && !c.room) send(c, lobbyView(c)); }, 400);
+    lobbyTimer = setTimer(() => { lobbyTimer = null; for (const c of clients.values()) if (c.lobby && c.connected && (!c.room || roomOf(c)?.state === 'lobby')) send(c, lobbyView(c)); }, 400);
   }
   function stopWatching(c) { const r = c.watching ? rooms.get(c.watching) : null; c.watching = null; if (r) { r.watchers.delete(c.id); lobbyDirty(); } }
 
@@ -75,6 +75,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       rooms.delete(r.code); lobbyDirty(); return;
     }
     if (r.state === 'results' && r.players.length < MODES[r.mode].min) { r.state = 'lobby'; r.ready.clear(); r.rematch.clear(); }
+    if (r.state === 'lobby') maybeBegin(r);
     if (r.state === 'results' && r.rematch.size && r.players.every(id => r.rematch.has(id)) && r.players.length >= MODES[r.mode].min) begin(r);
     sync(r);
   }
@@ -89,10 +90,15 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
     r.timer = setTimer(() => { if (r.state === 'countdown') { r.state = 'playing'; sync(r); } }, countdownMs);
     sync(r);
   }
+  // a duel starts as soon as both are ready; a free-for-all when it fills, or (open tables) a short wait after two are seated
   function maybeBegin(r) {
-    const n = r.players.length, ok = n >= MODES[r.mode].min && r.players.every(id => r.ready.has(id) && clients.get(id)?.connected);
-    if (r.state === 'lobby' && ok && (r.mode === 'duel' || n === MODES[r.mode].max)) begin(r);
+    const n = r.players.length, ok = r.state === 'lobby' && n >= MODES[r.mode].min && r.players.every(id => r.ready.has(id) && clients.get(id)?.connected);
+    if (!ok) { if (r.fill) { clearTimer(r.fill); r.fill = null; } return; }
+    if (r.mode === 'duel' || n === MODES[r.mode].max) { if (r.fill) { clearTimer(r.fill); r.fill = null; } begin(r); return; }
+    if (r.open && !r.fill) r.fill = setTimer(() => { r.fill = null; const still = r.state === 'lobby' && r.players.length >= MODES[r.mode].min && r.players.every(id => r.ready.has(id) && clients.get(id)?.connected); if (still) begin(r); else lobbyDirty(); }, ffaFillMs);
   }
+  // open tables (quick match or put up by a player): sitting down means you're ready to play
+  function seat(c, r) { enter(c, r); r.ready.add(c.id); sync(r); maybeBegin(r); }
   function eliminate(r, id, why = 'out') {
     if (!r.alive.delete(id)) return;
     r.deaths.push({id, at: now() - (r.startedAt || now()), why}); broadcast(r, {t: 'out', id, why, alive: r.alive.size});
@@ -140,15 +146,23 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       send(c, {t: 'welcome', id: c.id, token: c.token, protocol: PROTOCOL});
     },
     profile(c, m) { const asked = clean(m.name, 16); if (asked && offensive(asked)) send(c, {t: 'error', code: 'name', message: 'That name isn\u2019t allowed. Pick another.'}); c.name = nameOf(m.name, c.name && !offensive(c.name) ? c.name : 'Swordhand'); if (m.blade) handlers.hello(c, {name: c.name, blade: m.blade}); const r = roomOf(c); if (r && r.state !== 'playing') sync(r); },
-    quick(c, m) { const mode = MODES[m.mode] ? m.mode : 'duel'; if (roomOf(c)) leaveRoom(c); leaveQueue(c); queues[mode].push(c.id); matchmake(mode); },
+    // quick match: sit at the fullest open table of that mode, or put one up and wait there
+    quick(c, m) {
+      const mode = MODES[m.mode] ? m.mode : 'duel'; leaveQueue(c); stopWatching(c);
+      const mine = roomOf(c); if (mine && mine.open && mine.mode === mode && mine.state === 'lobby') return sync(mine);
+      if (mine) leaveRoom(c);
+      const open = [...rooms.values()].filter(r => r.open && !r.private && r.mode === mode && r.state === 'lobby' && r.players.length < MODES[mode].max && r.players.some(id => clients.get(id)?.connected)).sort((a, b) => b.players.length - a.players.length)[0];
+      if (open) return seat(c, open);
+      const r = makeRoom(mode, false, c.id); r.open = true; seat(c, r);
+    },
     cancel(c) { leaveQueue(c); send(c, {t: 'queue', mode: null, waiting: 0}); for (const mode of Object.keys(queues).filter(k => k !== 'ffaTimer')) matchmake(mode); },
-    create(c, m) { const mode = MODES[m.mode] ? m.mode : 'duel'; leaveQueue(c); if (roomOf(c)) leaveRoom(c); const r = makeRoom(mode, !m.public, c.id); r.open = !!m.public; enter(c, r); },
+    create(c, m) { const mode = MODES[m.mode] ? m.mode : 'duel'; leaveQueue(c); if (roomOf(c)) leaveRoom(c); const r = makeRoom(mode, !m.public, c.id); r.open = !!m.public; if (r.open) seat(c, r); else enter(c, r); },
     join(c, m) {
       const r = rooms.get(clean(m.code, 8).toUpperCase());
       if (!r || !(r.private || r.open)) return send(c, {t: 'error', code: 'no-room', message: 'No room with that code.'});
       if (r.players.length >= MODES[r.mode].max) return send(c, {t: 'error', code: 'full', message: 'That room is full.'});
       if (r.state !== 'lobby' && r.state !== 'results') return send(c, {t: 'error', code: 'busy', message: 'That room is mid-match. Try again when it ends.'});
-      enter(c, r);
+      if (r.open && r.state === 'lobby') seat(c, r); else enter(c, r);
     },
     leave(c) { stopWatching(c); leaveQueue(c); leaveRoom(c); send(c, {t: 'room', state: 'none'}); },
     lobby(c, m) { c.lobby = m.on !== false; if (c.lobby) send(c, lobbyView(c)); },

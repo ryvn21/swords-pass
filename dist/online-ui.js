@@ -47,12 +47,12 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
 
   // ---------- network events ----------
   net.on('status', ({status}) => { if (status === 'online') net.send({t: 'lobby'}); if (screen === 'home' || screen === 'queue' || screen === 'room') paint(); else statusBadge(); });
-  net.on('lobby', m => { lobby = m; if (screen === 'home') paintLists(); }); net.send({t: 'lobby'});
+  net.on('lobby', m => { lobby = m; if (screen === 'home' || screen === 'room') paintLists(); }); net.send({t: 'lobby'});
   net.on('queue', m => { queueInfo = m.mode ? m : null; if (screen === 'queue' && !m.mode) screen = 'home'; if (screen !== 'match') paint(); });
   net.on('room', m => {
     if (m.state === 'none') { room = null; if (m.closed && m.name) notice = `${m.name} ${m.why === 'disconnected' ? 'lost connection' : 'left'}. The table has closed.`; if (screen === 'watch') { watch = null; if (m.closed) notice = 'That table has closed.'; } if (screen === 'match') updateResults(); else { screen = 'home'; paint(); } return; }
     if (m.watching) { room = m; if (watch) { watch.room = m; watchResults(); } return; }
-    room = m; mode = m.mode;
+    room = m; mode = m.mode; if (notice === 'Finding a table\u2026') notice = '';
     if (screen === 'match') updateResults(); else { screen = 'room'; paint(); }
   });
   net.on('error', m => { notice = m.message || 'Something went wrong.'; paint(); });
@@ -91,8 +91,8 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
         <div class="ol-you"><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>CHOOSE YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</button><div class="ol-blade-side"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div></div></div>
         ${pickerOpen ? pickerHTML() : ''}
         <nav class="ol-menu">
-          <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button>
-          <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Host a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
+          <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button><p class="ol-hint">Sits you at an open table, or puts one up for you</p>
+          <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Put up a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
           <div class="ol-join"><input id="ol-code" maxlength="4" placeholder="CODE" autocapitalize="characters" spellcheck="false"><button class="ol-item" id="ol-join" ${online ? '' : 'disabled'}>Join</button></div>
         </nav>
         <p class="ol-notice">${esc(notice)}</p>
@@ -103,17 +103,18 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
         <p class="muted">${queueInfo ? `${queueInfo.waiting} of ${queueInfo.need} waiting${mode === 'ffa' && queueInfo.waiting >= 2 ? ' · starts shortly' : ''}` : ''}</p>
         <button class="ol-item" id="ol-cancel">Cancel</button></div>`;
     } else if (screen === 'room' && room) {
-      const me = room.players.find(p => p.id === net.id), allReady = room.players.every(p => p.ready || p.host);
+      const me = room.players.find(p => p.id === net.id), allReady = room.players.every(p => p.ready || p.host), waiting = room.open && room.state === 'lobby';
       body = `<div class="ol-room">
-        ${room.private ? `<div class="ol-code"><small>ROOM CODE</small><strong>${esc(room.code)}</strong><button class="ol-item" id="ol-copy">Copy</button></div>` : room.open ? `<p class="ol-open-note">Open table · listed in the lobby for anyone to join or watch</p>` : ''}
-        <ol class="ol-players">${room.players.map(p => `<li class="${p.ready ? 'ready' : ''} ${p.connected ? '' : 'away'}"><span class="ol-blade"${rowsAttr(p.blade?.rows)}>${swordIcon(p.blade?.iconId)}</span><div><strong>${esc(p.name)}${p.id === net.id ? ' <em>you</em>' : ''}</strong><small><span${rowsAttr(p.blade?.rows)}>${esc(p.blade?.name || '')}</span>${p.wins ? ` · ${p.wins} won` : ''}${p.id !== net.id && facts(p) ? ' · ' + esc(facts(p)) : ''}</small></div><b>${!p.connected ? 'Away' : p.ready ? 'Ready' : p.host && room.mode === 'ffa' ? 'Host' : 'Not ready'}</b></li>`).join('')}
+        ${room.private ? `<div class="ol-code"><small>ROOM CODE</small><strong>${esc(room.code)}</strong><button class="ol-item" id="ol-copy">Copy</button></div>` : waiting ? `<p class="ol-open-note">${room.mode === 'duel' ? 'Waiting for a rival. Anyone who quick-matches or joins sits straight down and the duel starts.' : `Starts with ${room.max}, or shortly after a second player sits down.`}</p>` : room.open ? `<p class="ol-open-note">Open table · listed in the lobby for anyone to join or watch</p>` : ''}
+        <ol class="ol-players">${room.players.map(p => `<li class="${p.ready ? 'ready' : ''} ${p.connected ? '' : 'away'}"><span class="ol-blade"${rowsAttr(p.blade?.rows)}>${swordIcon(p.blade?.iconId)}</span><div><strong>${esc(p.name)}${p.id === net.id ? ' <em>you</em>' : ''}</strong><small><span${rowsAttr(p.blade?.rows)}>${esc(p.blade?.name || '')}</span>${p.wins ? ` · ${p.wins} won` : ''}${p.id !== net.id && facts(p) ? ' · ' + esc(facts(p)) : ''}</small></div><b>${!p.connected ? 'Away' : waiting ? 'Seated' : p.ready ? 'Ready' : p.host && room.mode === 'ffa' ? 'Host' : 'Not ready'}</b></li>`).join('')}
           ${Array.from({length: Math.max(0, room.max - room.players.length)}, () => `<li class="empty"><span class="ol-blade"></span><div><strong>Open seat</strong><small>${room.private ? 'Share the code' : room.open ? 'Waiting for a player' : ''}</small></div></li>`).join('')}</ol>
         <nav class="ol-menu">
-          ${room.state === 'lobby' ? `<button class="primary" id="ol-ready">${me?.ready ? 'Not ready' : 'Ready'}</button>` : ''}
+          ${room.state === 'lobby' && !room.open ? `<button class="primary" id="ol-ready">${me?.ready ? 'Not ready' : 'Ready'}</button>` : ''}
           ${room.state === 'lobby' && room.mode === 'ffa' && me?.host ? `<button class="ol-item" id="ol-start" ${room.players.length >= room.min && allReady ? '' : 'disabled'}>Start now</button>` : ''}
           <button class="ol-item" id="ol-leave">Leave</button>
         </nav>
-        <p class="ol-notice">${esc(notice)}</p></div>`;
+        <p class="ol-notice">${esc(notice)}</p>
+        ${waiting ? `<section class="ol-board ol-others"><p class="ol-sub">OTHER TABLES</p><div id="ol-lists"></div></section>` : ''}</div>`;
     }
     host.innerHTML = `${head}<div class="ol-lobby">${body}<p class="ol-net" id="ol-net">${statusLine()}</p></div>`;
     wireLobby();
@@ -127,7 +128,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     for (const q of ['#ol-blade-pick', '#ol-blade-icon']) { const el = $(q); if (el) el.onclick = () => { pickerOpen = !pickerOpen; paint(); }; }
     for (const b of host.querySelectorAll('[data-pick]')) b.onclick = () => { equipBlade(b.dataset.pick); pickerOpen = false; net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); globalThis.scrapsUiSound?.('select'); paint(); };
     const code = $('#ol-code'); if (code) { code.oninput = () => { code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }; code.onkeydown = e => { if (e.key === 'Enter') $('#ol-join')?.click(); }; }
-    on('#ol-quick', () => { notice = ''; profile(); net.send({t: 'quick', mode}); screen = 'queue'; queueInfo = null; paint(); });
+    on('#ol-quick', () => { notice = 'Finding a table\u2026'; profile(); net.send({t: 'quick', mode}); paint(); });
     on('#ol-create', () => { notice = ''; profile(); net.send({t: 'create', mode}); });
     on('#ol-host', () => { notice = ''; profile(); net.send({t: 'create', mode, public: true}); });
     for (const b of host.querySelectorAll('[data-list]')) b.onclick = () => { listTab = b.dataset.list; save('online-tab', listTab); for (const x of host.querySelectorAll('[data-list]')) x.setAttribute('aria-selected', String(x === b)); paintLists(); };
@@ -170,13 +171,13 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     const box = $('#ol-lists'); if (!box) return;
     let html = '';
     if (!lobby) html = `<p class="ol-empty">${net.status === 'online' ? 'Loading…' : 'Connect to see who’s playing.'}</p>`;
-    else if (listTab === 'live') {
-      const games = lobby.games || [];
+    else if (listTab === 'live' || screen === 'room') {
+      const games = (lobby.games || []).filter(g => !(screen === 'room' && room && g.code === room.table));
       html = `<p class="ol-online">${lobby.online} in the tavern</p>` + (games.length ? `<ol class="ol-players ol-tables">${games.map(g => {
         const label = g.state === 'playing' ? 'Playing' + (g.since ? ' · ' + mmss(g.since) : '') : g.state === 'countdown' ? 'Starting' : g.state === 'results' ? 'Between rounds' : g.open ? `Open · ${g.players.length}/${g.seats}` : 'Waiting';
         const names = g.players.map(p => `<span class="${p.out ? 'out' : ''}">${esc(p.name)}${p.wins ? ' <i>★' + p.wins + '</i>' : ''}</span>`).join(g.mode === 'duel' ? ' <em>vs</em> ' : ' · ');
         return `<li><span class="ol-blade">${swordIcon(g.players[0]?.blade?.iconId)}</span><div><strong>${names || 'Empty table'}</strong><small>${g.mode === 'duel' ? 'Duel' : 'Free-for-All'} · ${label}${g.watchers ? ` · ${g.watchers} watching` : ''}</small></div><span class="ol-table-acts">${g.open ? `<button class="ol-item" data-join="${esc(g.code)}">Join</button>` : ''}${g.state !== 'lobby' || g.players.length > 1 ? `<button class="ol-item" data-watch="${esc(g.code)}">Watch</button>` : ''}</span></li>`; }).join('')}</ol>`
-        : `<p class="ol-empty">No tables yet. Start a quick match or host one — it’ll show here for others to join or watch.</p>`);
+        : `<p class="ol-empty">${screen === 'room' ? 'No other tables right now.' : 'No tables yet. Quick match or put one up — it’ll show here for others to join or watch.'}</p>`);
     } else if (listTab === 'top') {
       const top = lobby.top || [];
       html = top.length ? `<ol class="ol-ranks">${top.map(p => `<li class="${p.id === lobby.me ? 'you' : ''}"><span>${p.rank}</span><strong>${esc(p.name)}${p.id === lobby.me ? ' <em>you</em>' : ''}</strong><b>${p.rating}</b><small>${p.wins}–${p.losses}</small></li>`).join('')}</ol><p class="ol-fine">Rating from online duels and free-for-alls. Your record lives on this browser.</p>`
