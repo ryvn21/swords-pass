@@ -29,7 +29,7 @@ test('holding fast-fall through a lock still does not carry to the next pair',()
  command(m,0,'fastOn');let g=0;while(p.active&&g++<2000)step(m,1000/60);while(!p.active&&g++<4000)step(m,1000/60);
  assert.equal(p.fast,false);
 });
-test('presets carry the early window; the profile key ignores it',()=>{
- assert.ok(HANDLING_PRESETS.every(x=>x.rules.dropBufferMs>0));
+test('presets carry the early window (Legacy turns it off, as Puzzle Pirates had none); the profile key ignores it',()=>{
+ assert.ok(HANDLING_PRESETS.every(x=>typeof x.rules.dropBufferMs==='number'));assert.ok(HANDLING_PRESETS.find(x=>x.id==='house').rules.dropBufferMs>0);assert.equal(HANDLING_PRESETS.find(x=>x.id==='legacy').rules.dropBufferMs,0);
  assert.equal(handlingRules({}).dropBufferMs,undefined);assert.equal(handlingRules({dropBufferMs:999}).dropBufferMs,300);
 });
