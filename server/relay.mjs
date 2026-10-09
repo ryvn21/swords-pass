@@ -3,6 +3,10 @@
 // onMessage / onClose. Each client simulates its own board; the server only routes board
 // snapshots and attack batches, and decides who topped out first.
 import {publicId as pubId} from './scores.mjs';
+import {onlineLegal} from '../dist/pattern-strength.js';
+import {validatePattern} from '../dist/engine.js';
+// a blade stronger than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
+const FALLBACK_BLADE = {name: 'Forgotten Falchion', iconId: 'forgotten-falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
 export const PROTOCOL = 1;
 const MODES = {duel: {min: 2, max: 2}, ffa: {min: 2, max: 4}};
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -18,8 +22,10 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
   function send(c, msg) { if (!c) return; const text = JSON.stringify(msg); if (c.socket && c.connected) c.socket.send(text); else if (c.backlog.length < 400) c.backlog.push(text); }
   const roomOf = c => c?.room ? rooms.get(c.room) : null;
   const members = r => r.players.map(id => clients.get(id)).filter(Boolean);
-  function publicPlayer(c, r) { return {id: c.id, name: c.name, blade: c.blade, ready: r.ready.has(c.id), host: r.host === c.id, connected: c.connected, wins: r.wins[c.id] || 0, rematch: r.rematch.has(c.id)}; }
-  function roomView(r) { return {t: 'room', code: r.private ? r.code : null, mode: r.mode, state: r.state, private: r.private, players: members(r).map(c => publicPlayer(c, r)), min: MODES[r.mode].min, max: MODES[r.mode].max}; }
+  // what everyone at a table sees of each other: a short public id (for your record against them), rating, previous names
+  const profileOf = c => ({pub: c.pub ?? null, rating: c.pid && scores ? scores.ratingOf(c.pid) : null, aka: c.aka || []});
+  function publicPlayer(c, r) { return {id: c.id, name: c.name, blade: c.blade, ...profileOf(c), ready: r.ready.has(c.id), host: r.host === c.id, connected: c.connected, wins: r.wins[c.id] || 0, rematch: r.rematch.has(c.id)}; }
+  function roomView(r) { return {t: 'room', code: r.private ? r.code : null, mode: r.mode, state: r.state, private: r.private, open: !!r.open, players: members(r).map(c => publicPlayer(c, r)), min: MODES[r.mode].min, max: MODES[r.mode].max}; }
   const viewers = r => [...r.watchers].map(id => clients.get(id)).filter(Boolean);
   const broadcast = (r, msg, except) => { for (const c of members(r)) if (c.id !== except) send(c, msg); for (const c of viewers(r)) send(c, msg); };
   const sync = r => { for (const c of members(r)) send(c, {...roomView(r), you: c.id}); for (const c of viewers(r)) send(c, {...roomView(r), you: null, watching: true}); lobbyDirty(); };
@@ -58,6 +64,13 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
     if (r.host === c.id) r.host = r.players[0];
     broadcast(r, {t: 'left', id: c.id, name: c.name, why});
     if (r.state === 'countdown' && r.players.length < MODES[r.mode].min) { clearTimer(r.timer); r.state = 'lobby'; r.ready.clear(); }
+    // a finished (or quick-matched) table that drops below its minimum comes down: the others are told and sent back to the lobby
+    if ((r.state === 'results' || (r.state === 'lobby' && !r.private && !r.open)) && r.players.length < MODES[r.mode].min) {
+      clearTimer(r.timer);
+      for (const o of members(r)) { o.room = null; send(o, {t: 'room', state: 'none', closed: true, why: why === 'disconnected' ? 'disconnected' : 'left', name: c.name}); }
+      for (const w of viewers(r)) { w.watching = null; send(w, {t: 'room', state: 'none', closed: true}); }
+      rooms.delete(r.code); lobbyDirty(); return;
+    }
     if (r.state === 'results' && r.players.length < MODES[r.mode].min) { r.state = 'lobby'; r.ready.clear(); r.rematch.clear(); }
     if (r.state === 'results' && r.rematch.size && r.players.every(id => r.rematch.has(id)) && r.players.length >= MODES[r.mode].min) begin(r);
     sync(r);
@@ -66,7 +79,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
   function begin(r) {
     clearTimer(r.timer); r.round++; r.state = 'countdown'; r.seed = Math.floor(random() * 4294967295) >>> 0;
     r.alive = new Set(r.players); r.deaths = []; r.scores = {}; r.rematch.clear(); r.startedAt = now() + countdownMs;
-    const players = members(r).map(c => ({id: c.id, name: c.name, blade: c.blade}));
+    const players = members(r).map(c => ({id: c.id, name: c.name, blade: c.blade, ...profileOf(c)}));
     r.snaps = {};
     for (const c of members(r)) send(c, {t: 'start', mode: r.mode, round: r.round, seed: r.seed, in: countdownMs, players, you: c.id, code: r.private ? r.code : null});
     for (const c of viewers(r)) send(c, {t: 'start', mode: r.mode, round: r.round, seed: r.seed, in: countdownMs, players, you: null, code: r.code, watching: true});
@@ -117,7 +130,10 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
         }
       }
       if (typeof m.pid === 'string' && /^[A-Za-z0-9_-]{12,64}$/.test(m.pid)) { c.pid = m.pid; c.pub = pubId(m.pid); }
-      c.name = clean(m.name, 16) || 'Swordhand'; c.blade = m.blade && typeof m.blade === 'object' ? {name: clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
+      c.name = clean(m.name, 16) || 'Swordhand';
+      if (Array.isArray(m.aka)) c.aka = [...new Set(m.aka.map(n => clean(n, 16)).filter(n => n && n !== c.name))].slice(0, 5); c.blade = m.blade && typeof m.blade === 'object' ? {name: clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
+      if (c.blade?.rows?.length && !validatePattern(c.blade.rows)) c.blade.rows = [];
+      if (c.blade?.rows?.length && !onlineLegal(c.blade.rows)) c.blade = {...FALLBACK_BLADE, rows: FALLBACK_BLADE.rows.map(r => [...r])};
       send(c, {t: 'welcome', id: c.id, token: c.token, protocol: PROTOCOL});
     },
     profile(c, m) { c.name = clean(m.name, 16) || c.name; if (m.blade) handlers.hello(c, {name: c.name, blade: m.blade}); const r = roomOf(c); if (r && r.state !== 'playing') sync(r); },

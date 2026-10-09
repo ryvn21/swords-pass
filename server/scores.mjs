@@ -71,5 +71,6 @@ export function createScores({url = process.env.SUPABASE_URL, key = process.env.
 
   const top = (n = BOARD) => [...players.values()].filter(p => p.played > 0).sort((a, b) => b.rating - a.rating || b.wins - a.wins).slice(0, n)
     .map((p, i) => ({rank: i + 1, id: publicId(p.pid), name: p.name, rating: p.rating, wins: p.wins, losses: p.losses, played: p.played}));
-  return {record, top, recent: (n = RECENT) => recent.slice(0, n), ready, remote, _players: players};
+  const ratingOf = pid => players.get(pid)?.rating ?? START;
+  return {record, top, ratingOf, recent: (n = RECENT) => recent.slice(0, n), ready, remote, _players: players};
 }

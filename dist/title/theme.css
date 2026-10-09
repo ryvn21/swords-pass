@@ -10,6 +10,7 @@
 @font-face{font-family:"Scraps Digits";src:url(fonts/jersey-10-latin-400-normal.woff2) format("woff2");unicode-range:U+0030-0039;size-adjust:118%;font-display:swap}
 /* Jersey 10 has one weight: a faked bold smears its digits together, so no faked weights anywhere */
 html{font-synthesis-weight:none;font-synthesis:none}
+*,*::before,*::after{font-variant-ligatures:none!important}  /* Pixelify's fi ligature reads as an A */
 :root{
   --gold:#f0cf7a; --gold-mid:#d4a24c; --gold-dark:#6e4419; --crimson:#7d1b20; --crimson-lit:#a32a2a;
   --parchment:#f5e8c8; --tt-ink:#0d0807;

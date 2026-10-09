@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch,command,step,block,H,clone,hashState} from '../dist/engine.js';
+import {createMatch,command,step,block,H,clone,hashState,VERSION} from '../dist/engine.js';
 import {migrateSpawnAdjustment,HANDLING_PRESETS} from '../dist/handling-profile.js';
 import {createRun,startEncounter} from '../dist/rogue-run.js';
 import {createClimb,choosePath} from '../dist/climb-run.js';
@@ -21,7 +21,7 @@ test('a new pair has 250ms of positioning time before natural fall begins',()=>{
 });
 
 test('a fresh fast-fall press cancels spawn grace without teleporting or removing steering',()=>{
- const m=createMatch({mode:'practice'}),p=m.players[0],pair=clone(p.active.pair);
+ const m=createMatch({engineVersion:10,mode:'practice'}),p=m.players[0],pair=clone(p.active.pair);
  step(m,50);command(m,0,'fastOn');assert.equal(p.spawnGrace,0);assert.equal(p.active.y,H-1);
  step(m,100);assert.equal(p.fall,100);assert.equal(p.active.y,H-1);
  command(m,0,'left');command(m,0,'cw');step(m,100);
@@ -43,7 +43,7 @@ test('releasing Space during grace keeps the remaining adjustment time',()=>{
 });
 
 test('high stacks keep the spawn protection until a deliberate fast-fall press',()=>{
- const m=createMatch({mode:'practice',rules:{lockMs:100}}),p=m.players[0];p.board[H-2][3]=block(2);
+ const m=createMatch({engineVersion:10,mode:'practice',rules:{lockMs:100}}),p=m.players[0];p.board[H-2][3]=block(2);
  step(m,200);assert.equal(p.stats.pieces,0);assert.equal(p.lock,0);
  command(m,0,'fastOn');step(m,50);assert.equal(p.lock,50);assert.equal(p.stats.pieces,0);
  command(m,0,'left');step(m,50);assert.equal(p.active.x,2);assert.equal(p.dead,false);assert.equal(p.stats.pieces,0);
@@ -85,9 +85,9 @@ test('engine-9 match replays retain their non-cancellable grace and original has
 
 test('new saves and replays reproduce cancelled grace and per-pair fast fall',()=>{
  for(const create of [createRun,createClimb]){const r=create({seed:42});startEncounter(r);inputRun(r,['fastOn']);for(let i=0;i<55;i++)stepRun(r);
-  const restored=restoreRun(serializeRun(r));assert.equal(restored.engineVersion,10);assert.equal(hashState(restored.game),hashState(r.game));
+  const restored=restoreRun(serializeRun(r));assert.equal(restored.engineVersion,VERSION);assert.equal(hashState(restored.game),hashState(r.game));
   for(let i=0;i<300;i++){stepRun(r);stepRun(restored);}assert.equal(hashState(restored.game),hashState(r.game));
  }
- const initial=createMatch({mode:'practice'}),a=clone(initial),b=initialFromReplay({version:10,initial,actions:[],ticks:300});
+ const initial=createMatch({engineVersion:10,mode:'practice'}),a=clone(initial),b=initialFromReplay({version:10,initial,actions:[],ticks:300});
  for(let i=0;i<300;i++){const inputs=i===0?[{side:0,action:'fastOn'}]:[];step(a,1000/60,inputs);stepReplay(b,1000/60,inputs);}assert.equal(hashState(a),hashState(b));
 });

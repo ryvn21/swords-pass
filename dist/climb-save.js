@@ -12,7 +12,7 @@ export function serializeClimb(r){
 export function restoreClimb(text){
  if(typeof text!=='string'||text.length>MAX_CLIMB_BYTES||new TextEncoder().encode(text).length>MAX_CLIMB_BYTES)throw Error('Climb save exceeds 2 MB or is not text.');
  let saved;try{saved=JSON.parse(text);}catch{throw Error('This run save is not valid JSON.');}
- if(saved?.version!==2||saved.kind!=='climb'||saved.climbVersion!==CLIMB_VERSION||![9,VERSION].includes(saved.engineVersion))throw Error('Unsupported climb save version. Keep this file for a compatible build.');
+ if(saved?.version!==2||saved.kind!=='climb'||saved.climbVersion!==CLIMB_VERSION||![9,10,VERSION].includes(saved.engineVersion))throw Error('Unsupported climb save version. Keep this file for a compatible build.');
  const {checksum,...body}=saved;if(typeof checksum!=='string'||saveChecksum(body)!==checksum)throw Error('This climb save is damaged: its checksum does not match. Keep the original or restore a backup.');
  numberIn(saved.tick,0,MAX_ROUND_TICKS,'Encounter tick',true);
  if(!saved.checkpoint||typeof saved.checkpoint!=='object'||Array.isArray(saved.checkpoint))throw Error('Missing or invalid climb checkpoint.');

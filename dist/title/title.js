@@ -5,6 +5,7 @@
 import {createTavernAudio} from './audio.js';
 import {renderGallery, drawDecor, decorFlags} from './progress.js';
 import {readMix, writeMix} from './audio-settings.js';
+import {openPatchNotes} from './patch-notes.js';
 
 const META = {W: 960, H: 540, window: [372, 588, 103, 367], portrait: {x: 703, y: 158}, vista: [400, 359, 130],
   lanterns: [[65, 88], [896, 88]], fire: [753, 418],
@@ -106,6 +107,9 @@ function buildDom() {
   setBtn.onclick = e => { e.stopPropagation(); document.getElementById('settings-open')?.click(); };
   syncToggles();
   const version = (document.querySelector('.footer span')?.textContent || '').replace(/\s+/g, ' ').trim();
+  // a small, quiet way into the patch notes, bottom left
+  const notesBtn = el('button', {type: 'button', class: 'tt-corner tt-left tt-notes', text: 'Patch notes'});
+  notesBtn.onclick = e => { e.stopPropagation(); audio.select?.(); openPatchNotes(); };
   gallery = el('section', {class: 'tt-gallery', hidden: '', 'aria-label': 'Sword gallery'});
   // the title: the full wordmark over the tavern, then it settles above the window while the menu opens
   logo = el('img', {class: 'tt-logo', src: BASE + 'brand/logo-title.png', alt: "Sword's Pass", draggable: 'false'});
@@ -114,7 +118,7 @@ function buildDom() {
     cv,
     el('div', {class: 'tt-ui'}, [
       logo, prompt, menuWrap, gallery,
-      el('div', {class: 'tt-corner tt-left', text: version || 'v0.1'}),
+      notesBtn,
       el('div', {class: 'tt-corner tt-right'}, [musicBtn, ambBtn, setBtn]),
     ]),
   ]);

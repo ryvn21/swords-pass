@@ -1015,3 +1015,118 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 @keyframes goal-pop{0%{opacity:0;transform:translateY(10px) scale(.9)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
 @media(prefers-reduced-motion:reduce){.goal-pop.show{animation:none;opacity:1}}
 .ol-end .eg-blade .sword-icon:not(#_){width:46px;height:92px}
+
+/* Freebuild piece box: four blocks over four breakers, an eraser, and the board tools set apart */
+.fb-palette{display:grid;grid-template-columns:repeat(4,34px);gap:8px;justify-content:start}
+.fb-eraser:not(#_){margin-top:10px;font-size:15px!important;padding:4px 12px!important}
+.fb-eraser.on:not(#_){color:var(--gold)!important;text-decoration:underline;text-underline-offset:4px}
+.fb-tools:not(#_){margin-top:12px;padding:8px;justify-content:flex-start;background:#0d0807b3;border:1px solid #4a2f16}
+.fb-tools .fb-clear:not(#_){margin-left:auto;color:#ffb39a!important;border-color:#7d1b20!important;background:linear-gradient(180deg,#5a1418,#3a0c10)!important;padding:2px 12px!important}
+.fb-tools .fb-clear:not(#_):hover{background:linear-gradient(180deg,#7d1b20,#5a1418)!important;color:#fff3c8!important}
+.fb-palette .fb-colour:not(#_)::before,.fb-palette .fb-colour:not(#_)::after{display:none!important}
+.fb-palette .fb-colour.on:not(#_){outline:2px solid var(--gold)!important;outline-offset:3px}
+.fb-eraser:not(#_){display:block;margin-left:0!important}
+.fb-tools:not(#_){flex-wrap:nowrap;align-items:center}
+.fb-tools button:not(#_){white-space:nowrap}
+.fb-tools:not(#_){gap:4px;padding:6px 8px}
+.fb-tools button:not(#_){font-size:14px!important;padding:2px 6px!important}
+.fb-eraser:not(#_){text-align:left;padding-left:0!important}
+.ol-blade-note{display:block;font:400 11px var(--tt-ui);font-style:normal;color:#ffb39a;margin-top:2px;max-width:220px}
+
+/* Forge: pattern strength and a test board that receives this pattern's strikes */
+.pattern-test:not(#_){padding:16px 18px!important}
+.strength-meter{position:relative;height:10px;margin:6px 0 6px;background:#0d0807;border:1px solid #4a2f16}
+.strength-meter i{display:block;height:100%;background:linear-gradient(90deg,#3a7a2a,#9ac04a)}
+.strength-meter i.over{background:linear-gradient(90deg,#9ac04a,#c24a3a)}
+.strength-meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--gold);box-shadow:0 0 0 1px #0d0807}
+.strength-line{margin:0;font:400 14px var(--tt-ui);color:#d8c49c}.strength-line strong{color:var(--parchment);font-size:18px}
+.legal{font:600 12px var(--tt-ui);letter-spacing:.06em;padding:1px 6px;border:1px solid}
+.legal.ok{color:#a6d36a;border-color:#4a6a2a}.legal.no{color:#ffb39a;border-color:#7d1b20}
+.strike-picks{display:flex;flex-wrap:wrap;gap:4px 6px;margin:6px 0 10px}
+.strike-picks button:not(#_){font-size:13px!important;padding:2px 8px!important}
+.strike-picks button.on:not(#_){color:var(--gold)!important;text-decoration:underline;text-underline-offset:4px}
+.pt-wrap{display:flex;justify-content:center}
+.pt-frame{position:relative;width:132px}
+.pt-cols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(6,1fr);z-index:2}
+.pt-cols button:not(#_){all:unset;cursor:pointer}
+.pt-cols button:hover{background:linear-gradient(#f0cf7a33,transparent 70%)}
+.strike-tools{display:flex;gap:8px;justify-content:center;margin:10px 0 6px}
+.strike-tools .fb-clear:not(#_){color:#ffb39a!important;border-color:#7d1b20!important;background:linear-gradient(180deg,#5a1418,#3a0c10)!important;padding:2px 12px!important}
+.pt-read{margin:0;font:400 13px/1.4 var(--tt-ui);color:#e8d8b4;text-align:center}
+
+/* Freebuild: their board beside yours, and a blade picker that opens into the full list */
+.fb-boards{display:flex;gap:28px;justify-content:center;align-items:flex-start}
+.fb-board-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.fb-board-col>small{font:600 10px var(--tt-ui);letter-spacing:.24em;color:var(--gold)}
+.fb-boards.two .fb-frame:not(#_){width:clamp(120px,calc((100dvh - 330px)*4/13),200px)}
+.fb-toggle{display:flex;align-items:center;gap:8px;font:400 14px var(--tt-ui);color:var(--parchment);margin:4px 0 10px;cursor:pointer}
+.fb-blade>small{display:block;font:600 10px var(--tt-ui);letter-spacing:.16em;color:#cdb894;margin-bottom:4px}
+#fb-blade-btn:not(#_){display:flex;align-items:center;gap:10px;width:100%;padding:6px 10px!important;text-align:left;background:#0d0807b3!important;border:1px solid #4a2f16!important}
+#fb-blade-btn strong{flex:1;font:600 15px var(--tt-ui);color:var(--parchment)}#fb-blade-btn::before,#fb-blade-btn::after{display:none!important}
+.fb-blade-list{max-height:260px;overflow:auto;margin-top:4px;padding:4px 6px;background:#0d0807e6;border:1px solid #4a2f16}
+.fb-blade-list .pattern-cat{margin:8px 0 2px;font:600 10px var(--tt-ui);letter-spacing:.2em;color:var(--gold);text-transform:uppercase}
+.fb-blade-list button:not(#_){display:flex;align-items:center;gap:8px;width:100%;padding:3px 6px!important;text-align:left;font:400 14px var(--tt-ui)!important}
+.fb-blade-list button::before,.fb-blade-list button::after{display:none!important}
+.fb-blade-list button.on:not(#_){color:var(--gold)!important}
+.fb-blade-list small{display:block;font:400 10px var(--tt-ui);color:#ffb39a}
+#fb-target-clear:not(#_){margin-top:10px;color:#ffb39a!important;border-color:#7d1b20!important;background:linear-gradient(180deg,#5a1418,#3a0c10)!important;padding:2px 12px!important}
+.pattern-work-grid>aside.pattern-test:last-child:not(#_){display:block!important}
+.library-workshop:has(.pattern-test):not(#_){grid-template-columns:minmax(240px,320px) minmax(340px,480px) minmax(250px,300px)!important}
+@media(max-width:1150px){.library-workshop:has(.pattern-test):not(#_){grid-template-columns:minmax(240px,320px) minmax(320px,480px)!important}.pattern-work-grid>aside.pattern-test:not(#_){grid-column:1/-1}}
+@media(max-width:640px){.library-workshop:has(.pattern-test):not(#_){grid-template-columns:minmax(0,1fr)!important}}
+.pt-frame{position:relative;width:132px;border:4px solid #8c7554;outline:1px solid #b49c6c;box-shadow:0 0 0 4px #0d0807;background:#19191e}
+.pt-frame canvas{display:block;width:100%;height:auto;aspect-ratio:4/13}
+.strike-tools button:not(#_){font-size:14px!important;white-space:nowrap;padding:2px 6px!important}.strike-tools button:not(#_)::before,.strike-tools button:not(#_)::after{display:none!important}.strike-tools{flex-wrap:wrap}
+.fb-target-tools{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}.fb-target-tools #fb-target-clear:not(#_){margin-top:0}.fb-target-tools button:not(#_){font-size:14px!important;white-space:nowrap}
+.strength-meter u{position:absolute;top:-2px;bottom:-2px;width:1px;background:#cdb894aa}
+
+/* the clock sits between the two boards, level with their names */
+.duel-mid{align-self:flex-start;display:flex;justify-content:center;min-width:84px;padding-top:4px}
+.duel-clock{font:600 32px/1 var(--tt-ui);color:var(--gold);letter-spacing:.04em;font-variant-numeric:tabular-nums;text-shadow:0 3px 0 var(--crimson),var(--px-outline),0 5px 0 var(--tt-ink)}
+.ol-boards:not(#_){gap:clamp(14px,1.6vw,26px)}
+.boards .duel-mid{margin:0 -20px}
+.match-tools>span.clock-moved{display:none}
+@media (max-width:979px){.duel-mid{min-width:56px}.duel-clock{font-size:22px}}
+
+/* online lobby: blade picker, pattern on hover, previous names, your games */
+.ol-blade-pick{cursor:pointer;background:none!important;border:0!important;padding:0!important;box-shadow:none!important}
+.ol-blade-pick:hover .sword-icon,.ol-blade-pick:focus-visible .sword-icon{filter:drop-shadow(0 0 4px var(--gold))}
+button.ol-blade-name{cursor:pointer;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;gap:3px}
+button.ol-blade-name .pattern-thumb{width:34px}
+button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] strong{color:var(--gold)}
+.ol-blade-note{max-width:180px;font:400 11px var(--tt-ui);font-style:normal;color:#ffcf8a}
+.ol-aka{font:400 11px var(--tt-ui)!important;letter-spacing:0!important;color:#9f8a6c!important}
+.ol-picker{width:min(640px,92vw);max-height:min(46vh,420px);overflow:auto;padding:4px 14px 12px;text-align:left;background:linear-gradient(180deg,#140c0cf2,#0d0807e6);border:2px solid #6b4a22;box-shadow:0 0 0 2px #0d0807}
+.ol-picker-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:6px}
+.ol-pick:not(#_){display:flex;align-items:center;gap:10px;padding:5px 10px;text-align:left;min-height:0;background:#0d0807cc;border:2px solid #3a2612;box-shadow:none;cursor:pointer}
+.ol-pick .sword-icon{width:20px;height:40px;flex:none}
+.ol-pick span{display:flex;flex-direction:column;min-width:0}
+.ol-pick strong{font:600 14px var(--tt-ui);color:var(--parchment);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ol-pick small{font:400 11px var(--tt-ui);letter-spacing:0;color:#9f8a6c}
+.ol-pick:hover:not(#_),.ol-pick:focus-visible:not(#_){border-color:#8a6a3a}
+.ol-pick.on:not(#_){border-color:var(--gold);background:#2a160bcc}
+.ol-tip{position:fixed;z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px;background:#0d0807f2;border:2px solid #6b4a22;box-shadow:0 0 0 2px #0d0807,0 4px 0 #000a}
+.ol-tip .pattern-thumb:not(#_){width:64px}
+.ol-tip small{font:400 11px var(--tt-ui);color:var(--gold);text-shadow:var(--px-o1)}
+.ol-sub{margin:10px 0 4px;font:600 11px var(--tt-ui);letter-spacing:.2em;color:var(--gold);text-align:left;width:100%}
+.ol-sub:first-child{margin-top:0}
+.ol-mine li{border-left-width:6px!important}
+.ol-mine li.won{border-left-color:#7ad36a!important}
+.ol-mine li.lost{border-left-color:#c24a3a!important}
+.ol-more:not(#_){margin:6px auto 0;display:block;font-size:14px}
+[data-rows]{cursor:help}
+.ol-pick[data-rows],button[data-rows]{cursor:pointer}
+.ol-blade-name::before,.ol-blade-name::after,.ol-blade-pick::before,.ol-blade-pick::after,.ol-pick::before,.ol-pick::after{content:none!important;display:none!important}
+/* reward cards: what the relic does for you, and its rank */
+.rogue-rewards .relic-why:not(#_){display:block;font:400 13px/1.3 var(--tt-ui);color:#cdb894}
+.relic-why b{font:600 10px var(--tt-ui);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+.relic-why b.g-attack{color:#ff8a6a}.relic-why b.g-defence{color:#7ab8ff}.relic-why b.g-fortune{color:#ffd75e}
+.adv-pips.rank{align-items:center}
+.adv-pips.rank b{font:600 10px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:#9f8a6c;margin-right:6px;font-style:normal}
+/* no board jolt when attacks land (it threw off aim in competitive play) */
+.impact{animation:none!important}
+.ol-wheel{display:flex;align-items:center;gap:4px}
+.ol-spin:not(#_){min-height:0;padding:0 4px!important;background:none!important;border:0!important;box-shadow:none!important;font:600 26px/1 var(--tt-ui);color:var(--gold);cursor:pointer}
+.ol-spin::before,.ol-spin::after{content:none!important;display:none!important}
+.ol-spin:hover:not(#_){color:var(--parchment)}
+.adv-pips.rank small{font:600 10px var(--tt-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--crimson-lit);margin-left:6px}

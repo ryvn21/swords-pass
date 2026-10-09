@@ -97,7 +97,7 @@ function screen(host, v) {
   // reward cards: rank pips
   for (const btn of host.querySelectorAll('[data-rogue-reward]')) {
     const u = v.offers?.find(o => o.id === btn.dataset.rogueReward); if (!u || u.pointReward || btn.querySelector('.adv-pips')) continue;
-    btn.insertAdjacentHTML('beforeend', `<em class="adv-pips">${Array.from({length: u.maxStacks || 3}, (_, i) => `<i class="${i < u.rank ? 'on' : i < u.nextRank ? 'new' : ''}"></i>`).join('')}</em>`);
+    const max = u.maxStacks || 3; btn.insertAdjacentHTML('beforeend', `<em class="adv-pips rank" title="How many times you can take this relic in a run"><b>${u.rank ? `Rank ${u.nextRank ?? u.rank + 1} of ${max}` : max > 1 ? `Rank 1 of ${max}` : 'One of a kind'}</b>${max < 2 ? '' : Array.from({length: u.maxStacks || 3}, (_, i) => `<i class="${i < u.rank ? 'on' : i < u.nextRank ? 'new' : ''}"></i>`).join('')}${u.rank ? '<small>upgrade</small>' : ''}</em>`);
   }
   // route choices: difficulty pips from the rival's difficulty or the encounter's rarity
   for (const btn of host.querySelectorAll('[data-climb-path]')) {

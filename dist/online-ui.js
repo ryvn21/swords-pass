@@ -10,6 +10,8 @@ import {drawBoard,drawNext} from './render.js';
 import {hazardAt,scoreClear} from './challenge.js';
 import {DEFAULT_PROGRESSION,progressionAt} from './progression.js';
 import {connectOnline} from './online-net.js';
+import {onlineLegal, strength, ONLINE_CAP} from './pattern-strength.js';
+import {CATEGORIES, patternCategory} from './pattern-library.js';
 import {createComboLog, stepOf, comboHTML, comboName} from './combo-log.js';
 import {createPlayout, finisherOf, showFinisher, batchArea} from './finisher.js';
 
@@ -19,7 +21,7 @@ const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.f
 const PLACE = ['', '1st', '2nd', '3rd', '4th'];
 const MODE_NAME = {duel: 'Online Duel', ffa: 'Online Free-for-All'};
 
-export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordIcon = () => '', showSettings, onExit}) {
+export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPatterns = () => [], getHotwheel = () => [], equipBlade = () => {}, swordIcon = () => '', showSettings, onExit}) {
   const $ = q => host.querySelector(q), life = new AbortController(), held = new Map();
   let mode = globalThis.scrapsOnlineMode || read('online-mode', 'duel'); if (!['duel', 'ffa'].includes(mode)) mode = 'duel';
   let name = read('online-name', '') || '', screen = 'home', room = null, queueInfo = null, match = null, notice = '', raf = 0, last = 0, acc = 0, disposed = false;
@@ -27,8 +29,18 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   // this browser's own id for the leaderboard (an account-free "this browser's record"); never shown to anyone
   let pid = read('player-id', ''); if (!/^[A-Za-z0-9_-]{12,64}$/.test(pid)) { pid = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now()).replace(/-/g, ''); save('player-id', pid); }
   const record = read('online-record', {duel: {w: 0, l: 0}, ffa: {w: 0, played: 0}});
-  const blade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
-  const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1, pid})});
+  // kept on this browser: your last 20 games, your record against each player (by their public id), your last 5 names
+  let history = read('online-history', []), h2h = read('online-h2h', {}), oldNames = read('online-names', []), pickerOpen = false, showAllRecent = false;
+  if (!Array.isArray(history)) history = []; if (!h2h || typeof h2h !== 'object') h2h = {}; if (!Array.isArray(oldNames)) oldNames = [];
+  const thumb = rows => rows?.length ? `<span class="pattern-thumb" style="--cols:6">${[...rows].reverse().map(r => r.map(c => `<i style="background-image:var(--tile-${c})"></i>`).join('')).join('')}</span>` : '';
+  const rowsAttr = rows => rows?.length ? ` data-rows="${esc(JSON.stringify(rows))}"` : '';
+  const vsLine = pub => { const r = pub && h2h[pub]; return r && (r.w || r.l) ? `you ${r.w}\u2013${r.l}` : ''; };
+  const facts = p => [p.rating ? p.rating + ' rating' : '', vsLine(p.pub), p.aka?.length ? 'aka ' + p.aka.slice(0, 2).join(', ') : ''].filter(Boolean).join(' \u00b7 ');
+  // online takes blades no stronger than the game's own (pattern-strength.js); a stronger one plays as the Forgotten Falchion
+  const FALCHION = {id: 'forgotten-falchion', iconId: 'forgotten-falchion', name: 'Forgotten Falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
+  const ownBlade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
+  const blade = () => { const b = ownBlade(); return b.rows.length && !onlineLegal(b.rows) ? {...FALCHION, rows: FALCHION.rows.map(r => [...r])} : b; };
+  const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1, pid, aka: oldNames})});
   const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: 3, wellFlip: true});
   const set = (q, v) => { const el = $(q); if (el && el.textContent !== String(v)) el.textContent = String(v); };
 
@@ -37,7 +49,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   net.on('lobby', m => { lobby = m; if (screen === 'home') paintLists(); }); net.send({t: 'lobby'});
   net.on('queue', m => { queueInfo = m.mode ? m : null; if (screen === 'queue' && !m.mode) screen = 'home'; if (screen !== 'match') paint(); });
   net.on('room', m => {
-    if (m.state === 'none') { room = null; if (screen === 'watch') { watch = null; if (m.closed) notice = 'That table has closed.'; } if (screen !== 'match') { screen = 'home'; paint(); } return; }
+    if (m.state === 'none') { room = null; if (m.closed && m.name) notice = `${m.name} ${m.why === 'disconnected' ? 'lost connection' : 'left'}. The table has closed.`; if (screen === 'watch') { watch = null; if (m.closed) notice = 'That table has closed.'; } if (screen === 'match') updateResults(); else { screen = 'home'; paint(); } return; }
     if (m.watching) { room = m; if (watch) { watch.room = m; watchResults(); } return; }
     room = m; mode = m.mode;
     if (screen === 'match') updateResults(); else { screen = 'room'; paint(); }
@@ -75,7 +87,8 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     let body = '';
     if (screen === 'home') {
       body = `<div class="ol-modes">${['duel', 'ffa'].map(k => `<button class="pm-diff-item ${k === mode ? 'selected' : ''}" data-mode="${k}"><strong>${k === 'duel' ? 'Duel' : 'Free-for-All'}</strong><small>${k === 'duel' ? 'One on one. First to top out loses' : 'Two to four players. Last board standing'}</small></button>`).join('')}</div>
-        <div class="ol-you"><span class="ol-blade">${swordIcon(b.iconId)}</span><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}"></label><div class="ol-blade-name"><small>YOUR BLADE</small><strong>${esc(b.name)}</strong></div></div>
+        <div class="ol-you"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</button></div>
+        ${pickerOpen ? pickerHTML() : ''}
         <nav class="ol-menu">
           <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button>
           <div class="ol-menu-row"><button class="ol-item" id="ol-host" ${online ? '' : 'disabled'}>Host a table</button><button class="ol-item" id="ol-create" ${online ? '' : 'disabled'}>Private room</button></div>
@@ -92,7 +105,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
       const me = room.players.find(p => p.id === net.id), allReady = room.players.every(p => p.ready || p.host);
       body = `<div class="ol-room">
         ${room.private ? `<div class="ol-code"><small>ROOM CODE</small><strong>${esc(room.code)}</strong><button class="ol-item" id="ol-copy">Copy</button></div>` : room.open ? `<p class="ol-open-note">Open table · listed in the lobby for anyone to join or watch</p>` : ''}
-        <ol class="ol-players">${room.players.map(p => `<li class="${p.ready ? 'ready' : ''} ${p.connected ? '' : 'away'}"><span class="ol-blade">${swordIcon(p.blade?.iconId)}</span><div><strong>${esc(p.name)}${p.id === net.id ? ' <em>you</em>' : ''}</strong><small>${esc(p.blade?.name || '')}${p.wins ? ` · ${p.wins} won` : ''}</small></div><b>${!p.connected ? 'Away' : p.ready ? 'Ready' : p.host && room.mode === 'ffa' ? 'Host' : 'Not ready'}</b></li>`).join('')}
+        <ol class="ol-players">${room.players.map(p => `<li class="${p.ready ? 'ready' : ''} ${p.connected ? '' : 'away'}"><span class="ol-blade"${rowsAttr(p.blade?.rows)}>${swordIcon(p.blade?.iconId)}</span><div><strong>${esc(p.name)}${p.id === net.id ? ' <em>you</em>' : ''}</strong><small><span${rowsAttr(p.blade?.rows)}>${esc(p.blade?.name || '')}</span>${p.wins ? ` · ${p.wins} won` : ''}${p.id !== net.id && facts(p) ? ' · ' + esc(facts(p)) : ''}</small></div><b>${!p.connected ? 'Away' : p.ready ? 'Ready' : p.host && room.mode === 'ffa' ? 'Host' : 'Not ready'}</b></li>`).join('')}
           ${Array.from({length: Math.max(0, room.max - room.players.length)}, () => `<li class="empty"><span class="ol-blade"></span><div><strong>Open seat</strong><small>${room.private ? 'Share the code' : room.open ? 'Waiting for a player' : ''}</small></div></li>`).join('')}</ol>
         <nav class="ol-menu">
           ${room.state === 'lobby' ? `<button class="primary" id="ol-ready">${me?.ready ? 'Not ready' : 'Ready'}</button>` : ''}
@@ -107,7 +120,11 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function wireLobby() {
     const on = (q, fn) => { const el = $(q); if (el) el.onclick = fn; };
     for (const b of host.querySelectorAll('[data-mode]')) b.onclick = () => { mode = b.dataset.mode; save('online-mode', mode); paint(); };
-    const nm = $('#ol-name'); if (nm) nm.onchange = () => { name = nm.value.trim().slice(0, 16); save('online-name', name); net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); };
+    const nm = $('#ol-name'); if (nm) nm.onchange = () => { const next = nm.value.trim().slice(0, 16); if (name && next && next !== name) { oldNames = [name, ...oldNames.filter(n => n !== name && n !== next)].slice(0, 5); save('online-names', oldNames); } name = next; save('online-name', name); net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); paint(); };
+    // your hotwheel (picked in Play vs AI's sword rack): the arrows step through it; Random is AI-only
+    for (const el of host.querySelectorAll('[data-spin]')) el.onclick = () => { const list = getHotwheel(), i = list.findIndex(p => p.id === getBlade().id), next = list[(i + Number(el.dataset.spin) + list.length) % list.length]; if (next) { equipBlade(next.id); profile(); paint(); } };
+    for (const q of ['#ol-blade-pick', '#ol-blade-icon']) { const el = $(q); if (el) el.onclick = () => { pickerOpen = !pickerOpen; paint(); }; }
+    for (const b of host.querySelectorAll('[data-pick]')) b.onclick = () => { equipBlade(b.dataset.pick); pickerOpen = false; net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); globalThis.scrapsUiSound?.('select'); paint(); };
     const code = $('#ol-code'); if (code) { code.oninput = () => { code.value = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }; code.onkeydown = e => { if (e.key === 'Enter') $('#ol-join')?.click(); }; }
     on('#ol-quick', () => { notice = ''; profile(); net.send({t: 'quick', mode}); screen = 'queue'; queueInfo = null; paint(); });
     on('#ol-create', () => { notice = ''; profile(); net.send({t: 'create', mode}); });
@@ -122,6 +139,29 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     on('#ol-copy', () => { try { navigator.clipboard.writeText(room.code); notice = 'Code copied.'; } catch { notice = 'Code: ' + room.code; } paint(); });
   }
   function profile() { const nm = $('#ol-name'); if (nm) { name = nm.value.trim().slice(0, 16); save('online-name', name); } net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); }
+
+  // ---------- your blade: every blade you own, grouped, with its pattern and online strength ----------
+  function pickerHTML() {
+    const cur = ownBlade().id;
+    return `<div class="ol-picker" role="listbox" aria-label="Choose your blade">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p><div class="ol-picker-row">${list.map(p => { const v = strength(p.rows), ok = v <= ONLINE_CAP; return `<button type="button" role="option" aria-selected="${p.id === cur}" class="ol-pick ${p.id === cur ? 'on' : ''}" data-pick="${esc(p.id)}"${rowsAttr(p.rows)}>${swordIcon(p.iconId ?? p.id)}<span><strong>${esc(p.name)}</strong><small>${v} strength${ok ? '' : ' \u00b7 too strong online'}</small></span></button>`; }).join('')}</div>` : ''; }).join('')}</div>`;
+  }
+  // ---------- pattern on hover: any element with data-rows shows its pattern beside the pointer ----------
+  let tip = null;
+  host.addEventListener('pointerover', e => {
+    const el = e.target.closest?.('[data-rows]'); if (!el) { tip?.remove(); tip = null; return; }
+    let rows; try { rows = JSON.parse(el.dataset.rows); } catch { return; }
+    tip?.remove(); tip = document.createElement('div'); tip.className = 'ol-tip';
+    tip.innerHTML = `${thumb(rows)}<small>${strength(rows)} strength</small>`; document.body.append(tip);
+    const r = el.getBoundingClientRect(); tip.style.left = Math.min(innerWidth - 120, r.right + 8) + 'px'; tip.style.top = Math.max(8, r.top) + 'px';
+  }, {signal: life.signal});
+  host.addEventListener('pointerleave', () => { tip?.remove(); tip = null; }, {signal: life.signal});
+  // a finished game, into your history and your record against that player
+  function remember(m, won, mine) {
+    const others = [...m.rivals.values()];
+    history.unshift({at: Date.now(), mode: m.mode, won, place: mine?.place ?? null, change: mine?.change ?? null, vs: others.map(o => ({name: o.name, pub: o.pub || null}))});
+    history = history.slice(0, 20); save('online-history', history);
+    if (m.mode === 'duel' && others[0]?.pub) { const k = others[0].pub, r = h2h[k] || {w: 0, l: 0}; won ? r.w++ : r.l++; r.name = others[0].name; r.at = Date.now(); h2h[k] = r; save('online-h2h', h2h); }
+  }
 
   // ---------- the lobby lists: live tables, leaderboard, recent results ----------
   const ago = ms => { const s = Math.max(0, Math.round((Date.now() - ms) / 1000)); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + 'm ago' : s < 86400 ? Math.round(s / 3600) + 'h ago' : Math.round(s / 86400) + 'd ago'; };
@@ -141,14 +181,16 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
       html = top.length ? `<ol class="ol-ranks">${top.map(p => `<li class="${p.id === lobby.me ? 'you' : ''}"><span>${p.rank}</span><strong>${esc(p.name)}${p.id === lobby.me ? ' <em>you</em>' : ''}</strong><b>${p.rating}</b><small>${p.wins}–${p.losses}</small></li>`).join('')}</ol><p class="ol-fine">Rating from online duels and free-for-alls. Your record lives on this browser.</p>`
         : `<p class="ol-empty">No ranked games yet. Win an online match to take the top spot.</p>`;
     } else {
-      const rec = lobby.recent || [];
-      html = rec.length ? `<ol class="ol-recent">${rec.map(r => { const w = r.players.find(p => p.place === 1), rest = r.players.filter(p => p.place !== 1);
-        return `<li><strong>${esc(w?.name || 'No one')}</strong> ${r.mode === 'duel' ? 'beat' : 'won against'} ${rest.map(p => esc(p.name)).join(', ')}<small>${r.mode === 'duel' ? 'Duel' : 'Free-for-All'} · ${ago(r.at)}</small></li>`; }).join('')}</ol>`
-        : `<p class="ol-empty">No results yet.</p>`;
+      const rec = lobby.recent || [], mine = history.slice(0, showAllRecent ? 20 : 5);
+      const yours = mine.length ? `<p class="ol-sub">YOUR GAMES</p><ol class="ol-recent ol-mine">${mine.map(h => `<li class="${h.won ? 'won' : 'lost'}"><strong>${h.won ? 'Won' : h.mode === 'duel' ? 'Lost' : (PLACE[h.place] || '') + ' place'}</strong> ${h.mode === 'duel' ? 'vs' : 'in a table with'} ${h.vs.map(v => esc(v.name)).join(', ')}<small>${h.mode === 'duel' ? 'Duel' : 'Free-for-All'}${typeof h.change === 'number' ? ` \u00b7 ${h.change >= 0 ? '+' : ''}${h.change}` : ''}${h.mode === 'duel' && vsLine(h.vs[0]?.pub) ? ' \u00b7 ' + vsLine(h.vs[0].pub) : ''} \u00b7 ${ago(h.at)}</small></li>`).join('')}</ol>${history.length > 5 ? `<button type="button" class="ol-item ol-more" id="ol-more">${showAllRecent ? 'Show fewer' : `Show ${Math.min(20, history.length) - 5} more`}</button>` : ''}` : '';
+      html = yours + (rec.length ? `<p class="ol-sub">AROUND THE TAVERN</p><ol class="ol-recent">${rec.map(r => { const w = r.players.find(p => p.place === 1), rest = r.players.filter(p => p.place !== 1);
+        return `<li><strong>${esc(w?.name || 'No one')}</strong> ${r.mode === 'duel' ? 'beat' : 'won against'} ${rest.map(p => esc(p.name)).join(', ')}<small>${r.mode === 'duel' ? 'Duel' : 'Free-for-All'} \u00b7 ${ago(r.at)}</small></li>`; }).join('')}</ol>`
+        : yours ? '' : `<p class="ol-empty">No results yet.</p>`);
     }
     if (box.dataset.html !== html) { box.dataset.html = html; box.innerHTML = html; }
     for (const b of box.querySelectorAll('[data-join]')) b.onclick = () => { notice = ''; profile(); net.send({t: 'join', code: b.dataset.join}); };
     for (const b of box.querySelectorAll('[data-watch]')) b.onclick = () => { notice = ''; net.send({t: 'watch', code: b.dataset.watch}); };
+    const more = box.querySelector('#ol-more'); if (more) more.onclick = () => { showAllRecent = !showAllRecent; paintLists(); };
   }
 
   // ---------- the stage: boards first, sized to the screen; everything else around them ----------
@@ -173,7 +215,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const sizes = h => [widthOf(h, ph, pw), minis ? widthOf(rows === 2 ? (head + h + foot - 10) / 2 - mhead - mfoot : h * .64, mph, mpw) : 0];
     const gap = Math.max(36, Math.min(64, innerWidth * .04)), rails = narrow ? 0 : 2 * Math.min(300, Math.max(210, innerWidth * .18)) + 2 * Math.max(24, Math.min(56, innerWidth * .03));
     const room = innerWidth - rails - (narrow ? 24 : 116);
-    const need = ([bw, mw]) => boards * bw + (boards - 1 + (minis ? 1 : 0)) * gap + (narrow ? 0 : 132) + (minis ? cols * mw + (cols - 1) * 16 : 0);
+    const need = ([bw, mw]) => boards * bw + 84 + 2 * 26 + (narrow ? 0 : 132) + (minis ? cols * mw + (cols - 1) * 16 : 0);   // boards, the clock between them, the next-pair boxes
     let [bw, mw] = sizes(fh);
     while (need([bw, mw]) > room && fh > 200) [bw, mw] = sizes(fh -= 8);
     if (bw > 330) [bw, mw] = sizes(fh = (330 - pw) * 13 / 4 + ph);
@@ -204,10 +246,10 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function renderWatch() {
     const ps = [...watch.players.values()], duel = watch.mode === 'duel';
     host.innerHTML = `<section class="room-heading game-heading ol-head"><div><p class="eyebrow">WATCHING · ${duel ? 'ONLINE DUEL' : 'ONLINE FREE-FOR-ALL'} · ROUND ${watch.round}</p><h1>${duel ? ps.map(p => esc(p.name)).join(' vs. ') : 'Last board standing.'}</h1></div>
-      <div class="match-tools"><span id="ol-clock">0:00</span><button id="ol-stopwatch">Back to lobby</button></div></section>
+      <div class="match-tools"><button id="ol-stopwatch">Back to lobby</button></div></section>
       <div class="ol-stage online-arena ol-watching ${duel ? 'ol-duel' : 'ol-ffa'}">
         <aside class="ol-rail ol-rail-l"><section class="ol-card"><p class="eyebrow">COMBOS</p><div id="ol-combos" class="chain-log"><p class="muted">No combos yet.</p></div></section></aside>
-        <div class="ol-boards">${ps.map((p, i) => boardHTML(p.id, p.name, p.blade?.name || '', false, false, duel && i === 1 ? 'right' : 'left')).join('')}</div>
+        <div class="ol-boards">${ps.map((p, i) => (i === 1 ? '<div class="duel-mid"><span id="ol-clock" class="duel-clock">0:00</span></div>' : '') + boardHTML(p.id, p.name, p.blade?.name || '', false, false, duel && i === 1 ? 'right' : 'left')).join('')}</div>
         <aside class="ol-rail ol-rail-r"><section class="ol-card"><p class="eyebrow">${duel ? 'THE DUEL' : 'THE TABLE'}</p><div id="ol-standings"></div></section><p class="ol-net" id="ol-net">${statusLine()}</p></aside>
       </div><div id="ol-results"></div>`;
     $('#ol-stopwatch').onclick = () => { net.send({t: 'unwatch'}); watch = null; room = null; screen = 'home'; paint(); };
@@ -264,7 +306,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const me = m.players.find(p => p.id === m.you), others = m.players.filter(p => p.id !== m.you), r = rules();
     const game = createMatch({seed: m.seed, mode: 'online', rules: r, pattern: me?.blade?.rows?.length ? me.blade.rows : undefined, opponentPattern: others[0]?.blade?.rows?.length ? others[0].blade.rows : undefined});
     match = {mode: m.mode, round: m.round, seed: m.seed, you: m.you, game, rules: r, startAt: performance.now() + m.in, elapsed: 0, started: false,
-      rivals: new Map(others.map(p => [p.id, {id: p.id, name: p.name, blade: p.blade, s: null, at: 0, score: 0, out: false, connected: true, sent: 0}])),
+      rivals: new Map(others.map(p => [p.id, {id: p.id, name: p.name, blade: p.blade, pub: p.pub, rating: p.rating, aka: p.aka, s: null, at: 0, score: 0, out: false, connected: true, sent: 0}])),
       target: others[0]?.id ?? null, aims: new Map(), sent: 0, score: 0, blocks: 0, combo: 0, snapAt: 0, lastSnap: '', sentDead: false, over: false, result: null,
       hazard: m.mode === 'ffa' ? hazardAt(m.seed, 0, DEFAULT_PROGRESSION) : null, incomingFrom: null, incomingAt: 0, introDone: false,
       log: createComboLog({limit: 10}), lastHit: null, lastSent: null, playout: null, shownAt: 0};
@@ -273,19 +315,20 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     screen = 'match'; notice = ''; held.clear(); renderMatch();
     if (m.mode === 'duel' && globalThis.scrapsIntro && others[0]) {
       const b = blade();
-      globalThis.scrapsIntro({eyebrow: 'ONLINE DUEL · ROUND ' + m.round, left: {name: name || 'You', sub: b.name, art: swordIcon(b.iconId)}, right: {name: others[0].name, sub: others[0].blade?.name || '', art: swordIcon(others[0].blade?.iconId)}});
+      const meP = m.players.find(p => p.id === m.you);
+      globalThis.scrapsIntro({eyebrow: 'ONLINE DUEL · ROUND ' + m.round, left: {name: name || 'You', sub: [b.name, meP?.rating ? meP.rating + ' rating' : ''].filter(Boolean).join(' · '), art: swordIcon(b.iconId)}, right: {name: others[0].name, sub: [others[0].blade?.name || '', facts(others[0])].filter(Boolean).join(' · '), art: swordIcon(others[0].blade?.iconId)}});
     }
   }
   function renderMatch() {
     const others = [...match.rivals.values()], duel = match.mode === 'duel';
     host.innerHTML = `<section class="room-heading game-heading ol-head"><div><p class="eyebrow">${duel ? 'ONLINE DUEL' : 'ONLINE FREE-FOR-ALL'} · ROUND ${match.round}</p><h1 id="ol-title">${duel ? 'You vs. ' + esc(others[0]?.name || 'rival') : 'Last board standing.'}</h1></div>
-      <div class="match-tools"><span id="ol-clock">0:00</span><button id="online-leave">Leave</button></div></section>
+      <div class="match-tools"><button id="online-leave">Leave</button></div></section>
       <div class="ol-stage online-arena ${duel ? 'ol-duel' : 'ol-ffa'}">
         <aside class="ol-rail ol-rail-l">
           <div class="ol-stats"><div><span>${duel ? 'SWORDS SENT' : 'SCORE'}</span><strong id="ol-h1">0</strong></div><div><span>BEST COMBO</span><strong id="ol-hb">–</strong></div><div><span>INCOMING</span><strong id="ol-h2">0</strong></div></div>
           <section class="ol-card"><p class="eyebrow">COMBOS</p><div id="ol-combos" class="chain-log" aria-live="polite"><p class="muted">No combos yet.</p></div></section>
         </aside>
-        <div class="ol-boards">${boardHTML('me', name || 'You', 'In play', false, true)}${duel ? boardHTML(others[0]?.id, others[0]?.name || 'Rival', others[0]?.blade?.name || 'In play', false, false, 'right') : `<div class="ol-rivals">${others.map(o => boardHTML(o.id, o.name, o.blade?.name || 'In play', true, false)).join('')}</div>`}</div>
+        <div class="ol-boards">${boardHTML('me', name || 'You', 'In play', false, true)}<div class="duel-mid"><span id="ol-clock" class="duel-clock">0:00</span></div>${duel ? boardHTML(others[0]?.id, others[0]?.name || 'Rival', others[0]?.blade?.name || 'In play', false, false, 'right') : `<div class="ol-rivals">${others.map(o => boardHTML(o.id, o.name, o.blade?.name || 'In play', true, false)).join('')}</div>`}</div>
         <aside class="ol-rail ol-rail-r">
           <section class="ol-card"><p class="eyebrow">${duel ? 'THE DUEL' : 'THE TABLE'}</p><div id="ol-standings"></div></section>
           <p class="ol-caption" id="ol-caption">${duel ? 'First to top out loses.' : 'Click a rival’s board, or press Tab, to aim.'}</p>
@@ -409,6 +452,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const m = match; if (!m) return; m.over = true; m.result = {...r, at: performance.now()}; held.clear();
     const won = r.winner === m.you;
     if (m.mode === 'duel') { won ? record.duel.w++ : record.duel.l++; } else { record.ffa.played++; if (won) record.ffa.w++; }
+    remember(m, won, r.placements.find(p => p.id === m.you));
     save('online-record', record);
     // the winner's board plays out its last combo before the result card (see render)
     if (won && !m.game.players[0].dead) m.playout = createPlayout(m.game, {sides: [0]});

@@ -1,7 +1,10 @@
 // Freebuild: a Solo sandbox. Paint any board with the game's own pieces, watch the break play out
 // step by step, test incoming strikes, keep your setups, share them as codes, and play from them.
-import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,DEFAULT_RULES} from './engine.js';
+import {W,H,clone,grid,block,fuse,gravity,clearGroups,shatter,clearWave,swordFromGem,applyAttack,applyAttackBatch,horizontalBase,decay,DEFAULT_RULES} from './engine.js';
 import {drawBoard} from './render.js';
+import {CATEGORIES, patternCategory} from './pattern-library.js';
+import {onlineLegal} from './pattern-strength.js';
+const thumb = rows => `<span class="pattern-thumb" style="--cols:${rows[0]?.length || 6}">${[...rows].reverse().map(r => r.map(c => `<i style="background-image:var(--tile-${c})"></i>`).join('')).join('')}</span>`;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const COLOUR_NAMES = ['Red', 'Gold', 'Green', 'Blue'];
@@ -31,6 +34,7 @@ export function decodeBoard(code) {
 
 // ----- practice setups, each a small lesson
 const SETUPS = [
+  {id: 'five', name: 'A ×5 to start', hint: 'Press Break it: five steps, four swords, and the whole board clears. Or press Clear to start fresh.', code: 'SFB1:6/..0.....b22...122..133b3.03333b00133a221dc'},
   {id: 'first', name: 'A first sword', hint: 'A 2×2 red gem and a red breaker. Break it to send a 1×4 sword.', code: 'SFB1:a...../10' },
   {id: 'double', name: 'The double', hint: 'Break red. The gold breaker drops into its second connection: chain ×2.'},
   {id: 'sideways', name: 'A sideways thought', hint: 'A wide gem sends a horizontal sword.'},
@@ -39,6 +43,7 @@ const SETUPS = [
   {id: 'garbage', name: 'Under siege', hint: 'Stones and cracked blocks from an attack. Cracked ones are one turn from free.'},
 ];
 function setupBoard(id) {
+  const fixed = SETUPS.find(x => x.id === id && x.code && id !== 'first'); if (fixed) return decodeBoard(fixed.code);
   const b = grid(), put = (x, y, c, br = false) => { b[y][x] = block(c, br); };
   if (id === 'first') { for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) put(x, y, 0); put(0, 2, 0, true); }
   else if (id === 'double') { put(0, 0, 1); put(0, 1, 0); put(0, 2, 1, true); put(1, 1, 0, true); put(1, 0, 2); put(2, 0, 1); put(2, 1, 1); put(3, 0, 1); put(3, 1, 1); }
@@ -49,9 +54,13 @@ function setupBoard(id) {
   return b;
 }
 
-export function createFreebuildUI({host, prefs, read, save, sound, getBlade, playBoard, toast}) {
+export function createFreebuildUI({host, prefs, read, save, sound, getBlade, getPatterns = () => [], playBoard, toast}) {
   const $ = q => host.querySelector(q), scope = new AbortController();
-  let board = read('freebuild-board', null); board = (board && decodeBoard(board)) || setupBoard('first');
+  // a first visit (or one still on the old opening board) starts on a ready-made ×5 to break
+  let board = read('freebuild-board', null); const opening = !board || board === encodeBoard(setupBoard('first')); board = (!opening && decodeBoard(board)) || setupBoard('five');
+  // their board: what your break would land on a rival, in the colours of the blade you pick
+  let target = grid(), showTarget = read('freebuild-target', true) !== false, bladeId = read('freebuild-blade', null), pickerOpen = false;
+  const attacker = () => getPatterns().find(p => p.id === bladeId) || getBlade();
   let colour = 0, kind = 'block', undo = [], redo = [], anim = null, raf = 0, disposed = false, painting = false, lastCell = '', results = null, lesson = SETUPS[0].hint;
   const saved = () => { const l = read(SAVE_KEY, []); return Array.isArray(l) ? l.filter(x => x && typeof x.name === 'string' && decodeBoard(x.code)) : []; };
   const keep = () => save('freebuild-board', encodeBoard(board));
@@ -63,10 +72,10 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     host.innerHTML = `<section class="room-heading"><div><p class="eyebrow">SOLO · FREEBUILD</p><h1>Build it. Break it.</h1></div></section>
 <div class="fb-grid">
  <aside class="panel fb-box"><p class="eyebrow">PIECE BOX</p>
-  <div class="fb-colours">${COLOUR_NAMES.map((n, i) => `<button class="fb-colour ${colour === i ? 'on' : ''}" data-colour="${i}" style="background-image:var(--tile-${i})" aria-label="${n}" aria-pressed="${colour === i}"></button>`).join('')}</div>
-  <div class="fb-kinds">${KINDS.map(([k, n]) => `<button class="fb-kind ${kind === k ? 'on' : ''}" data-kind="${k}" aria-pressed="${kind === k}">${n}</button>`).join('')}</div>
+  <div class="fb-palette">${['block', 'breaker'].map(k => COLOUR_NAMES.map((n, i) => { const on = kind === k && colour === i; return `<button class="fb-colour ${on ? 'on' : ''}" data-pick="${k}:${i}" style="background-image:var(--tile-${k === 'breaker' ? 'breaker-' : ''}${i})" aria-label="${n} ${k}" aria-pressed="${on}"></button>`; }).join('')).join('')}</div>
+  <button class="fb-eraser ${kind === 'erase' ? 'on' : ''}" data-pick="erase" aria-pressed="${kind === 'erase'}">Eraser</button>
   <p class="fine-print">Click or drag on the board to paint. Right-click erases.</p>
-  <div class="fb-tools"><button id="fb-undo" ${undo.length ? '' : 'disabled'}>Undo</button><button id="fb-redo" ${redo.length ? '' : 'disabled'}>Redo</button><button id="fb-mirror">Mirror</button><button id="fb-clear">Clear</button></div>
+  <div class="fb-tools"><button id="fb-undo" ${undo.length ? '' : 'disabled'}>Undo</button><button id="fb-redo" ${redo.length ? '' : 'disabled'}>Redo</button><button id="fb-clear" class="fb-clear">Clear</button></div>
   <div class="divider"></div><p class="eyebrow">SETUPS</p>
   <div class="fb-setups">${SETUPS.map(s => `<button data-setup="${s.id}">${esc(s.name)}</button>`).join('')}</div>
   <div class="divider"></div><p class="eyebrow">YOUR BOARDS <span>${mine.length}</span></p>
@@ -76,14 +85,16 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
  </aside>
  <section class="table-surface fb-table">
   <p class="fb-lesson" id="fb-lesson">${esc(lesson)}</p>
-  <div class="board-frame fb-frame"><canvas id="fb-board" role="img" aria-label="Freebuild board, six columns and thirteen rows"></canvas></div>
+  <div class="fb-boards ${showTarget ? 'two' : ''}"><div class="fb-board-col"><small>YOU</small><div class="board-frame fb-frame"><canvas id="fb-board" role="img" aria-label="Freebuild board, six columns and thirteen rows"></canvas></div></div>${showTarget ? `<div class="fb-board-col"><small>THEM</small><div class="board-frame fb-frame fb-target"><canvas id="fb-target" role="img" aria-label="Their board: what your break sends"></canvas></div></div>` : ''}</div>
   <div class="fb-actions"><button id="fb-settle">Settle</button><button class="primary" id="fb-break">Break it</button><button id="fb-step">One step</button></div>
  </section>
  <aside class="panel fb-result"><p class="eyebrow">WHAT IT SENDS</p><div id="fb-out">${resultHTML()}</div>
   <button class="primary" id="fb-play">Play from here</button>
-  <div class="divider"></div><p class="eyebrow">RECEIVE A STRIKE</p>
-  <div class="fb-strike"><label>Width<input id="fb-w" type="number" min="2" max="6" value="2"></label><label>Height<input id="fb-h" type="number" min="2" max="13" value="2"></label><label>Chain<input id="fb-c" type="number" min="1" max="8" value="1"></label></div>
-  <button id="fb-strike">Drop it on the board</button><p class="fine-print">Uses your equipped blade's colours.</p>
+  <div class="divider"></div><p class="eyebrow">THEIR BOARD</p>
+  <label class="fb-toggle"><input type="checkbox" id="fb-show-target" ${showTarget ? 'checked' : ''}> Show what lands on them</label>
+  <div class="fb-blade"><small>YOUR BLADE (THE COLOURS THEY GET)</small><button id="fb-blade-btn" aria-expanded="${pickerOpen}">${thumb(attacker().rows)}<strong>${esc(attacker().name)}</strong><span>${pickerOpen ? '▴' : '▾'}</span></button>
+   ${pickerOpen ? `<div class="fb-blade-list">${CATEGORIES.map(cat => { const list = getPatterns().filter(p => patternCategory(p) === cat.id); return list.length ? `<p class="pattern-cat">${esc(cat.name)}</p>${list.map(p => `<button data-blade="${esc(p.id)}" class="${p.id === attacker().id ? 'on' : ''}">${thumb(p.rows)}<span>${esc(p.name)}${onlineLegal(p.rows) ? '' : '<small>too strong online</small>'}</span></button>`).join('')}` : ''; }).join('')}</div>` : ''}</div>
+  <div class="fb-target-tools"><button id="fb-target-crack" title="Turn the landed swords into the coloured blocks they will play with">Crack them</button><button id="fb-target-clear" class="fb-clear">Clear their board</button></div>
  </aside>
 </div>`;
     wire(); paint();
@@ -108,14 +119,12 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     if (JSON.stringify(was) !== JSON.stringify(board[y][x])) sound(k === 'erase' ? 'move' : 'lock');
   }
   function wire() {
-    for (const b of host.querySelectorAll('[data-colour]')) b.onclick = () => { colour = Number(b.dataset.colour); if (kind === 'erase') kind = 'block'; render(); };
-    for (const b of host.querySelectorAll('[data-kind]')) b.onclick = () => { kind = b.dataset.kind; render(); };
+    for (const b of host.querySelectorAll('[data-pick]')) b.onclick = () => { const [k, c] = b.dataset.pick.split(':'); kind = k; if (c != null) colour = Number(c); render(); };
     for (const b of host.querySelectorAll('[data-setup]')) b.onclick = () => { const s = SETUPS.find(x => x.id === b.dataset.setup); remember(); board = setupBoard(s.id); lesson = s.hint; results = null; keep(); render(); };
     for (const b of host.querySelectorAll('[data-load]')) b.onclick = () => { const s = saved()[Number(b.dataset.load)]; remember(); board = decodeBoard(s.code); lesson = s.name; results = null; keep(); render(); };
     for (const b of host.querySelectorAll('[data-del]')) b.onclick = () => { const l = saved(); l.splice(Number(b.dataset.del), 1); save(SAVE_KEY, l); render(); };
     $('#fb-undo').onclick = () => { if (!undo.length) return; redo.push(encodeBoard(board)); board = decodeBoard(undo.pop()); results = null; keep(); render(); };
     $('#fb-redo').onclick = () => { if (!redo.length) return; undo.push(encodeBoard(board)); board = decodeBoard(redo.pop()); results = null; keep(); render(); };
-    $('#fb-mirror').onclick = () => { remember(); for (const row of board) row.reverse(); results = null; keep(); render(); };
     $('#fb-clear').onclick = () => { remember(); board = grid(); results = null; lesson = 'An empty board. Paint something.'; keep(); render(); };
     $('#fb-save').onclick = () => {
       const A = globalThis.scrapsAsk, store = name => { const l = saved(); l.unshift({name: name.slice(0, 40) || 'Untitled board', code: encodeBoard(board)}); save(SAVE_KEY, l.slice(0, 40)); toast?.('Board saved.'); render(); };
@@ -127,12 +136,11 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     $('#fb-break').onclick = () => run('break');
     $('#fb-step').onclick = () => run('step');
     $('#fb-play').onclick = () => { const b = clone(board); gravity(b); fuse(b); if (b[H - 1][3]) { toast?.('Clear the top of column 4 before starting.'); return; } playBoard(b); };
-    $('#fb-strike').onclick = () => {
-      const w = Number($('#fb-w').value), h = Number($('#fb-h').value), chain = Number($('#fb-c').value);
-      if (!Number.isInteger(w) || w < 2 || w > 6 || !Number.isInteger(h) || h < 2 || h > 13 || !Number.isInteger(chain) || chain < 1 || chain > 8) { toast?.('Use width 2-6, height 2-13 and chain 1-8.'); return; }
-      remember(); fuse(board); const a = {...swordFromGem(w, h, chain), index: 0, hand: 1, id: 999}, res = applyAttack(board, a, getBlade().rows); keep(); sound('hit');
-      lesson = res.placement ? `A ${a.width}×${a.length} ${a.kind} sword landed in column ${res.placement.x + 1}.` : 'No legal landing: that strike was wasted.'; results = null; render();
-    };
+    $('#fb-show-target').onchange = e => { showTarget = e.target.checked; save('freebuild-target', showTarget); render(); };
+    $('#fb-blade-btn').onclick = () => { pickerOpen = !pickerOpen; render(); };
+    for (const b of host.querySelectorAll('[data-blade]')) b.onclick = () => { bladeId = b.dataset.blade; save('freebuild-blade', bladeId); pickerOpen = false; render(); };
+    $('#fb-target-clear').onclick = () => { target = grid(); render(); };
+    $('#fb-target-crack').onclick = () => { for (let i = 0; i < 3; i++) decay(target); render(); };
     const cv = $('#fb-board');
     cv.oncontextmenu = e => e.preventDefault();
     cv.onpointerdown = e => { if (anim) return; const c = cellAt(e); if (!c) return; painting = e.button === 2 ? 'erase' : 'paint'; remember(); cv.setPointerCapture(e.pointerId); lastCell = c.join(); put(c[0], c[1], painting === 'erase'); results = null; out(); };
@@ -165,10 +173,21 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
       results.push(shatter(board, a.groups, a.chain)); a.phase = 'fall'; a.t = now; out();
     }
   }
+  // the break's swords and sprinkles, landed on their board the way the game would land them
+  function land() {
+    // exactly as a match does it: swords numbered and handed alternately, one batch, the game's own batch rules, then the board settles
+    const rows = attacker().rows, attacks = []; let n = 0;
+    for (const r of results) for (const sw of r.swords) { const a = {...sw, stage: r.chain, index: n, hand: n % 2 === 0 ? 1 : -1, id: 100 + n, pattern: rows}; if (a.kind === 'horizontal') a.base = horizontalBase(target, a.width); attacks.push(a); n++; }
+    const spr = results.reduce((k, r) => k + r.sprinkles, 0); if (spr) attacks.push({kind: 'sprinkle', count: spr, hand: 1, id: 99, pattern: rows});
+    if (!attacks.length) return;
+    applyAttackBatch(target, attacks); while (gravity(target, 1)); fuse(target);
+    sound('hit');
+  }
   function finish() {
     const done = results.length; anim = null; keep();
     const sw = results.flatMap(r => r.swords).length, sp = results.reduce((n, r) => n + r.sprinkles, 0), parts = [sw && `${sw} sword${sw === 1 ? '' : 's'}`, sp && `${sp} sprinkle${sp === 1 ? '' : 's'}`].filter(Boolean);
     lesson = done ? `Chain ×${done}: ${parts.join(' and ') || 'nothing'} on the way to your rival.` : 'Nothing broke. A breaker has to touch its own colour.';
+    if (done && showTarget) land();
     if (done > 1) sound('win'); render();
   }
   function paint(time = performance.now()) {
@@ -176,6 +195,7 @@ export function createFreebuildUI({host, prefs, read, save, sound, getBlade, pla
     const a = anim, b = a ? board : view();
     const p = {board: b, active: null, phase: a?.phase === 'clear' ? 'clear' : 'entry', wave: a?.wave || [], clearDuration: a?.duration || 1, timer: a ? Math.max(0, a.duration - (performance.now() - a.t)) : 0, clearCellMs: rules().clearMs, motion: [], stats: {pieces: 0}};
     drawBoard(cv, p, {time, reduced: prefs.reduced});
+    const tv = $('#fb-target'); if (tv) drawBoard(tv, {board: target, active: null, phase: 'entry', timer: 0, motion: [], stats: {pieces: 0}}, {time, reduced: prefs.reduced});
   }
   function frame(t) { if (disposed) return; if (anim) advance(t); paint(t); raf = requestAnimationFrame(frame); }
   window.addEventListener('keydown', e => { if (document.querySelector('dialog[open]') || document.activeElement?.matches('input,select,textarea')) return; if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); $(e.shiftKey ? '#fb-redo' : '#fb-undo')?.click(); } }, {signal: scope.signal});
