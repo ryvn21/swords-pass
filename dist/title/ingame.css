@@ -1079,3 +1079,11 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .strike-tools button:not(#_){font-size:14px!important;white-space:nowrap;padding:2px 6px!important}.strike-tools button:not(#_)::before,.strike-tools button:not(#_)::after{display:none!important}.strike-tools{flex-wrap:wrap}
 .fb-target-tools{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}.fb-target-tools #fb-target-clear:not(#_){margin-top:0}.fb-target-tools button:not(#_){font-size:14px!important;white-space:nowrap}
 .strength-meter u{position:absolute;top:-2px;bottom:-2px;width:1px;background:#cdb894aa}
+
+/* the clock sits between the two boards, level with their names */
+.duel-mid{align-self:flex-start;display:flex;justify-content:center;min-width:84px;padding-top:4px}
+.duel-clock{font:600 32px/1 var(--tt-ui);color:var(--gold);letter-spacing:.04em;font-variant-numeric:tabular-nums;text-shadow:0 3px 0 var(--crimson),var(--px-outline),0 5px 0 var(--tt-ink)}
+.ol-boards:not(#_){gap:clamp(14px,1.6vw,26px)}
+.boards .duel-mid{margin:0 -20px}
+.match-tools>span.clock-moved{display:none}
+@media (max-width:979px){.duel-mid{min-width:56px}.duel-clock{font-size:22px}}

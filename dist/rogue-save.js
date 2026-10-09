@@ -15,7 +15,7 @@ export function restoreRun(text){
  if(typeof text!=='string'||text.length>MAX_SAVE_BYTES||new TextEncoder().encode(text).length>MAX_SAVE_BYTES)throw Error('Run save exceeds 2 MB or is not text.');
  let saved;try{saved=JSON.parse(text);}catch{throw Error('This run save is not valid JSON.');}
  if(saved?.version===2&&saved.kind==='climb')return restoreClimb(text);
- if(saved?.version!==SAVE_VERSION||![1,RUN_VERSION].includes(saved.runVersion)||![9,VERSION].includes(saved.engineVersion)||(saved.runVersion===1&&saved.engineVersion!==9))throw Error('This run uses an unsupported save or engine version. Keep the file for a compatible build.');
+ if(saved?.version!==SAVE_VERSION||![1,RUN_VERSION].includes(saved.runVersion)||![9,10,VERSION].includes(saved.engineVersion)||(saved.runVersion===1&&saved.engineVersion!==9))throw Error('This run uses an unsupported save or engine version. Keep the file for a compatible build.');
  numberIn(saved.tick,0,MAX_TICKS,'Saved tick',true);
  if(!saved.recipe||['seed','content','rules','pool'].some(k=>!Object.hasOwn(saved.recipe,k))||!Array.isArray(saved.commands)||saved.commands.length>MAX_COMMANDS)throw Error('Invalid run recipe or command log.');
  const rules=saved.recipe.rules,normalized=handlingRules(rules);

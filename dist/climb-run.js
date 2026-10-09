@@ -47,7 +47,7 @@ function prepare(r){
  r.encounter=clone(r.paths[0]);r.phase=r.paths.length===1?'ready':'route';
 }
 export function createClimb({seed=1,content=DEFAULT_CLIMB,rules={},pool=[equippedSword('falchion')],engineVersion=VERSION}={},checkpoint=null){
- if(![9,VERSION].includes(engineVersion))throw Error('Unsupported climb engine version.');
+ if(![9,10,VERSION].includes(engineVersion))throw Error('Unsupported climb engine version.');
  numberIn(seed,0,4294967295,'Seed',true);const definition=validateClimb(content);
  if(!Array.isArray(pool)||pool.length<1||pool.length>64)throw Error('Use 1–64 sword patterns.');
  const patterns=pool.map(p=>{if(!p||typeof p.name!=='string'||p.name.length>80||!validatePattern(p.rows))throw Error('Invalid attack pattern.');return {name:p.name,rows:clone(p.rows)};});

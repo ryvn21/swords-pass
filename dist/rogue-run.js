@@ -18,7 +18,7 @@ function record(r,entry){if(r.commands.length>=MAX_COMMANDS)throw Error('This ru
 export const currentEncounter=r=>r.kind==='climb'?r.encounter:r.content.encounters.find(e=>e.id===r.route[r.roomIndex]);
 
 export function createRun({seed=1,content=DEFAULT_CAMPAIGN,rules={},pool=[equippedSword('falchion')],engineVersion=VERSION}={}){
- if(![9,VERSION].includes(engineVersion))throw Error('Unsupported run engine version.');
+ if(![9,10,VERSION].includes(engineVersion))throw Error('Unsupported run engine version.');
  numberIn(seed,0,4294967295,'Seed',true);const definition=validateCampaign(content);
  if(!Array.isArray(pool)||pool.length<1||pool.length>64)throw Error('Use 1–64 attack patterns.');
  const patterns=pool.map(p=>{if(typeof p.name!=='string'||p.name.length>80||!validatePattern(p.rows))throw Error('Invalid attack pattern.');return {name:p.name,rows:clone(p.rows)};});

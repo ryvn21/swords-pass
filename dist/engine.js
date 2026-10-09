@@ -1,8 +1,9 @@
 import * as legacy9 from './legacy-engine-v9.js';
+import * as legacy10 from './legacy-engine-v10.js';
 /** Scraps combat model. Coordinates are zero based, y=0 at the floor.
  * Pure deterministic simulation: browser rendering, audio and AI live elsewhere.
  */
-export const W=6,H=13,VERSION=10;
+export const W=6,H=13,VERSION=11;
 export const DEFAULT_RULES=Object.freeze({gravityMs:800,fastFallMs:200,lockMs:350,clearMs:180,waveMs:85,settleMs:50,attackMs:320,entryMs:60,spawnGraceMs:250,breakerRate:.25,repeatDelayMs:145,repeatMs:65});
 export const STALL_FLIPS=3; // new games opt in via rules.stallFlips; saved rules without it keep the old behaviour
 import {PATTERNS} from './swords.js';
@@ -14,7 +15,10 @@ export function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=M
 export function pairAt(seed,index,rate=DEFAULT_RULES.breakerRate){const r=random((seed+Math.imul(index+1,0x9e3779b9))>>>0);return [block(Math.floor(r()*4),r()<rate),block(Math.floor(r()*4),r()<rate)];}
 const dirs=[[0,1],[1,0],[0,-1],[-1,0]];
 export function cells(piece){const [dx,dy]=dirs[piece.r];return [{x:piece.x,y:piece.y,cell:piece.pair[0]},{x:piece.x+dx,y:piece.y+dy,cell:piece.pair[1]}];}
-export function fits(board,piece){const occupied=cells(piece);return occupied.some(({y})=>y<H)&&occupied.every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H&&(y>=H||!board[y][x]));}
+// A pair needs a cell on the board, except while it is still entering from above (v11): then it may sit up to
+// two rows over the top. Once any part of it is on the board it can never climb back out.
+export function fits(board,piece){const occupied=cells(piece);return (piece.entering||occupied.some(({y})=>y<H))&&occupied.every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H+1&&(y>=H||!board[y][x]));}
+const entered=p=>{if(p.active?.entering&&cells(p.active).some(({y})=>y<H))delete p.active.entering;};
 export function move(board,piece,dx,dy){const next={...piece,x:piece.x+dx,y:piece.y+dy};return fits(board,next)?next:null;}
 export function rotate(board,piece,direction,wellFlip=false){
  const next={...piece,r:(piece.r+direction+4)%4};
@@ -89,10 +93,13 @@ export function receiveBatch(state,side,attacks,sourceTurn=0){
  p.incoming.push({kind:'batch',id:state.nextAttackId++,sourceTurn,due:p.turn+1,attacks:list});return true;
 }
 export function createPlayer(seed,rules,pattern){return {board:grid(),active:null,nextIndex:0,turn:0,phase:'entry',timer:0,fall:0,lock:0,fast:false,chain:0,incoming:[],pendingAttack:[],pattern:clone(pattern),stats:{pieces:0,cleared:0,swords:0,sprinkles:0,bestChain:0},dead:false};}
-export function createMatch(options={}){if(options.engineVersion===9)return legacy9.createMatch(options);if(options.engineVersion!==undefined&&options.engineVersion!==VERSION)throw Error('Unsupported engine version.');const rules={...DEFAULT_RULES,...options.rules},seed=options.seed??1;const state={version:VERSION,seed,rules,mode:options.mode??'duel',tick:0,elapsed:0,swordIndex:0,sprinkleIndex:0,nextAttackId:1,players:[createPlayer(seed,rules,options.pattern??PATTERNS[0].rows),createPlayer(seed,rules,options.opponentPattern??PATTERNS[1].rows)],winner:null,events:[]};for(const p of state.players)spawn(state,p);return state;}
-export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H-1,r:0,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
+export function createMatch(options={}){if(options.engineVersion===9)return legacy9.createMatch(options);if(options.engineVersion===10)return legacy10.createMatch(options);if(options.engineVersion!==undefined&&options.engineVersion!==VERSION)throw Error('Unsupported engine version.');const rules={...DEFAULT_RULES,...options.rules},seed=options.seed??1;const state={version:VERSION,seed,rules,mode:options.mode??'duel',tick:0,elapsed:0,swordIndex:0,sprinkleIndex:0,nextAttackId:1,players:[createPlayer(seed,rules,options.pattern??PATTERNS[0].rows),createPlayer(seed,rules,options.opponentPattern??PATTERNS[1].rows)],winner:null,events:[]};for(const p of state.players)spawn(state,p);return state;}
+// v11: a new pair enters one row above the board (its first cell hidden) and falls into view, so it starts
+// a row higher without the board growing. You still top out when column 4's top cell is filled.
+export function spawn(state,p){if(state.version===9)return legacy9.spawn(state,p);if(state.version===10)return legacy10.spawn(state,p);if(p.board[H-1][3]){p.dead=true;p.active=null;return;}p.active={x:3,y:H,r:0,entering:true,pair:pairAt(state.seed,p.nextIndex++,state.rules.breakerRate)};p.phase='fall';p.spawnGrace=state.rules.spawnGraceMs;p.fall=0;p.lock=0;p.lockResets=0;p.fast=false;p.chain=0;if(state.rules.stallFlips){p.stalls=0;p.lastFlip=0;}if(p.fastBuffered!=null){const early=state.elapsed-p.fastBuffered;p.fastBuffered=null;if(early<=state.rules.dropBufferMs){p.fast=true;p.spawnGrace=0;}}const buffered=p.bufferedRotation;p.bufferedRotation=0;if(buffered)p.active=rotate(p.board,p.active,buffered)??p.active;}
 export function command(state,side,action){
  if(state.version===9)return legacy9.command(state,side,action);
+ if(state.version===10)return legacy10.command(state,side,action);
  const p=state.players[side];if(p.dead||state.winner!==null)return false;
  if(action==='fastOn'||action==='fastOff'){
   const fast=action==='fastOn';
@@ -117,7 +124,7 @@ export function command(state,side,action){
  if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true);
  if(!next)return false;
  if((p.lockResets??0)>=6&&Math.min(...cells(next).map(c=>c.y))>Math.min(...cells(p.active).map(c=>c.y)))return false;
- p.active=next;
+ p.active=next;entered(p);
  // Stall: two flips in the same direction reset the fall and lock timers, up to rules.stallFlips times per pair.
  // Absent from older saved rules, so earlier replays and saves play back unchanged.
  if(state.rules.stallFlips){if(action==='cw'||action==='ccw'){const d=action==='cw'?1:-1;if(p.lastFlip===d){p.lastFlip=0;if((p.stalls??0)<state.rules.stallFlips){p.stalls=(p.stalls??0)+1;p.fall=0;p.lock=0;}}else p.lastFlip=d;}else p.lastFlip=0;}
@@ -195,6 +202,7 @@ function lockPair(state,side,hooks){
 }
 export function step(state,dt=1000/60,actions=[],hooks={}){
  if(state.version===9)return legacy9.step(state,dt,actions,hooks);
+ if(state.version===10)return legacy10.step(state,dt,actions,hooks);
  state.events=[];if(state.winner!==null)return state;state.tick++;state.elapsed+=dt;for(const a of actions)command(state,a.side,a.action);
  for(let side=0;side<2;side++){
   if((state.mode==='practice'||state.mode==='online')&&side===1)continue;const p=state.players[side];if(p.dead)continue;
@@ -203,7 +211,7 @@ export function step(state,dt=1000/60,actions=[],hooks={}){
    const grace=Math.min(dt,p.spawnGrace??0);p.spawnGrace=Math.max(0,(p.spawnGrace??0)-dt);
    const fallingDt=dt-grace;if(fallingDt<=0)continue;
    const speed=p.fast?state.rules.fastFallMs:state.rules.gravityMs;p.fall+=fallingDt;
-   while(p.fall>=speed){p.fall-=speed;const next=move(p.board,p.active,0,-1);if(!next){p.fall=0;break;}p.active=next;p.lock=0;}
+   while(p.fall>=speed){p.fall-=speed;const next=move(p.board,p.active,0,-1);if(!next){p.fall=0;break;}p.active=next;entered(p);p.lock=0;}
    if(!move(p.board,p.active,0,-1)){p.lock+=fallingDt;if(p.lock>=state.rules.lockMs)lockPair(state,side,hooks);}else p.lock=0;
   }else{
    p.timer-=dt;

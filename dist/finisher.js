@@ -21,7 +21,7 @@ export function finisherOf(c, {area = null} = {}) {
 // a copy to draw from; step(dt) advances it, done is true once every live board is waiting for
 // its next pair (or after maxMs).
 export function createPlayout(match, {maxMs = 5000, sides = [0, 1]} = {}) {
-  if (match.version !== VERSION && match.version !== 9) return {state: match, done: true, step() {}};
+  if (![9, 10, VERSION].includes(match.version)) return {state: match, done: true, step() {}};
   const state = clone(match); let spent = 0;
   const settled = p => p.dead || !p.active && (p.phase === 'entry') || p.phase === 'fall';
   const api = {state, done: sides.every(s => settled(state.players[s])),

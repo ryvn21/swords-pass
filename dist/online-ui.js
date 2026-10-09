@@ -177,7 +177,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
     const sizes = h => [widthOf(h, ph, pw), minis ? widthOf(rows === 2 ? (head + h + foot - 10) / 2 - mhead - mfoot : h * .64, mph, mpw) : 0];
     const gap = Math.max(36, Math.min(64, innerWidth * .04)), rails = narrow ? 0 : 2 * Math.min(300, Math.max(210, innerWidth * .18)) + 2 * Math.max(24, Math.min(56, innerWidth * .03));
     const room = innerWidth - rails - (narrow ? 24 : 116);
-    const need = ([bw, mw]) => boards * bw + (boards - 1 + (minis ? 1 : 0)) * gap + (narrow ? 0 : 132) + (minis ? cols * mw + (cols - 1) * 16 : 0);
+    const need = ([bw, mw]) => boards * bw + 84 + 2 * 26 + (narrow ? 0 : 132) + (minis ? cols * mw + (cols - 1) * 16 : 0);   // boards, the clock between them, the next-pair boxes
     let [bw, mw] = sizes(fh);
     while (need([bw, mw]) > room && fh > 200) [bw, mw] = sizes(fh -= 8);
     if (bw > 330) [bw, mw] = sizes(fh = (330 - pw) * 13 / 4 + ph);
@@ -208,10 +208,10 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function renderWatch() {
     const ps = [...watch.players.values()], duel = watch.mode === 'duel';
     host.innerHTML = `<section class="room-heading game-heading ol-head"><div><p class="eyebrow">WATCHING · ${duel ? 'ONLINE DUEL' : 'ONLINE FREE-FOR-ALL'} · ROUND ${watch.round}</p><h1>${duel ? ps.map(p => esc(p.name)).join(' vs. ') : 'Last board standing.'}</h1></div>
-      <div class="match-tools"><span id="ol-clock">0:00</span><button id="ol-stopwatch">Back to lobby</button></div></section>
+      <div class="match-tools"><button id="ol-stopwatch">Back to lobby</button></div></section>
       <div class="ol-stage online-arena ol-watching ${duel ? 'ol-duel' : 'ol-ffa'}">
         <aside class="ol-rail ol-rail-l"><section class="ol-card"><p class="eyebrow">COMBOS</p><div id="ol-combos" class="chain-log"><p class="muted">No combos yet.</p></div></section></aside>
-        <div class="ol-boards">${ps.map((p, i) => boardHTML(p.id, p.name, p.blade?.name || '', false, false, duel && i === 1 ? 'right' : 'left')).join('')}</div>
+        <div class="ol-boards">${ps.map((p, i) => (i === 1 ? '<div class="duel-mid"><span id="ol-clock" class="duel-clock">0:00</span></div>' : '') + boardHTML(p.id, p.name, p.blade?.name || '', false, false, duel && i === 1 ? 'right' : 'left')).join('')}</div>
         <aside class="ol-rail ol-rail-r"><section class="ol-card"><p class="eyebrow">${duel ? 'THE DUEL' : 'THE TABLE'}</p><div id="ol-standings"></div></section><p class="ol-net" id="ol-net">${statusLine()}</p></aside>
       </div><div id="ol-results"></div>`;
     $('#ol-stopwatch').onclick = () => { net.send({t: 'unwatch'}); watch = null; room = null; screen = 'home'; paint(); };
@@ -283,13 +283,13 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, swordI
   function renderMatch() {
     const others = [...match.rivals.values()], duel = match.mode === 'duel';
     host.innerHTML = `<section class="room-heading game-heading ol-head"><div><p class="eyebrow">${duel ? 'ONLINE DUEL' : 'ONLINE FREE-FOR-ALL'} · ROUND ${match.round}</p><h1 id="ol-title">${duel ? 'You vs. ' + esc(others[0]?.name || 'rival') : 'Last board standing.'}</h1></div>
-      <div class="match-tools"><span id="ol-clock">0:00</span><button id="online-leave">Leave</button></div></section>
+      <div class="match-tools"><button id="online-leave">Leave</button></div></section>
       <div class="ol-stage online-arena ${duel ? 'ol-duel' : 'ol-ffa'}">
         <aside class="ol-rail ol-rail-l">
           <div class="ol-stats"><div><span>${duel ? 'SWORDS SENT' : 'SCORE'}</span><strong id="ol-h1">0</strong></div><div><span>BEST COMBO</span><strong id="ol-hb">–</strong></div><div><span>INCOMING</span><strong id="ol-h2">0</strong></div></div>
           <section class="ol-card"><p class="eyebrow">COMBOS</p><div id="ol-combos" class="chain-log" aria-live="polite"><p class="muted">No combos yet.</p></div></section>
         </aside>
-        <div class="ol-boards">${boardHTML('me', name || 'You', 'In play', false, true)}${duel ? boardHTML(others[0]?.id, others[0]?.name || 'Rival', others[0]?.blade?.name || 'In play', false, false, 'right') : `<div class="ol-rivals">${others.map(o => boardHTML(o.id, o.name, o.blade?.name || 'In play', true, false)).join('')}</div>`}</div>
+        <div class="ol-boards">${boardHTML('me', name || 'You', 'In play', false, true)}<div class="duel-mid"><span id="ol-clock" class="duel-clock">0:00</span></div>${duel ? boardHTML(others[0]?.id, others[0]?.name || 'Rival', others[0]?.blade?.name || 'In play', false, false, 'right') : `<div class="ol-rivals">${others.map(o => boardHTML(o.id, o.name, o.blade?.name || 'In play', true, false)).join('')}</div>`}</div>
         <aside class="ol-rail ol-rail-r">
           <section class="ol-card"><p class="eyebrow">${duel ? 'THE DUEL' : 'THE TABLE'}</p><div id="ol-standings"></div></section>
           <p class="ol-caption" id="ol-caption">${duel ? 'First to top out loses.' : 'Click a rival’s board, or press Tab, to aim.'}</p>

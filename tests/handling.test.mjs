@@ -22,7 +22,7 @@ test('a settled non-clearing placement reaches entry without an idle settling pa
 
 test('an enclosed column 4 flips a pair already in the shaft without advancing NEXT',()=>{
  for(const action of ['ccw','cw']){
-  const m=createMatch({mode:'practice'}),p=m.players[0];p.active.y=12;
+  const m=createMatch({engineVersion:10,mode:'practice'}),p=m.players[0];p.active.y=12;
   for(let y=0;y<13;y++)for(let x=0;x<6;x++)if(x!==3)p.board[y][x]=block((x+y)%4);
   const pair=clone(p.active.pair);
   const before=cells(p.active);

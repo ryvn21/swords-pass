@@ -18,7 +18,7 @@ export const OPPONENTS=[
  {...botProfile('medium',1),id:'marlow',name:'Marlow',title:'The gem builder',description:'Builds rectangles, then cashes them in.'},
  {...botProfile('hard',2),id:'rook',name:'Rook',title:'The counterpuncher',description:'Looks ahead for clears and chain opportunities.'}
 ];
-export function placements(board,active){const queue=[{p:clone(active),path:[]}],seen=new Set(),out=new Map();for(let i=0;i<queue.length;i++){const {p,path}=queue[i],key=[p.x,p.y,p.r].join(',');if(seen.has(key))continue;seen.add(key);const end=landing(board,p),ek=[end.x,end.y,end.r].join(',');if(!out.has(ek))out.set(ek,{piece:end,path});for(const action of ['left','right','cw','ccw']){const n=action==='left'?move(board,p,-1,0):action==='right'?move(board,p,1,0):rotate(board,p,action==='cw'?1:-1,true);if(n&&!seen.has([n.x,n.y,n.r].join(',')))queue.push({p:n,path:[...path,action]});}}return [...out.values()];}
+export function placements(board,active){const queue=[{p:clone(active),path:[]}],seen=new Set(),out=new Map();for(let i=0;i<queue.length;i++){const {p,path}=queue[i],key=[p.x,p.y,p.r].join(',');if(seen.has(key))continue;seen.add(key);const end=landing(board,p),ek=[end.x,end.y,end.r].join(',');if(!out.has(ek)&&cells(end).some(c=>c.y<H))out.set(ek,{piece:end,path});for(const action of ['left','right','cw','ccw']){const n=action==='left'?move(board,p,-1,0):action==='right'?move(board,p,1,0):rotate(board,p,action==='cw'?1:-1,true);if(n&&!seen.has([n.x,n.y,n.r].join(',')))queue.push({p:n,path:[...path,action]});}}return [...out.values()];}
 export function evaluate(board,attacks,profile=1){
  const o=typeof profile==='number'?{aggression:profile}:profile;
  if(board[H-1][3])return -100000;
