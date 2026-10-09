@@ -33,10 +33,10 @@ test('everyone moves onto the Default timings once, with their own kept as a cus
   assert.equal(migrateToHouse(mine).rules.gravityMs, 800);   // runs only once
 });
 
-test('the Default timings: 4 s natural fall, 500 ms landing window, 50 ms Space, no early press, 430 ms strikes, 300/142 ms held moves', async () => {
+test('the Default timings: 4 s natural fall, 50 ms landing window, 50 ms Space, no early press, 430 ms strikes, 300/142 ms held moves', async () => {
   const {HOUSE_RULES} = await import('../dist/handling-profile.js');
   const r = HOUSE_RULES;
-  assert.deepEqual([r.gravityMs, r.lockMs, r.fastFallMs, r.dropBufferMs, r.attackMs, r.settleMs, r.waveMs, r.clearMs, r.repeatDelayMs, r.repeatMs], [4000, 500, 50, 0, 430, 33, 75, 250, 300, 142]);
+  assert.deepEqual([r.gravityMs, r.lockMs, r.fastFallMs, r.dropBufferMs, r.attackMs, r.settleMs, r.waveMs, r.clearMs, r.repeatDelayMs, r.repeatMs], [4000, 50, 50, 0, 430, 33, 75, 250, 300, 142]);
 });
 
 test('v5: players on their own timings are moved back onto the Default once; their scheme is kept, keys untouched', async () => {
