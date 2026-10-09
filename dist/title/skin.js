@@ -278,18 +278,17 @@ const skin = {
     const [sx, sy] = scaleOf(ctx), pw = Math.round(w * sx), ph = Math.round(h * sy);
     ctx.drawImage(sprite('tray-' + style + w + 'x' + h, pw, ph, w, h, g => drawTray(g, w, h, 32, 48, style)), 0, 0, w, h); return true;
   },
-  clear(ctx, cx, cy, color, age, life) {            // shatter: flash, shards, sparkles
+  clear(ctx, cx, cy, color, age, life) {            // a bright pop, then the piece bursts into four chunks and sparks
     if (reduced) return false;
-    const t = age / life, r = RAMP[color]; if (!r) return false; ctx.save();
-    if (age < 90) { ctx.globalAlpha = (1 - age / 90) * .8; ctx.fillStyle = r[5]; ctx.beginPath(); ctx.roundRect(cx - 14, cy - 22, 28, 44, 5); ctx.fill(); }
-    let s = (cx * 31 + cy * 17) | 0; const rnd = () => ((s = (s * 16807 + 7) % 2147483647) / 2147483647);
-    ctx.globalAlpha = 1 - t;
-    for (let i = 0; i < 8; i++) {
-      const a = rnd() * Math.PI * 2, v = 14 + rnd() * 28, sz = 2 + rnd() * 3, px = cx + Math.cos(a) * v * t, py = cy + Math.sin(a) * v * t + 46 * t * t;
-      ctx.fillStyle = i % 3 ? r[3] : r[5]; ctx.beginPath(); ctx.moveTo(px, py - sz); ctx.lineTo(px + sz * .7, py); ctx.lineTo(px, py + sz); ctx.lineTo(px - sz * .7, py); ctx.closePath(); ctx.fill();
+    const r = RAMP[color]; if (!r) return false;
+    if (age >= 70) burst(ctx, cx, cy, color);
+    if (age < 120) {                                     // the pop: the cell flares white and a ring opens
+      const t = age / 120; ctx.save();
+      ctx.globalAlpha = (1 - t) * .85; ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.roundRect(cx - 15, cy - 23, 30, 46, 5); ctx.fill();
+      ctx.globalAlpha = (1 - t) * .9; ctx.strokeStyle = r[5]; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(cx, cy, 10 + t * 22, 14 + t * 30, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
-    if (t < .7) { ctx.globalAlpha = 1 - t / .7; ctx.fillStyle = '#fff8e0'; const k = 4 + t * 12; ctx.fillRect(cx - 1, cy - k, 2, k * 2); ctx.fillRect(cx - k, cy - 1, k * 2, 2); }
-    ctx.restore(); return true;
+    return true;
   },
 };
 
@@ -404,7 +403,41 @@ function fullClearPop(cv) {
   el.style.left = (r.left + r.width / 2) + 'px'; el.style.top = (r.top + r.height * .32) + 'px';
   document.body.append(el); setTimeout(() => el.remove(), 1900);
 }
+// Break bursts: each broken piece splits into four chunks (2x2) thrown up and out, falling back under
+// gravity and fading to 10% over 500 ms, with a few sparks that fly straight out. Speeds in board units
+// per ms (a row is 48 units): chunks up to 0.10 sideways (outward from the half they came from) and 0.63 up,
+// gravity 0.000626; sparks 0.31-0.63 in any direction. They outlive the break, so they finish in the air.
+const bursts = new WeakMap();
+function burst(ctx, cx, cy, color) {
+  const cv = ctx.canvas; let b = bursts.get(cv); if (!b) bursts.set(cv, b = {list: [], seen: new Map()});
+  const t0 = now() * 1000, key = Math.round(cx) + ',' + Math.round(cy), last = b.seen.get(key);
+  if (last && t0 - last < 700) return; b.seen.set(key, t0);
+  if (b.list.length > 400) b.list.splice(0, b.list.length - 400);
+  for (let q = 0; q < 4; q++) {
+    const sx = q % 2, sy = q >> 1, dir = sx ? 1 : -1;
+    b.list.push({kind: 'chunk', color, t0, x: cx - 8 + sx * 16, y: cy - 12 + sy * 24, vx: dir * (.03 + Math.random() * .07), vy: -(.2 + Math.random() * .43), sx, sy});
+  }
+  for (let i = 0; i < 3; i++) { const a = Math.random() * Math.PI * 2, v = .31 + Math.random() * .32; b.list.push({kind: 'spark', color, t0, x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v}); }
+}
+function drawBursts(ctx, cv) {
+  const b = bursts.get(cv); if (!b || !b.list.length) return;
+  const t = now() * 1000, [sx, sy] = scaleOf(ctx), G = .000626;
+  b.list = b.list.filter(q => t - q.t0 < (q.kind === 'chunk' ? 500 : 650));
+  ctx.save();
+  for (const q of b.list) {
+    const age = t - q.t0, x = q.x + q.vx * age, y = q.y + q.vy * age + (q.kind === 'chunk' ? .5 * G * age * age : 0);
+    if (q.kind === 'chunk') {
+      ctx.globalAlpha = 1 - .9 * age / 500;
+      const img = sprite('b' + q.color, Math.max(4, Math.round(32 * sx)), Math.max(6, Math.round(48 * sy)), 32, 48, g => drawBlock(g, q.color, 'block', 32, 48), palOf(q.color, 'b'));
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(img, q.sx * img.width / 2, q.sy * img.height / 2, img.width / 2, img.height / 2, x - 8, y - 12, 16, 24);
+    } else {
+      ctx.globalAlpha = 1 - .9 * age / 650; ctx.fillStyle = RAMP[q.color][5]; ctx.fillRect(x - 1.5, y - 1.5, 3, 3); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - .7, y - .7, 1.4, 1.4);
+    }
+  }
+  ctx.restore();
+}
 skin.after = (ctx, cv, p, w, h) => {
+  if (!reduced) drawBursts(ctx, cv);
   if (!MINE.test(cv?.id || '') || !p) return;
   let m = clears.get(cv); const t = now();
   if (!m || (p.stats?.pieces ?? 0) < (m.pieces ?? 0)) { m = {start: t, pieces: 0, before: 0, armed: false, fx: -1}; clears.set(cv, m); }   // a new game on this board

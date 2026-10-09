@@ -58,12 +58,12 @@ function drawPile(ctx,board,p,reduced){
   const c=board[y][x];if(!c)continue;
   if(c.stage===3){const a=strikes.get(c.strike)||{x,y,maxX:x,maxY:y,axis:c.axis,hand:c.hand};a.x=Math.min(a.x,x);a.y=Math.min(a.y,y);a.maxX=Math.max(a.maxX,x);a.maxY=Math.max(a.maxY,y);strikes.set(c.strike,a);continue;}
   if(c.gem)continue;
-  const age=waveAge(p,x,y),alpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,p.clearCellMs??180));
+  const age=waveAge(p,x,y),fade=globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180),alpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,fade));
   const yy=drawPosition(p,x,y);tile(ctx,x*X,(H-1-yy)*Y,c,X,alpha);
  }
  for(const g of rects){
   const yy=drawPosition(p,g.x,g.y),x=g.x*X+1,y=(H-yy-g.h)*Y+1,w=g.w*X-2,h=g.h*Y-2;
-  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,p.clearCellMs??180));const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
+  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180)));const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
   ctx.fillStyle=COLORS[g.color];rect(ctx,x,y,w,h,4);ctx.fill();ctx.strokeStyle='#fff6';ctx.lineWidth=1.5;ctx.stroke();
   ctx.fillStyle='#ffffff18';ctx.beginPath();ctx.moveTo(x+4,y+4);ctx.lineTo(x+w-4,y+4);ctx.lineTo(x+w-12,y+12);ctx.lineTo(x+12,y+12);ctx.lineTo(x+12,y+h-12);ctx.lineTo(x+4,y+h-4);ctx.closePath();ctx.fill();
   ctx.strokeStyle='#0003';ctx.strokeRect(x+9,y+10,w-18,h-20);

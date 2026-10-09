@@ -1156,3 +1156,8 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .timing-default small{display:block;font:400 13px var(--tt-ui);color:#b8a688;margin-top:2px}
 .handling-editor.locked .field-label{opacity:.55}
 .handling-editor.locked input[type=range]{cursor:not-allowed}
+.timing-more{margin-top:10px;border-top:1px solid #4a2f16;padding-top:6px}
+.timing-more summary{cursor:pointer;font:600 14px var(--tt-ui);color:var(--gold);list-style:none;padding:4px 0}
+.timing-more summary::-webkit-details-marker{display:none}
+.timing-more summary::before{content:"\25b8";display:inline-block;margin-right:8px;transition:transform .2s}
+.timing-more[open] summary::before{transform:rotate(90deg)}

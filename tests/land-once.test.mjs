@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createMatch, step, command, block, H} from '../dist/engine.js';
 import {HOUSE_RULES} from '../dist/handling-profile.js';
 
-const rules = {...HOUSE_RULES, speedUp: false, gravityMs: 4000, lockMs: 500};
+const rules = {...HOUSE_RULES, speedUp: false, gravityMs: 4000, lockMs: 500};   // a landing grace, so there's time to slide and stall
 function landed(setup) {
   const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   setup?.(p.board);
