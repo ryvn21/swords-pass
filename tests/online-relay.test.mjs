@@ -174,3 +174,14 @@ test('a blade stronger than the curated set plays online as the Forgotten Falchi
   const me = a.last('room').players[0]; assert.equal(me.blade.name, 'Forgotten Falchion');
   assert.ok(strength(me.blade.rows) <= ONLINE_CAP);
 });
+
+test('offensive names are refused by the server and replaced', async () => {
+  const {client} = harness(), a = client('n1gg3r'), b = client('Bo');
+  assert.equal(a.last('error')?.code, 'name');
+  a.say({t: 'host', mode: 'duel'}); a.say({t: 'create', mode: 'duel', public: true});
+  const me = a.last('room').players.find(p => p.id === a.id); assert.equal(me.name, 'Swordhand');
+  const {equippedSword} = await import('../dist/swords.js'), stick = equippedSword('stick');
+  a.say({t: 'profile', name: 'Ann', blade: {name: 'HitlerBlade', iconId: 'stick', rows: stick.rows}});
+  const after = a.last('room').players.find(p => p.id === a.id); assert.equal(after.name, 'Ann'); assert.equal(after.blade.name, 'Custom blade');
+  a.say({t: 'profile', name: 'f@ggot'}); assert.equal(a.last('room').players.find(p => p.id === a.id).name, 'Ann');
+});

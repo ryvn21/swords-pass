@@ -8,11 +8,12 @@
 // the winner beating each other player at half weight.
 
 import {createHash} from 'node:crypto';
+import {offensive} from '../dist/name-filter.js';
 
 const START = 1000, K = 32, RECENT = 30, BOARD = 50;
 // the leaderboard shows a short hash, never the browser's own id (which would let anyone play as that browser)
 export const publicId = pid => createHash('sha1').update(String(pid)).digest('hex').slice(0, 10);
-const cleanName = s => String(s ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16) || 'Swordhand';
+const cleanName = s => { const n = String(s ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 16); return n && !offensive(n) ? n : 'Swordhand'; };
 
 export function createScores({url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_KEY, log = () => {}, fetchImpl = globalThis.fetch} = {}) {
   const players = new Map(), recent = [];
@@ -24,7 +25,7 @@ export function createScores({url = process.env.SUPABASE_URL, key = process.env.
     if (!remote) return;
     try {
       const [p, r] = await Promise.all([rest('players?select=*&order=rating.desc&limit=2000'), rest(`results?select=*&order=at.desc&limit=${RECENT}`)]);
-      if (p.ok) for (const row of await p.json()) players.set(row.pid, {pid: row.pid, name: row.name, rating: row.rating, wins: row.wins, losses: row.losses, played: row.played, ffaWins: row.ffa_wins ?? 0});
+      if (p.ok) for (const row of await p.json()) players.set(row.pid, {pid: row.pid, name: cleanName(row.name), rating: row.rating, wins: row.wins, losses: row.losses, played: row.played, ffaWins: row.ffa_wins ?? 0});
       if (r.ok) for (const row of (await r.json()).reverse()) recent.unshift({at: Date.parse(row.at), mode: row.mode, winner: row.winner, players: row.players});
       if (!p.ok || !r.ok) log('scores: could not load from Supabase', p.status, r.status);
     } catch (e) { log('scores: Supabase unreachable', e.message); }

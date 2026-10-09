@@ -6,6 +6,7 @@ import {createTavernAudio} from './audio.js';
 import {renderGallery, drawDecor, decorFlags} from './progress.js';
 import {readMix, writeMix} from './audio-settings.js';
 import {openPatchNotes} from './patch-notes.js';
+import {offensive} from '../name-filter.js';
 
 const META = {W: 960, H: 540, window: [372, 588, 103, 367], portrait: {x: 703, y: 158}, vista: [400, 359, 130],
   lanterns: [[65, 88], [896, 88]], fire: [753, 418],
@@ -203,7 +204,7 @@ function askName() {
     naming = false; root.classList.remove('tt-naming'); card.remove(); requestAnimationFrame(placeHint);
     setTimeout(() => nav.querySelector('button')?.focus({preventScroll: true}), 30);
   };
-  card.addEventListener('submit', e => { e.preventDefault(); done(input.value); });
+  card.addEventListener('submit', e => { e.preventDefault(); if (offensive(input.value)) { const note = card.querySelector('.tt-namecard-note'); note.textContent = 'That name isn\u2019t allowed. Pick another.'; input.select(); return; } done(input.value); });
   card.querySelector('.tt-namecard-skip').onclick = () => done('');
   card.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); done(''); } });
   root.querySelector('.tt-ui').append(card); setTimeout(() => input.focus(), 60);

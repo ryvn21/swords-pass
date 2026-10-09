@@ -1,3 +1,4 @@
+import {offensive} from './name-filter.js';
 import {PATTERNS as BASE_PATTERNS,THEMED} from './swords.js';
 const PATTERNS=[...BASE_PATTERNS,...THEMED];
 import {savePattern,deletePattern,CATEGORIES,patternCategory} from './pattern-library.js';
@@ -49,7 +50,7 @@ export function createPatternWorkshop({getLibrary,getPatterns,persist,equip,sele
  $('#mirror-pattern').onclick=()=>{remember();draft.rows=draft.rows.map(row=>[...row].reverse());render();};
  $('#undo-pattern').onclick=()=>{if(undo.length){redo.push(snapshot());draft=undo.pop();render();}};
  $('#redo-pattern').onclick=()=>{if(redo.length){undo.push(snapshot());draft=redo.pop();render();}};
- $('#save-pattern').onclick=()=>{try{const p={...snapshot(),id:isCustom?draft.id:'custom-'+crypto.randomUUID()};const next=savePattern(getLibrary(),p);if(persist(next)){equip(p.id);choose(next.patterns.find(item=>item.id===p.id));render();notify('Pattern saved and equipped.');}}catch(error){notify(error.message);}};
+ $('#save-pattern').onclick=()=>{if(offensive(draft.name)){notify('That name isn\u2019t allowed. Pick another.');return;}try{const p={...snapshot(),id:isCustom?draft.id:'custom-'+crypto.randomUUID()};const next=savePattern(getLibrary(),p);if(persist(next)){equip(p.id);choose(next.patterns.find(item=>item.id===p.id));render();notify('Pattern saved and equipped.');}}catch(error){notify(error.message);}};
  $('#equip-pattern').onclick=()=>{equip(draft.id);render();notify('Pattern equipped.');};
  $('#duplicate-pattern').onclick=()=>{draft={...snapshot(),id:null,name:(draft.name+' copy').slice(0,32)};baseline='';undo=[];redo=[];render();};
  $('#delete-pattern').onclick=()=>{if(patterns.length<=1){notify('Add another pattern before deleting the last one.');return;}const previous=getLibrary(),removed={id:draft.id,pattern:clone(previous.patterns.find(p=>p.id===draft.id)??null),index:previous.patterns.findIndex(p=>p.id===draft.id)},next=deletePattern(previous,draft.id);if(persist(next)){deleted=removed;choose(getPatterns().find(p=>p.id===selected()?.id)??getPatterns()[0]);render();notify('Pattern deleted. You can undo this in the library.');}};

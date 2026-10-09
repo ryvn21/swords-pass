@@ -13,6 +13,7 @@ import {connectOnline} from './online-net.js';
 import {onlineLegal, strength, ONLINE_CAP} from './pattern-strength.js';
 import {CATEGORIES, patternCategory} from './pattern-library.js';
 import {createComboLog, stepOf, comboHTML, comboName} from './combo-log.js';
+import {offensive} from './name-filter.js';
 import {createPlayout, finisherOf, showFinisher, batchArea} from './finisher.js';
 
 const DT = 1000 / 60, SNAP_MS = 50;
@@ -87,7 +88,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     let body = '';
     if (screen === 'home') {
       body = `<div class="ol-modes">${['duel', 'ffa'].map(k => `<button class="pm-diff-item ${k === mode ? 'selected' : ''}" data-mode="${k}"><strong>${k === 'duel' ? 'Duel' : 'Free-for-All'}</strong><small>${k === 'duel' ? 'One on one. First to top out loses' : 'Two to four players. Last board standing'}</small></button>`).join('')}</div>
-        <div class="ol-you"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</button></div>
+        <div class="ol-you"><label class="ol-name"><small>YOUR NAME</small><input id="ol-name" maxlength="16" autocomplete="nickname" placeholder="Swordhand" value="${esc(name)}">${oldNames.length ? `<small class="ol-aka">aka ${oldNames.map(esc).join(', ')}</small>` : ''}</label><button type="button" class="ol-blade-name" id="ol-blade-pick" aria-expanded="${pickerOpen}"${rowsAttr(ownBlade().rows)}><small>CHOOSE YOUR BLADE \u25be</small><strong>${esc(b.name)}</strong>${thumb(ownBlade().rows)}${ownBlade().name !== b.name ? `<em class="ol-blade-note">${esc(ownBlade().name)} is too strong for online (${strength(ownBlade().rows)} &gt; ${ONLINE_CAP})</em>` : ''}</button><div class="ol-blade-side"><div class="ol-wheel">${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="-1" aria-label="Previous blade">‹</button>' : ''}<button type="button" class="ol-blade ol-blade-pick" id="ol-blade-icon" title="Choose your blade">${swordIcon(b.iconId)}</button>${getHotwheel().length > 1 ? '<button type="button" class="ol-spin" data-spin="1" aria-label="Next blade">›</button>' : ''}</div></div></div>
         ${pickerOpen ? pickerHTML() : ''}
         <nav class="ol-menu">
           <button class="primary" id="ol-quick" ${online ? '' : 'disabled'}>Quick match</button>
@@ -120,7 +121,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   function wireLobby() {
     const on = (q, fn) => { const el = $(q); if (el) el.onclick = fn; };
     for (const b of host.querySelectorAll('[data-mode]')) b.onclick = () => { mode = b.dataset.mode; save('online-mode', mode); paint(); };
-    const nm = $('#ol-name'); if (nm) nm.onchange = () => { const next = nm.value.trim().slice(0, 16); if (name && next && next !== name) { oldNames = [name, ...oldNames.filter(n => n !== name && n !== next)].slice(0, 5); save('online-names', oldNames); } name = next; save('online-name', name); net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); paint(); };
+    const nm = $('#ol-name'); if (nm) nm.onchange = () => { const next = nm.value.trim().slice(0, 16); if (offensive(next)) { nm.value = name; notice = 'That name isn\u2019t allowed. Pick another.'; paint(); return; } if (name && next && next !== name) { oldNames = [name, ...oldNames.filter(n => n !== name && n !== next)].slice(0, 5); save('online-names', oldNames); } name = next; save('online-name', name); net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); paint(); };
     // your hotwheel (picked in Play vs AI's sword rack): the arrows step through it; Random is AI-only
     for (const el of host.querySelectorAll('[data-spin]')) el.onclick = () => { const list = getHotwheel(), i = list.findIndex(p => p.id === getBlade().id), next = list[(i + Number(el.dataset.spin) + list.length) % list.length]; if (next) { equipBlade(next.id); profile(); paint(); } };
     for (const q of ['#ol-blade-pick', '#ol-blade-icon']) { const el = $(q); if (el) el.onclick = () => { pickerOpen = !pickerOpen; paint(); }; }
@@ -138,7 +139,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     on('#ol-leave', () => { net.send({t: 'leave'}); room = null; screen = 'home'; paint(); });
     on('#ol-copy', () => { try { navigator.clipboard.writeText(room.code); notice = 'Code copied.'; } catch { notice = 'Code: ' + room.code; } paint(); });
   }
-  function profile() { const nm = $('#ol-name'); if (nm) { name = nm.value.trim().slice(0, 16); save('online-name', name); } net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); }
+  function profile() { const nm = $('#ol-name'); if (nm && !offensive(nm.value)) { name = nm.value.trim().slice(0, 16); save('online-name', name); } net.send({t: 'profile', name: name || 'Swordhand', blade: blade()}); }
 
   // ---------- your blade: every blade you own, grouped, with its pattern and online strength ----------
   function pickerHTML() {

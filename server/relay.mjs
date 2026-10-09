@@ -5,12 +5,15 @@
 import {publicId as pubId} from './scores.mjs';
 import {onlineLegal} from '../dist/pattern-strength.js';
 import {validatePattern} from '../dist/engine.js';
+import {offensive} from '../dist/name-filter.js';
 // a blade stronger than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
 const FALLBACK_BLADE = {name: 'Forgotten Falchion', iconId: 'forgotten-falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
 export const PROTOCOL = 1;
 const MODES = {duel: {min: 2, max: 2}, ffa: {min: 2, max: 4}};
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n);
+// names others see: offensive ones are refused (the player is told) and replaced
+const nameOf = (s, fallback) => { const n = clean(s, 16); return n && !offensive(n) ? n : fallback; };
 
 export function createRelay({now = () => Date.now(), setTimer = setTimeout, clearTimer = clearTimeout, random = Math.random,
   countdownMs = 3600, resumeMs = 20000, ffaFillMs = 15000, build = null, scores = null, log = () => {}} = {}) {
@@ -130,13 +133,13 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
         }
       }
       if (typeof m.pid === 'string' && /^[A-Za-z0-9_-]{12,64}$/.test(m.pid)) { c.pid = m.pid; c.pub = pubId(m.pid); }
-      c.name = clean(m.name, 16) || 'Swordhand';
-      if (Array.isArray(m.aka)) c.aka = [...new Set(m.aka.map(n => clean(n, 16)).filter(n => n && n !== c.name))].slice(0, 5); c.blade = m.blade && typeof m.blade === 'object' ? {name: clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
+      c.name = nameOf(m.name, 'Swordhand'); if (clean(m.name, 16) && offensive(clean(m.name, 16))) send(c, {t: 'error', code: 'name', message: 'That name isn\u2019t allowed. Pick another.'});
+      if (Array.isArray(m.aka)) c.aka = [...new Set(m.aka.map(n => clean(n, 16)).filter(n => n && n !== c.name && !offensive(n)))].slice(0, 5); c.blade = m.blade && typeof m.blade === 'object' ? {name: offensive(m.blade.name) ? 'Custom blade' : clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
       if (c.blade?.rows?.length && !validatePattern(c.blade.rows)) c.blade.rows = [];
       if (c.blade?.rows?.length && !onlineLegal(c.blade.rows)) c.blade = {...FALLBACK_BLADE, rows: FALLBACK_BLADE.rows.map(r => [...r])};
       send(c, {t: 'welcome', id: c.id, token: c.token, protocol: PROTOCOL});
     },
-    profile(c, m) { c.name = clean(m.name, 16) || c.name; if (m.blade) handlers.hello(c, {name: c.name, blade: m.blade}); const r = roomOf(c); if (r && r.state !== 'playing') sync(r); },
+    profile(c, m) { const asked = clean(m.name, 16); if (asked && offensive(asked)) send(c, {t: 'error', code: 'name', message: 'That name isn\u2019t allowed. Pick another.'}); c.name = nameOf(m.name, c.name && !offensive(c.name) ? c.name : 'Swordhand'); if (m.blade) handlers.hello(c, {name: c.name, blade: m.blade}); const r = roomOf(c); if (r && r.state !== 'playing') sync(r); },
     quick(c, m) { const mode = MODES[m.mode] ? m.mode : 'duel'; if (roomOf(c)) leaveRoom(c); leaveQueue(c); queues[mode].push(c.id); matchmake(mode); },
     cancel(c) { leaveQueue(c); send(c, {t: 'queue', mode: null, waiting: 0}); for (const mode of Object.keys(queues).filter(k => k !== 'ffaTimer')) matchmake(mode); },
     create(c, m) { const mode = MODES[m.mode] ? m.mode : 'duel'; leaveQueue(c); if (roomOf(c)) leaveRoom(c); const r = makeRoom(mode, !m.public, c.id); r.open = !!m.public; enter(c, r); },
