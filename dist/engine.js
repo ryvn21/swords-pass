@@ -132,11 +132,15 @@ export function command(state,side,action){
  if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true);
  if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true);
  if(!next)return false;
+ // rules.landOnce: a landed pair slid along the row it landed on commits at once (no slide resets); sliding off an
+ // edge to a lower row lands it again with a fresh lock. Stall flips still reset the timers.
+ const grounded=!move(p.board,p.active,0,-1),floorY=Math.min(...cells(p.active).map(c=>c.y));
  if((p.lockResets??0)>=6&&Math.min(...cells(next).map(c=>c.y))>Math.min(...cells(p.active).map(c=>c.y)))return false;
  p.active=next;entered(p);
  // Stall: two flips in the same direction reset the fall and lock timers, up to rules.stallFlips times per pair.
  // Absent from older saved rules, so earlier replays and saves play back unchanged.
  if(state.rules.stallFlips){if(action==='cw'||action==='ccw'){const d=action==='cw'?1:-1;if(p.lastFlip===d){p.lastFlip=0;if((p.stalls??0)<state.rules.stallFlips){p.stalls=(p.stalls??0)+1;p.fall=0;p.lock=0;}}else p.lastFlip=d;}else p.lastFlip=0;}
+ if(state.rules.landOnce){if((action==='left'||action==='right')&&grounded&&!move(p.board,p.active,0,-1)&&Math.min(...cells(p.active).map(c=>c.y))===floorY)p.lock=Math.max(p.lock,lockOf(state,p));return true;}
  // Allow a grounded tuck without indefinite rotation stalling.
  if(p.lock>0&&(p.lockResets??0)<6){p.lock=0;p.lockResets=(p.lockResets??0)+1;}
  return true;

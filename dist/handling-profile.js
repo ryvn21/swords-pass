@@ -29,6 +29,7 @@ export function handlingRules(input={}){
  if(Number.isInteger(input?.stallFlips))out.stallFlips=Math.max(0,Math.min(3,input.stallFlips));
  if(input?.wellFlip===true)out.wellFlip=true;
  if(input?.speedUp===true)out.speedUp=true;
+ if(input?.landOnce===true)out.landOnce=true;
  return out;
 }
 // The Default timings: what new players start with, what ticking "Default timings" returns to, and the
@@ -36,11 +37,12 @@ export function handlingRules(input={}){
 // Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
 //   natural fall  starts at 0.01 px/ms (4000 ms a row) and speeds up as you land blocks (engine: rules.speedUp)
 //   landing lock  5 ÷ speed                                                    → 500 ms at the start, 20 ms at the cap
+//                 sliding a landed pair along its row commits it at once (landOnce); stall flips still reset the lock
 //   Space         0.8 px/ms, off again when each new pair spawns; no early press → 50 ms a row, 0 ms window
 //   strikes and loose blocks 1.2 px/ms                                         → 33 ms a row, ~430 ms down the board
 //   breaks        75 ms between depth levels, then a 500 ms burst and a 150 ms pause → wave 75, clear 650
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({speedUp:true,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:650,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:650,waveMs:75,settleMs:33,attackMs:430,dropBufferMs:0,stallFlips:3,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
