@@ -4,7 +4,7 @@
 // same-colour 2×2 squares (ready gems) and same-colour groups of four or more (easy breaks).
 // Fewer gifts means a stronger blade. The score is scaled so the Forgotten Falchion, the strongest
 // curated blade, is 100 and a gift-everything pattern is 0. Online accepts up to ONLINE_CAP.
-import {W, H, grid, applyAttackBatch, horizontalBase, decay, gravity} from './engine.js';
+import {W, H, grid, applyAttackBatch, horizontalBase, decay, gravity, validatePattern} from './engine.js';
 
 export const ONLINE_CAP = 105;
 const FALCHION = [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]];
@@ -14,7 +14,7 @@ function rng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t =
 
 // gifts per volley: ready squares + twice the share of blocks sitting in groups of 4+
 export function gifts(rows) {
-  if (!Array.isArray(rows) || !rows.length) return WORST;
+  if (!validatePattern(rows)) return WORST;
   const R = rng(12345); let squares = 0, grouped = 0, cells = 0;
   for (let t = 0; t < TRIALS; t++) {
     const b = grid(), attacks = [], n = 1 + Math.floor(R() * 3);

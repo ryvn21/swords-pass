@@ -4,6 +4,7 @@
 // snapshots and attack batches, and decides who topped out first.
 import {publicId as pubId} from './scores.mjs';
 import {onlineLegal} from '../dist/pattern-strength.js';
+import {validatePattern} from '../dist/engine.js';
 // a blade stronger than the game's own (see pattern-strength.js) plays online as the Forgotten Falchion
 const FALLBACK_BLADE = {name: 'Forgotten Falchion', iconId: 'forgotten-falchion', rows: [[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]};
 export const PROTOCOL = 1;
@@ -121,6 +122,7 @@ export function createRelay({now = () => Date.now(), setTimer = setTimeout, clea
       }
       if (typeof m.pid === 'string' && /^[A-Za-z0-9_-]{12,64}$/.test(m.pid)) { c.pid = m.pid; c.pub = pubId(m.pid); }
       c.name = clean(m.name, 16) || 'Swordhand'; c.blade = m.blade && typeof m.blade === 'object' ? {name: clean(m.blade.name, 32), iconId: clean(m.blade.iconId ?? m.blade.id, 40), rows: Array.isArray(m.blade.rows) ? m.blade.rows.slice(0, 8).map(r => Array.isArray(r) ? r.slice(0, 6).map(v => (v | 0) & 3) : []) : []} : null;
+      if (c.blade?.rows?.length && !validatePattern(c.blade.rows)) c.blade.rows = [];
       if (c.blade?.rows?.length && !onlineLegal(c.blade.rows)) c.blade = {...FALLBACK_BLADE, rows: FALLBACK_BLADE.rows.map(r => [...r])};
       send(c, {t: 'welcome', id: c.id, token: c.token, protocol: PROTOCOL});
     },
