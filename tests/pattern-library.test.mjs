@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {PATTERNS} from '../dist/swords.js';
 import {readLibrary,libraryPatterns,savePattern,deletePattern} from '../dist/pattern-library.js';
 const rows=()=>Array.from({length:4},()=>[0,1,2,3,0,1]);
-test('legacy corrections match the user images, horizontal mirror and simultaneous colour substitution',()=>{
+test('legacy corrections match the user images (Sinner’s Saber mirrored again on request)',()=>{
  // Literal expected TOP-to-bottom cells, derived from the supplied images.
  const letters=p=>[...p.rows].reverse().map(row=>row.map(c=>'RYGB'[c]).join(''));
- assert.deepEqual(letters(PATTERNS[0]),['BGGYYB','BBRRBB','BBRRBB','BYYGGB','YYYGGY','YGGYYY']);
+ assert.deepEqual(letters(PATTERNS[0]),['BYYGGB','BBRRBB','BBRRBB','BGGYYB','YGGYYY','YYYGGY']);
  assert.deepEqual(letters(PATTERNS[1]),['BBYYGG','BRRYBG','YRGBBR','YYGGRR']);
 });
 test('migration removes only the old custom Forgotten Falchion',()=>{

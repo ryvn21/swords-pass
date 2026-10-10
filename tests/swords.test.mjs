@@ -8,7 +8,7 @@ const reference=JSON.parse(fs.readFileSync(new URL('./fixtures/mantid-swords.jso
 test('rack contains exactly the requested swords, two preserved legacy blades and Custom',()=>{
  assert.equal(PATTERNS.length,20);assert.equal(new Set(PATTERNS.map(p=>p.id)).size,20);
  assert.deepEqual(PATTERNS.slice(2,-1).map(p=>p.name),reference.swords.map(p=>p.name));
- assert.deepEqual(PATTERNS[0].rows,[[1,2,2,1,1,1],[1,1,1,2,2,1],[3,1,1,2,2,3],[3,3,0,0,3,3],[3,3,0,0,3,3],[3,2,2,1,1,3]]);
+ assert.deepEqual(PATTERNS[0].rows,[[1,1,1,2,2,1],[1,2,2,1,1,1],[3,2,2,1,1,3],[3,3,0,0,3,3],[3,3,0,0,3,3],[3,1,1,2,2,3]]);
  assert.deepEqual(PATTERNS[1].rows,[[1,1,2,2,0,0],[1,0,2,3,3,0],[3,0,0,1,3,2],[3,3,1,1,2,2]]);
  for(const p of PATTERNS){assert.ok(validatePattern(p.rows));assert.ok(swordIcon(p.id).includes('<svg'));}
  assert.equal(new Set(PATTERNS.map(p=>swordIcon(p.id))).size,20);
