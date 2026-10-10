@@ -25,7 +25,8 @@ const rr = (g, x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
 const alpha = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
 
 // ---------- the four engravings, in a 32 x 48 cell space ----------
-function emblem(color) {
+function emblem(colour) {
+  const color = colour === 1 ? 3 : colour === 3 ? 1 : colour;   // yellow takes the broadsword and circle, blue the rapier and square
   const blade = new Path2D(), hilt = new Path2D(), ridge = new Path2D();
   // pommel in the colour's own shape (the palette's ◇ □ △ ○), so colours read by shape as well as hue
   if (color === 0) { hilt.moveTo(16, 3.4); hilt.lineTo(19, 6.4); hilt.lineTo(16, 9.4); hilt.lineTo(13, 6.4); hilt.closePath(); }
