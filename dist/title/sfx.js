@@ -108,6 +108,31 @@ const SOUNDS = {
     for (let i = 0; i < 3 + k * 2; i++) hiss(t + i * .014 + Math.random() * .01, {f: jit(900 + Math.random() * 1600, .2), q: 2.5, peak: (.12 + .02 * k) * v, d: .025, type: 'bandpass'});
     hiss(t + .02, {f: 500, q: .7, peak: .12 * v, d: .16, type: 'lowpass'});
   },
+  // A strike landing (YPP timing), sized and coloured by what it hit. info: {area, crushed, onto: 'floor'|'pieces'|'wall'}
+  // Size by area like the warning: small (6 or less), big (under 10), huge. Landing on the tray booms; on pieces it clunks
+  // on stone; a side sword bangs into the wall. Crushing adds grit and debris that grow with the number of pieces broken.
+  impact(t, v, info = {}) {
+    const area = info.area || 4, size = area <= 6 ? 0 : area < 10 ? 1 : 2, crushed = info.crushed || 0, onto = info.onto || 'pieces';
+    const body = [1, 1.25, 1.55][size], low = [82, 66, 52][size];
+    thud(t, onto === 'floor' ? low * .85 : low, (.28 + .08 * size) * body * v * (onto === 'floor' ? 1.1 : 1), .22 + .08 * size);
+    if (onto === 'pieces') { thud(t, 170 + size * 10, .16 * v, .09); hiss(t, {f: jit(1500), q: 3, peak: .1 * v, d: .03}); }      // stone clunk
+    if (onto === 'wall') { thud(t, 120, .2 * v, .12, info.hand === 1 ? .5 : -.5); metal(t, jit(620, .04), .05 * v, .7, info.hand === 1 ? .5 : -.5); }
+    metal(t + .004, jit([980, 760, 560][size], .03), (.045 + .015 * size) * v, .6 + .25 * size, (Math.random() - .5) * .3);       // the blade rings
+    if (size === 2) { tone(t, 46, {type: 'sine', peak: .14 * v, d: .5}); hiss(t + .01, {f: 300, q: .6, peak: .1 * v, d: .3, type: 'lowpass'}); }
+    if (crushed) {
+      const k = Math.min(6, crushed);
+      for (let i = 0; i < 2 + k * 2; i++) hiss(t + .01 + i * .012 + Math.random() * .012, {f: jit(800 + Math.random() * 1800, .2), q: 2.5, peak: (.1 + .018 * k) * v, d: .028, type: 'bandpass'});
+      hiss(t + .02, {f: 520, q: .7, peak: (.08 + .02 * k) * v, d: .14 + .03 * k, type: 'lowpass'});
+      if (crushed >= 4) for (let i = 0; i < Math.min(5, crushed - 2); i++) tone(t + .06 + i * .045 + Math.random() * .02, jit(480 + Math.random() * 380, .1), {type: 'triangle', peak: .05 * v, d: .04, pan: (Math.random() - .5) * .6});   // debris settling
+    }
+  },
+  // One column of sprinkles landing as a stack (YPP). info: {n in this stack, total in the attack, onto}
+  pebbles(t, v, info = {}) {
+    const n = Math.max(1, info.n || 1), total = Math.max(n, info.total || n), g = 1.7 * Math.min(1.5, .7 + total / 24) * Math.min(1, 1.6 / Math.sqrt(info.cols || 1)), floor = info.onto === 'floor';
+    thud(t, floor ? 120 : 150, (.08 + .03 * Math.min(4, n)) * g * v, .07);
+    for (let i = 0; i < Math.min(5, n + 1); i++) { const tt = t + i * .016 + Math.random() * .01;
+      hiss(tt, {f: jit(floor ? 1900 : 2500, .15), q: 5, peak: .11 * g * v, d: .016}); tone(tt, jit(floor ? 470 : 600, .15), {type: 'triangle', peak: .07 * g * v, d: .028, pan: (Math.random() - .5) * .5}); }
+  },
   crack(t, v, n) {                                                // grey stone splits to show its colour
     const k = Math.min(3, Math.max(1, Math.round((n || 1) / 3)));
     for (let i = 0; i < k + 1; i++) hiss(t + i * .018, {f: jit(3200, .2), q: 9, peak: .11 * v, d: .012});
@@ -135,7 +160,7 @@ globalThis.scrapsSfx = (kind, chain = 1, prefs = {}, delay = 0) => {
   try {
     if (!init()) return;
     const nowMs = performance.now();
-    if (kind === 'strike' || kind === 'patter') attackVoiced = nowMs + delay * 1000;
+    if (kind === 'strike' || kind === 'patter' || kind === 'impact' || kind === 'pebbles') attackVoiced = nowMs + delay * 1000;
     if (kind === 'hit' && nowMs - attackVoiced < 900) return;      // the board already voiced this attack as it landed
     let master = .8; try { master = JSON.parse(localStorage.getItem('scraps.audio') || '{}').master ?? .8; } catch {}
     const v = Math.min(2.5, (prefs.volume ?? .16) / .16) * .9 * Math.max(0, Math.min(1, master)) / .8;

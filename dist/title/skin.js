@@ -398,11 +398,12 @@ skin.attack = (cv, incoming, timer) => {
     for (const s of incoming.schedule) { const a = hits[s.i], q = a?.placement; if (!q) continue;
       const side = a.kind === 'horizontal' && !a.converted;
       if (side && q.hand) globalThis.scrapsSfx?.('slide', q.hand, prefs, sec(s.start));
-      globalThis.scrapsSfx?.('strike', 1, prefs, sec(s.end));
       let crushed = 0; if (before) for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) if (before[y]?.[x]) crushed++;
-      if (crushed) globalThis.scrapsSfx?.('crush', crushed, prefs, sec(s.end + 10)); }
-    const low = new Map(); for (const c of placed) low.set(c.x, Math.min(low.get(c.x) ?? 13, c.y));
-    for (const y of low.values()) globalThis.scrapsSfx?.('patter', placed.length, prefs, sec(incoming.sprinkleStart + (13 - y) * incoming.rowMs));
+      const onto = side ? 'wall' : q.y === 0 ? 'floor' : 'pieces', area = (a.width || q.w) * (a.length || q.h);
+      globalThis.scrapsSfx?.('impact', {area, crushed, onto, hand: q.hand}, prefs, sec(s.end)); }
+    // each column's sprinkles land as one stack: louder for a taller stack and a bigger attack
+    const cols = new Map(); for (const c of placed) { const k = cols.get(c.x) || {low: 13, n: 0}; k.low = Math.min(k.low, c.y); k.n++; cols.set(c.x, k); }
+    for (const k of cols.values()) globalThis.scrapsSfx?.('pebbles', {n: k.n, total: placed.length, cols: cols.size, onto: k.low === 0 ? 'floor' : 'pieces'}, prefs, sec(incoming.sprinkleStart + (13 - k.low) * incoming.rowMs));
     return;
   }
   if (swords) globalThis.scrapsSfx?.('strike', swords, prefs, at(.55));
