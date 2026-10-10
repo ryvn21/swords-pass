@@ -1,5 +1,5 @@
 import {readProgression,DEFAULT_PROGRESSION,progressionKey} from './progression.js';
-import {actionFor} from './handling-profile.js';
+import {actionFor,heldStep,pairKey} from './handling-profile.js';
 import {handlingRules,handlingKey,fallSummary} from './handling-profile.js';
 import {createChallenge,stepChallenge,challengePair,standings,pressureAt,TIMED_MS,breakerRateAt} from './challenge.js';
 import {drawBoard,drawNext} from './render.js';
@@ -30,13 +30,13 @@ export function createChallengeUI({host,prefs,read,save,sound,showSettings,getPo
  for(let i=1;i<players;i++){try{const worker=new Worker('/ai-worker.js',{type:'module'});workers[i]=worker;worker.onmessage=({data})=>{const b=brains[i];if(data.id===b.key){if(data.error){worker.terminate();workers[i]=null;b.key=null;}else b.plan=[...(data.plan?.path??[]),'fastOn'];}};worker.onerror=()=>{worker.terminate();workers[i]=null;brains[i].key=null;};}catch{brains[i].plan=['fastOn'];}}
  sound('start');
  }
- function press(code,action){if(!run||run.finished)return;if(action==='pause'){pause();return;}if(countdown>0||paused||run.entries[0].game.players[0].dead)return;held.set(code,{action,next:run.elapsed+run.entries[0].game.rules.repeatDelayMs});actions.push({side:0,action:action==='drop'?'fastOn':action});if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}
+ function press(code,action){if(!run||run.finished)return;if(action==='pause'){pause();return;}if(countdown>0||paused||run.entries[0].game.players[0].dead)return;held.set(code,{action,next:run.elapsed+run.entries[0].game.rules.repeatDelayMs,pair:pairKey(run.entries[0].game.players[0])});actions.push({side:0,action:action==='drop'?'fastOn':action});if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}
  function release(code){const h=held.get(code);held.delete(code);if(h?.action==='drop'&&run&&!run.finished)actions.push({side:0,action:'fastOff'});}
  function releaseAll(){held.clear();actions=[];if(run&&!run.finished)actions.push({side:0,action:'fastOff'});}
  function pause(force){if(!run||run.finished)return;paused=force??!paused;releaseAll();set('#challenge-pause',paused?'▶':'Ⅱ');$('#challenge-pause').setAttribute('aria-label',paused?'Resume challenge':'Pause challenge');const overlay=$('#challenge-overlay');overlay.classList.toggle('shown',paused);overlay.innerHTML=paused?'<div class="pause-card"><h2>Run paused.</h2><button class="primary" id="challenge-resume">Back to it</button></div>':'';$('#challenge-resume')?.addEventListener('click',()=>pause(false));}
  function think(){for(let i=1;i<run.entries.length;i++){const p=run.entries[i].game.players[0],b=brains[i],opponent=botProfile(difficulty,i-1);if(p.dead||p.phase!=='fall')continue;const id=session+':'+p.nextIndex;if(id!==b.key){b.key=id;b.plan=workers[i]?null:[...planMove({board:p.board,active:p.active,nextPair:challengePair(seed,p.nextIndex,run.progression),opponent:{...opponent,depth:1}}).path,'fastOn'];b.at=run.elapsed+opponent.think;workers[i]?.postMessage({id,board:p.board,active:p.active,nextPair:challengePair(seed,p.nextIndex,run.progression),opponent});}if(b.plan?.length&&run.elapsed>=b.at){actions.push({side:i,action:b.plan.shift()});b.at=run.elapsed+opponent.actionMs;}}}
  function tick(){if(!run||paused||run.finished)return;if(countdown>0){countdown-=DT;const overlay=$('#challenge-overlay');overlay.classList.toggle('shown',countdown>0);overlay.innerHTML=countdown>0?'<div class="count-in">'+Math.ceil(countdown/400)+'</div>':'';return;}
- for(const h of held.values()){if(['left','right'].includes(h.action)&&run.elapsed>=h.next){actions.push({side:0,action:h.action});h.next=run.elapsed+run.entries[0].game.rules.repeatMs;}if(run.entries[0].game.version<10&&h.action==='drop'&&run.entries[0].game.players[0].phase==='fall'&&!run.entries[0].game.players[0].fast)actions.push({side:0,action:'fastOn'});}
+ for(const h of held.values()){if(heldStep(h,run.entries[0].game.players[0],run.elapsed,run.entries[0].game.rules))actions.push({side:0,action:h.action});if(run.entries[0].game.version<10&&h.action==='drop'&&run.entries[0].game.players[0].phase==='fall'&&!run.entries[0].game.players[0].fast)actions.push({side:0,action:'fastOn'});}
  think();stepChallenge(run,DT,actions);actions=[];
  for(const e of run.events)if(e.side===0){if(e.type==='breaking')sound('clear',e.chain);else if(e.type==='hit')sound('hit');else if(e.type==='lock')sound('lock');}
  if(run.finished)finish();

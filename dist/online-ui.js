@@ -4,7 +4,7 @@
 // boards are drawn from the snapshots they stream. Attack batches travel as messages and land
 // on your next lock, exactly as they would locally. The server referees who topped out first.
 import {createMatch,step,receiveBatch,pairAt,previewIndex,DEFAULT_RULES,H} from './engine.js';
-import {actionFor} from './handling-profile.js';
+import {actionFor,heldStep,pairKey} from './handling-profile.js';
 import {handlingRules,HOUSE_RULES} from './handling-profile.js';
 import {drawBoard,drawNext} from './render.js';
 import {hazardAt,scoreClear} from './challenge.js';
@@ -354,7 +354,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   function press(code, action) {
     if (!match || match.over || !match.started || match.game.players[0].dead) return;
     if (action === 'pause') { leaveMatch(); return; }
-    held.set(code, {action, next: match.game.elapsed + match.rules.repeatDelayMs});
+    held.set(code, {action, next: match.game.elapsed + match.rules.repeatDelayMs, pair: pairKey(match.game.players[0])});
     match.actions.push({side: 0, action: action === 'drop' ? 'fastOn' : action});
     if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');
   }
@@ -382,7 +382,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
     }
     if (!m.started) { if (performance.now() < m.startAt) return; m.started = true; m.actions = []; sound('start'); }
     m.actions ??= [];
-    for (const h of held.values()) if ((h.action === 'left' || h.action === 'right') && m.game.elapsed >= h.next) { m.actions.push({side: 0, action: h.action}); h.next = m.game.elapsed + m.rules.repeatMs; }
+    for (const h of held.values()) if (heldStep(h, m.game.players[0], m.game.elapsed, m.rules)) m.actions.push({side: 0, action: h.action});
     const me = m.game.players[0];
     if (m.hazard && !me.dead) while (m.hazard.at <= m.game.elapsed) { receiveBatch(m.game, 0, m.hazard.attacks, m.hazard.index); m.hazard = hazardAt(m.seed, m.hazard.index + 1, DEFAULT_PROGRESSION); }
     step(m.game, DT, m.actions); m.actions = [];

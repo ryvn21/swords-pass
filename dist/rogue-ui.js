@@ -1,6 +1,6 @@
 /** Replaceable browser adapter. Game rules and authored content live elsewhere. */
 import {createClimb,choosePath,continueClimb,skipBonus,startEncounter,stepRun,inputRun,chooseReward,abandonRun,isTerminal,TICK_MS} from './rogue-run.js';
-import {actionFor} from './handling-profile.js';
+import {actionFor,heldStep,pairKey} from './handling-profile.js';
 import {DEFAULT_CLIMB} from './climb-content.js';
 import {objectiveLabel,objectiveStatus,objectiveHint,swordSize} from './climb-objectives.js';
 import {serializeRun,restoreRun,MAX_SAVE_BYTES} from './rogue-save.js';
@@ -106,10 +106,10 @@ export function createRogueUI({host,prefs,read,save,sound,showSettings,getPool})
   const next=$('#rogue-outro-next');next.onclick=()=>drawScreen();setTimeout(()=>{if(next.isConnected){next.disabled=false;next.focus();}},700);
  }
  function renderOverlay(){const overlay=$('#rogue-overlay');if(!overlay||overlay.querySelector('.rogue-outro'))return;overlay.classList.toggle('shown',paused);overlay.innerHTML=paused?'<div class="pause-card"><h2>Run paused.</h2><button class="primary" id="rogue-continue">Continue</button></div>':'';$('#rogue-continue')?.addEventListener('click',()=>pause(false));set('#rogue-pause',paused?'Continue':'Pause');}
- function press(code,action){if(!run||run.phase!=='playing')return;if(action==='pause'){pause(!paused);return;}if(paused||held.has(code))return;held.set(code,{action,next:run.tick*TICK_MS+run.game.rules.repeatDelayMs});try{inputRun(run,[action==='drop'?'fastOn':action]);if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}catch(e){pause(true);report(e.message);}}
+ function press(code,action){if(!run||run.phase!=='playing')return;if(action==='pause'){pause(!paused);return;}if(paused||held.has(code))return;held.set(code,{action,next:run.tick*TICK_MS+run.game.rules.repeatDelayMs,pair:pairKey(run.game.players[0])});try{inputRun(run,[action==='drop'?'fastOn':action]);if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}catch(e){pause(true);report(e.message);}}
  function release(code){const h=held.get(code);held.delete(code);if(h?.action==='drop'&&run?.phase==='playing')inputRun(run,['fastOff']);}
  function tick(){
-  for(const h of held.values()){if(['left','right'].includes(h.action)&&run.tick*TICK_MS>=h.next){inputRun(run,[h.action]);h.next=run.tick*TICK_MS+run.game.rules.repeatMs;}if(run.engineVersion<10&&h.action==='drop'&&run.game.players[0].phase==='fall'&&!run.game.players[0].fast)inputRun(run,['fastOn']);}
+  for(const h of held.values()){if(heldStep(h,run.game.players[0],run.tick*TICK_MS,run.game.rules))inputRun(run,[h.action]);if(run.engineVersion<10&&h.action==='drop'&&run.game.players[0].phase==='fall'&&!run.game.players[0].fast)inputRun(run,['fastOn']);}
   stepRun(run);processEvents();if(run.phase!==lastPhase){paused=false;persist();if(lastPhase==='playing'){if(run.game){try{coach(runView(run));}catch{}ending={po:createPlayout(run.game),acc:0,shown:false,won:!['lost','result','abandoned'].includes(run.phase)};lastPhase=run.phase;}else outro();}else drawScreen();}else if(run.tick-saveTick>=60)persist();
  }
  // the encounter is decided: the last combo and attacks finish on screen, a finisher if it earned one, then the outro

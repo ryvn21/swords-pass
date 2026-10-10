@@ -45,3 +45,16 @@ test('v5: players on their own timings are moved back onto the Default once; the
   assert.equal(moved.useDefaultTimings, true); assert.equal(moved.rules.gravityMs, HOUSE_RULES.gravityMs);
   assert.equal(moved.customRules.gravityMs, 1200); assert.deepEqual(moved.keys, {drop: ['g']});
 });
+
+test('held left/right: a step at once, again after the delay, then every repeat; and at once on a new pair while held', async () => {
+  const {heldStep, pairKey} = await import('../dist/handling-profile.js');
+  const rules = {repeatDelayMs: 300, repeatMs: 142}, p = {phase: 'fall', active: {}, nextIndex: 1};
+  const h = {action: 'left', next: 300, pair: pairKey(p)};          // pressed at 0 with a pair falling: the press itself moved
+  const at = t => heldStep(h, p, t, rules);
+  assert.equal(at(100), false); assert.equal(at(300), true); assert.equal(at(400), false); assert.equal(at(442), true);
+  p.phase = 'clear'; assert.equal(at(700), false);                  // no pair: nothing
+  p.phase = 'fall'; p.nextIndex = 2; assert.equal(at(720), true);   // the new pair moves the moment it appears
+  assert.equal(at(900), false); assert.equal(at(1020), true);
+  const early = {action: 'right', next: 300, pair: pairKey({phase: 'settle'})};
+  assert.equal(heldStep(early, {phase: 'fall', active: {}, nextIndex: 5}, 50, rules), true);   // pressed before the pair existed
+});

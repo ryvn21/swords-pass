@@ -1,5 +1,5 @@
 import {HANDLING_FIELDS,HOUSE_RULES,handlingRules,fallSummary} from './handling-profile.js';
-import {actionFor} from './handling-profile.js';
+import {actionFor,heldStep,pairKey} from './handling-profile.js';
 import {createMatch,step,pairAt,previewIndex} from './engine.js';
 import {drawBoard,drawNext} from './render.js';
 
@@ -20,11 +20,11 @@ export function mountHandlingEditor(host,{prefs,onChange}){
  for(const el of host.querySelectorAll('[data-speed-number]'))el.onchange=()=>{if(el.value!==''&&Number.isFinite(el.valueAsNumber))update({...prefs.rules,[el.dataset.speedNumber]:el.valueAsNumber});else refresh();};
  $('#clear-handling-board').onclick=reset;
  const canvas=$('#handling-board'),next=$('#handling-next');canvas.onclick=()=>canvas.focus();
- canvas.addEventListener('keydown',e=>{const action=actionFor(prefs.keys,e.code);if(!action||action==='pause')return;e.preventDefault();if(e.repeat)return;held.set(e.code,{action,next:game.elapsed+game.rules.repeatDelayMs});actions.push({side:0,action:action==='drop'?'fastOn':action});},{signal:scope.signal});
+ canvas.addEventListener('keydown',e=>{const action=actionFor(prefs.keys,e.code);if(!action||action==='pause')return;e.preventDefault();if(e.repeat)return;held.set(e.code,{action,next:game.elapsed+game.rules.repeatDelayMs,pair:pairKey(game.players[0])});actions.push({side:0,action:action==='drop'?'fastOn':action});},{signal:scope.signal});
  window.addEventListener('keyup',e=>{const h=held.get(e.code);held.delete(e.code);if(h?.action==='drop')actions.push({side:0,action:'fastOff'});},{signal:scope.signal});
  canvas.addEventListener('blur',()=>{held.clear();actions=[{side:0,action:'fastOff'}];},{signal:scope.signal});
  function frame(time){if(!host.isConnected)return;const visible=!host.hidden&&!document.hidden;acc+=visible?Math.min(100,time-(last||time)):0;last=time;
-  if(visible){while(acc>=1000/60){for(const h of held.values()){if(['left','right'].includes(h.action)&&game.elapsed>=h.next){actions.push({side:0,action:h.action});h.next=game.elapsed+game.rules.repeatMs;}if(game.version<10&&h.action==='drop'&&game.players[0].phase==='fall'&&!game.players[0].fast)actions.push({side:0,action:'fastOn'});}step(game,1000/60,actions);actions=[];acc-=1000/60;if(game.winner!==null)reset();}drawBoard(canvas,game.players[0],{time,gravityMs:game.rules.gravityMs,fastFallMs:game.rules.fastFallMs,renderAheadMs:acc,reduced:prefs.reduced});drawNext(next,pairAt(game.seed,previewIndex(game.players[0]),game.rules.breakerRate));}
+  if(visible){while(acc>=1000/60){for(const h of held.values()){if(heldStep(h,game.players[0],game.elapsed,game.rules))actions.push({side:0,action:h.action});if(game.version<10&&h.action==='drop'&&game.players[0].phase==='fall'&&!game.players[0].fast)actions.push({side:0,action:'fastOn'});}step(game,1000/60,actions);actions=[];acc-=1000/60;if(game.winner!==null)reset();}drawBoard(canvas,game.players[0],{time,gravityMs:game.rules.gravityMs,fastFallMs:game.rules.fastFallMs,renderAheadMs:acc,reduced:prefs.reduced});drawNext(next,pairAt(game.seed,previewIndex(game.players[0]),game.rules.breakerRate));}
   raf=requestAnimationFrame(frame);
  }
  reset();lock();refresh();raf=requestAnimationFrame(frame);return ()=>{scope.abort();cancelAnimationFrame(raf);};

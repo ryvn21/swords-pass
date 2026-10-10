@@ -74,3 +74,13 @@ export function normalizeKeys(keys={}){const out={};for(const a of Object.keys(K
 export const actionFor=(keys,code)=>Object.keys(KEY_ACTIONS).find(a=>keysOf(keys,a).includes(code));
 export const handlingKey=rules=>Object.entries(handlingRules(rules)).filter(([k])=>k!=='stallFlips'&&k!=='wellFlip'&&k!=='dropBufferMs').map(([k,v])=>k+'='+v).join(',');
 export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s to start (in duels it speeds up as you land blocks, up to 6.25) · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}
+
+// Held left/right: one step the moment you press it (or the moment a new pair appears while you're holding it),
+// then another after repeatDelayMs, then one every repeatMs. Steps only go to a pair that is falling.
+export const pairKey=p=>p&&p.phase==='fall'&&p.active?p.nextIndex:-1;
+export function heldStep(h,p,elapsed,rules){
+ if(h.action!=='left'&&h.action!=='right')return false;const k=pairKey(p);if(k<0)return false;
+ if(h.pair!==k){h.pair=k;h.next=elapsed+rules.repeatDelayMs;return true;}
+ if(elapsed>=h.next){h.next=elapsed+rules.repeatMs;return true;}
+ return false;
+}

@@ -1,5 +1,5 @@
 import {createPairedDuels,stepPairedDuels,pairedPlayer,pairedStandings} from './paired-duels.js';
-import {actionFor} from './handling-profile.js';
+import {actionFor,heldStep,pairKey} from './handling-profile.js';
 import {pairAt,random,previewIndex} from './engine.js';
 import {OPPONENTS,botProfile,planMove} from './ai.js';
 import {drawBoard,drawNext} from './render.js';
@@ -24,13 +24,13 @@ export function createPairedDuelsUI({host,prefs,save,read,sound,getPool,showPool
   for(let i=1;i<4;i++){try{const worker=new Worker('/ai-worker.js',{type:'module'});workers[i]=worker;worker.onmessage=({data})=>{const b=brains[i];if(data.id===b.key){if(data.error){worker.terminate();workers[i]=null;b.key=null;}else b.plan=[...(data.plan?.path??[]),'fastOn'];}};worker.onerror=()=>{worker.terminate();workers[i]=null;brains[i].key=null;};}catch{brains[i].plan=['fastOn'];}}
   sound('start');
  }
- function press(code,action){if(!run||run.finished)return;if(action==='pause'){pause();return;}if(paused||countdown>0||run.entries[0].status!=='playing')return;held.set(code,{action,next:run.elapsed+run.rules.repeatDelayMs});actions.push({side:0,action:action==='drop'?'fastOn':action});if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}
+ function press(code,action){if(!run||run.finished)return;if(action==='pause'){pause();return;}if(paused||countdown>0||run.entries[0].status!=='playing')return;held.set(code,{action,next:run.elapsed+run.rules.repeatDelayMs,pair:pairKey(pairedPlayer(run.entries[0]))});actions.push({side:0,action:action==='drop'?'fastOn':action});if(['left','right','cw','ccw'].includes(action))sound(action==='cw'||action==='ccw'?'rotate':'move');}
  function release(code){const h=held.get(code);held.delete(code);if(h?.action==='drop')actions.push({side:0,action:'fastOff'});}
  function pause(force){if(!run||run.finished)return;paused=force??!paused;held.clear();actions=[];const p=pairedPlayer(run.entries[0]);if(p.fast){p.fall=p.fall/run.rules.fastFallMs*run.rules.gravityMs;p.fast=false;}
   set('#paired-pause',paused?'▶':'Ⅱ');const overlay=$('#paired-overlay');overlay.classList.toggle('shown',paused);overlay.innerHTML=paused?'<div class="pause-card"><h2>Duels paused.</h2><button id="paired-resume" class="primary">Resume</button></div>':'';$('#paired-resume')?.addEventListener('click',()=>pause(false));
  }
  function tick(){if(!run||paused||run.finished)return;if(countdown>0){countdown-=DT;const overlay=$('#paired-overlay');overlay.classList.toggle('shown',countdown>0);overlay.innerHTML=countdown>0?'<div class="count-in">'+Math.ceil(countdown/400)+'</div>':'';return;}
-  for(const h of held.values()){if(['left','right'].includes(h.action)&&run.elapsed>=h.next){actions.push({side:0,action:h.action});h.next=run.elapsed+run.rules.repeatMs;}if(run.entries[0].game.version<10&&h.action==='drop'&&pairedPlayer(run.entries[0]).phase==='fall'&&!pairedPlayer(run.entries[0]).fast)actions.push({side:0,action:'fastOn'});}
+  for(const h of held.values()){if(heldStep(h,pairedPlayer(run.entries[0]),run.elapsed,run.rules))actions.push({side:0,action:h.action});if(run.entries[0].game.version<10&&h.action==='drop'&&pairedPlayer(run.entries[0]).phase==='fall'&&!pairedPlayer(run.entries[0]).fast)actions.push({side:0,action:'fastOn'});}
   for(let i=1;i<4;i++){const profile=botProfile(difficulty,i-1),e=run.entries[i],p=pairedPlayer(e),b=brains[i];if(e.status!=='playing'||p.phase!=='fall'||!p.active)continue;const key=session+':'+run.round+':'+p.nextIndex;
    if(key!==b.key){b.key=key;b.plan=workers[i]?null:[...planMove({board:p.board,active:p.active,nextPair:pairAt(seed,p.nextIndex,run.rules.breakerRate),opponent:{...profile,depth:1}}).path,'fastOn'];b.at=run.elapsed+profile.think;workers[i]?.postMessage({id:key,board:p.board,active:p.active,nextPair:pairAt(seed,p.nextIndex,run.rules.breakerRate),opponent:profile});}
    if(b.plan?.length&&run.elapsed>=b.at){actions.push({side:i,action:b.plan.shift()});b.at=run.elapsed+profile.actionMs;}
