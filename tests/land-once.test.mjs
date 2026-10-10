@@ -36,25 +36,31 @@ test('slid off a ledge it stays put until the window ends, then falls and lands 
   assert.ok(p.bouncing || p.turn === turn + 1);
 });
 
-test('stall flips in the air hold the pair on its row', () => {
+test('stall flips late in a row stretch it at half speed (the last quarter takes 2 s, not 1 s)', () => {
   const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   let guard = 0; while (!(p.phase === 'fall' && p.active && !p.active.entering) && guard++ < 2000) step(m, 16, []);
   step(m, 3000, []); const row = p.active.y;
   command(m, 0, 'cw'); command(m, 0, 'cw');
-  step(m, 2000, []); assert.equal(p.active.y, row);
+  step(m, 1900, []); assert.equal(p.active.y, row);
+  step(m, 200, []); assert.equal(p.active.y, row - 1);
 });
 
-test('a stall holds the pair still instead of lifting it back up its row, with the same delay as a reset', async () => {
+test('a stall slows the rest of the row (never below half speed) instead of stopping or lifting the pair', async () => {
   const {createMatch, step} = await import('../dist/engine.js');
   const {HOUSE_RULES} = await import('../dist/handling-profile.js');
   const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0];
   for (let i = 0; i < 125; i++) step(m, 16);
-  const y = p.active.y, fall = p.fall;
+  const pos = () => p.active.y - p.fall / HOUSE_RULES.gravityMs, y = p.active.y;
   step(m, 16, [{side: 0, action: 'cw'}]); step(m, 16, [{side: 0, action: 'cw'}]);
-  assert.ok(p.fall >= fall, 'never lifted back up');
-  const at = m.elapsed; let rows = 0;
-  while (p.active && p.active.y >= y - 1 && m.elapsed - at < 6000) { step(m, 16); if (p.active.y < y - 1) rows++; }
-  assert.ok(m.elapsed - at >= 3900, 'the row still takes a full fall time after the stall');
+  assert.equal(p.rowRate, .5);
+  let prev = pos(); const at = m.elapsed;
+  while (p.active.y >= y && m.elapsed - at < 6000) { step(m, 16); const now = pos(); assert.ok(now < prev, 'always moving down'); prev = now; }
+  assert.ok(m.elapsed - at > 3500 && m.elapsed - at < 4300, 'the rest of the row takes about a full row');
+});
+
+test('the Default timings allow 2 stalls per pair', async () => {
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  assert.equal(HOUSE_RULES.stallFlips, 2); assert.equal(HOUSE_RULES.stallSlow, true); assert.equal(HOUSE_RULES.stallHold, undefined);
 });
 
 test('the NEXT box shows the following pair as soon as a pair appears, except the very first pair of the game', async () => {

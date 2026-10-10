@@ -132,7 +132,7 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
   // was, moving toward where it is), so it never predicts past the truth: letting go of fast fall, or the pair
   // stopping, never pops it back up, and a pair that can no longer fall sits exactly in its cell.
   const canFall=!p.bouncing&&!!move(p.board,p.active,0,-1),speed=p.fast?fastFallMs:(p.velocity?40/p.velocity:gravityMs),ahead=Math.max(0,renderAheadMs-(p.spawnGrace??0))-(p.fast?1000/60:0);
-  const fraction=canFall?Math.max(-1,Math.min(1,(p.fall+ahead)/speed)):0;
+  const fraction=canFall?Math.max(-1,Math.min(1,(p.fall+ahead*(p.fast?1:p.rowRate??1))/speed)):0;
   for(const c of cells(p.active))tile(ctx,c.x*X,(H-1-c.y+fraction)*Y,c.cell);
  }
  if(!reduced&&p.phase==='clear')for(const c of p.wave||[]){const age=p.clearDuration-p.timer-c.delay;if(age<0||age>380)continue;if(S?.ready&&S.clear(ctx,(c.x+.5)*X,(H-1-c.y)*Y+Y/2,c.cell.color,age,380))continue;const t=age/380;ctx.save();ctx.globalAlpha=1-t;ctx.fillStyle=COLORS[c.cell.color];for(let i=0;i<4;i++){const dx=(i%2?1:-1)*(3+t*16),dy=Math.floor(i/2)*10-10+t*t*28;ctx.fillRect((c.x+.5)*X+dx,(H-1-c.y)*Y+18+dy,5,9);}ctx.restore();}

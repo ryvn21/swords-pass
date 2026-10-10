@@ -39,7 +39,7 @@ export function createOnlineUI({host, prefs, read, save, sound, getBlade, getPat
   const ownBlade = () => { const b = getBlade?.() || {}; return {id: b.id, iconId: b.iconId ?? b.id, name: b.name || 'Blade', rows: b.rows || []}; };
   const blade = ownBlade;
   const net = connectOnline({hello: () => ({name: name || 'Swordhand', blade: blade(), v: 1, pid, aka: oldNames})});
-  const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: 3, wellFlip: true});
+  const rules = () => handlingRules({...HOUSE_RULES, repeatDelayMs: prefs.rules?.repeatDelayMs ?? HOUSE_RULES.repeatDelayMs, repeatMs: prefs.rules?.repeatMs ?? HOUSE_RULES.repeatMs, dropBufferMs: prefs.rules?.dropBufferMs ?? HOUSE_RULES.dropBufferMs, stallFlips: HOUSE_RULES.stallFlips, wellFlip: true});
   const set = (q, v) => { const el = $(q); if (el && el.textContent !== String(v)) el.textContent = String(v); };
 
   // ---------- network events ----------
