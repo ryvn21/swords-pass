@@ -21,8 +21,12 @@ export function fits(board,piece){const occupied=cells(piece);return (piece.ente
 // (v11) a column filled to the top is a wall above the board too: nothing passes over it or lands on it until it clears
 const entered=p=>{if(p.active?.entering&&cells(p.active).some(({y})=>y<H))delete p.active.entering;};
 export function move(board,piece,dx,dy){const next={...piece,x:piece.x+dx,y:piece.y+dy};return fits(board,next)?next:null;}
-export function rotate(board,piece,direction,wellFlip=false){
+// rules.topTuck: at the top of the board a flip that would leave the pair wholly above the board (it can't climb back
+// out) turns around its lower cell instead, one row down, so it goes flat the way you pressed rather than flipping upright.
+const tuck=(board,piece,next)=>{if(!cells(piece).some(c=>c.y<H)||!cells(next).every(c=>c.y>=H))return null;const q={...next,y:next.y-1};return fits(board,q)?q:null;};
+export function rotate(board,piece,direction,wellFlip=false,topTuck=false){
  const next={...piece,r:(piece.r+direction+4)%4};
+ if(topTuck&&!fits(board,next)){const q=tuck(board,piece,next);if(q)return q;}
  // wellFlip (new games): a vertical pair hemmed in on both sides turns over in place
  // instead of being kicked up and out of its well.
  for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1]]){if(wellFlip&&dy&&piece.r%2===0){const flip={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};if(fits(board,flip))return flip;}const p={...next,x:next.x+dx,y:next.y+dy};if(fits(board,p))return p;}
@@ -33,9 +37,10 @@ export function rotate(board,piece,direction,wellFlip=false){
 }
 // rules.kickLimit (with landOnce): a flip that doesn't fit is nudged one column sideways if that fits; an upright pair can also be popped up one row, at most kickLimit times per pair. Past that, the flip
 // still happens without a kick: an upright pair swaps its colours in place, a flat one turns the other way if that fits.
-export function rotateLimited(board,piece,direction,wellFlip,popsLeft){
+export function rotateLimited(board,piece,direction,wellFlip,popsLeft,topTuck=false){
  const next={...piece,r:(piece.r+direction+4)%4},swap={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};
  if(fits(board,next))return {piece:next,popped:false};
+ if(topTuck){const q=tuck(board,piece,next);if(q)return {piece:q,popped:false};}
  for(const dx of [1,-1]){const q={...next,x:next.x+dx};if(fits(board,q))return {piece:q,popped:false};}   // one column either way, never through a wall
  if(piece.r%2===0&&popsLeft>0){const q={...next,y:next.y+1};if(fits(board,q))return {piece:q,popped:true};}
  if(piece.r%2===0&&fits(board,swap))return {piece:swap,popped:false};
@@ -155,9 +160,9 @@ export function command(state,side,action){
  if(action==='right')next=move(p.board,p.active,1,0);
  // landOnce: past the halfway point of a row, a sideways move also needs the row below clear (no squeezing under overhangs)
  if(next&&state.rules.landOnce&&(action==='left'||action==='right')&&!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2&&!fits(p.board,{...next,y:next.y-1}))next=null;
- if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0));if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
- else if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true);
- else if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true);
+ if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0),state.rules.topTuck===true);if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
+ else if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true,state.rules.topTuck===true);
+ else if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true,state.rules.topTuck===true);
  if(!next)return false;
  if((p.lockResets??0)>=6&&Math.min(...cells(next).map(c=>c.y))>Math.min(...cells(p.active).map(c=>c.y)))return false;
  p.active=next;entered(p);

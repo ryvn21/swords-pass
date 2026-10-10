@@ -73,3 +73,14 @@ test('the NEXT box shows the following pair as soon as a pair appears, except th
   while (p.phase !== 'fall' || !p.active) step(m, 16);
   assert.equal(previewIndex(p), p.nextIndex, 'later pairs: the box already shows the one after');
 });
+
+test('flips at the top of the board keep turning the way you press (no surprise upright swap)', async () => {
+  const {createMatch, step, cells} = await import('../dist/engine.js');
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  for (const [dir, rs] of [['cw', [1, 2, 3, 0, 1]], ['ccw', [3, 2, 1, 0, 3]]]) {
+    const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0]; step(m, 16);
+    const seen = [];
+    for (let i = 0; i < 5; i++) { step(m, 16, [{side: 0, action: dir}]); seen.push(p.active.r); assert.ok(cells(p.active).some(c => c.y < 13) || p.active.entering); }
+    assert.deepEqual(seen, rs, dir);
+  }
+});
