@@ -58,3 +58,8 @@ dialog:has(.sword-picker){width:760px;max-width:calc(100vw - 28px)}
 .challenge-options .field-label[hidden]{display:none}
 .challenge-board .next-piece canvas,.challenge-board.mini .next-piece canvas{width:17px;height:51px;margin-left:auto}
 @media(max-width:640px){.challenge-board .next-piece canvas,.challenge-board.mini .next-piece canvas{width:13px;height:39px}}
+/* No accidental text highlighting: the game is not a document. Text you'd want to copy stays selectable:
+   anything you type into, and room codes. */
+html,body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+img,canvas,svg{-webkit-user-drag:none}
+input,textarea,select,[contenteditable],[contenteditable] *,.ol-code strong,.selectable,.selectable *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}

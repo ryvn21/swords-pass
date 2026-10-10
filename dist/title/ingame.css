@@ -989,7 +989,8 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .eg-unlocks[hidden]{display:none}
 .eg-unlock{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 8px;text-align:left;background:linear-gradient(180deg,#2a1a0ce6,#120b08e6);border:2px solid var(--gold-mid,#d4a24c);box-shadow:0 0 0 2px #0d0807;animation:im-in .3s steps(3) both}
 .eg-unlock-icon:not(#_){width:34px;height:auto;max-height:64px;image-rendering:pixelated;object-fit:contain;flex:none}
-.eg-unlock-icon.pg-blade:not(#_){width:24px;height:64px}
+.eg-unlock-icon.pg-blade:not(#_){width:30px;height:84px;max-height:none;overflow:hidden}
+.eg-unlock-icon.pg-blade img:not(#_){height:84px;width:30px;max-height:none;object-fit:contain;image-rendering:auto}
 .eg-unlock small{display:block;font:600 10px var(--tt-ui);letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
 .eg-unlock strong{display:block;font:600 15px var(--tt-ui);color:var(--parchment)}
 .eg-unlock span{display:block;font:400 11px var(--tt-ui);color:#cdb894;max-width:240px}

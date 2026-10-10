@@ -190,7 +190,7 @@ function check(silent = false) {
   for (const a of s.achievements) if (a.done && !prog.earned[a.id]) { prog.earned[a.id] = Date.now(); changed = true; if (!silent) toast(badgeCanvas(a, 2), 'Achievement · ' + a.name, a.for, a.reward ? 'Unlocked: ' + REWARDS[a.reward] : ''); }
   // ranks replaced the old 17 tiers: the first time through, take today's ranks quietly
   if (!prog.ranks) { prog.ranks = Object.fromEntries(s.swords.map(w => [w.id, w.rank])); changed = true; }
-  for (const w of s.swords) if ((prog.ranks[w.id] | 0) < w.rank) { if (!silent) toast(swordArt(w, 'pg-toast-icon'), 'Sword of honour · rank up', fmt(w.at[w.rank - 1]) + ' ' + w.counts.toLowerCase(), `${w.name} is now ${RANKS[w.rank]}`, w.rank); prog.ranks[w.id] = w.rank; changed = true; }
+  for (const w of s.swords) if ((prog.ranks[w.id] | 0) < w.rank) { if (!silent) toast(swordArt(w, 'pg-toast-icon'), 'Milestone', fmt(w.at[w.rank - 1]) + ' ' + w.counts.toLowerCase(), `Stage ${w.rank} of ${MAX_RANK}` + (w.rank < MAX_RANK ? ` · next at ${fmt(w.at[w.rank])}` : ' · final stage'), w.rank); prog.ranks[w.id] = w.rank; changed = true; }
   if (changed) save('progress', prog);
   applyStyles(); return s;
 }

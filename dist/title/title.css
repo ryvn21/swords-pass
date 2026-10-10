@@ -112,7 +112,7 @@ body.tt-open{overflow:hidden}
 .pg-toast.out{animation:pg-out .5s steps(4) both}
 @keyframes pg-in{from{transform:translateY(20px);opacity:0}}@keyframes pg-out{to{transform:translateY(20px);opacity:0}}
 .pg-toast-icon{flex:none;width:48px;height:auto;max-height:100px;image-rendering:pixelated;object-fit:contain}
-.pg-toast-icon.pg-blade{width:36px;height:100px}
+.pg-toast-icon.pg-blade{width:36px;height:100px;max-height:none;overflow:hidden}.pg-toast-icon.pg-blade img{height:100px;width:36px;object-fit:contain;image-rendering:auto}
 .pg-toast small{display:block;font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
 .pg-toast strong{display:block;font-size:16px}.pg-toast span{display:block;font-size:13px;color:#cdb894}
 @media (max-width:600px){.pg-swords{grid-template-columns:1fr}.pg-grid{grid-template-columns:1fr}}
