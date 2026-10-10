@@ -27,7 +27,12 @@ const alpha = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0'
 // ---------- the four engravings, in a 32 x 48 cell space ----------
 function emblem(color) {
   const blade = new Path2D(), hilt = new Path2D(), ridge = new Path2D();
-  hilt.arc(16, 6.3, 2.1, 0, Math.PI * 2); hilt.rect(15, 8, 2, 4.8);           // pommel and grip
+  // pommel in the colour's own shape (the palette's ◇ □ △ ○), so colours read by shape as well as hue
+  if (color === 0) { hilt.moveTo(16, 3.4); hilt.lineTo(19, 6.4); hilt.lineTo(16, 9.4); hilt.lineTo(13, 6.4); hilt.closePath(); }
+  else if (color === 1) hilt.rect(13.6, 4, 4.8, 4.8);
+  else if (color === 2) { hilt.moveTo(16, 3.2); hilt.lineTo(19.2, 8.8); hilt.lineTo(12.8, 8.8); hilt.closePath(); }
+  else hilt.arc(16, 6.3, 2.6, 0, Math.PI * 2);
+  hilt.rect(15, 8.4, 2, 4.4);                                                   // grip
   if (color === 0) {          // leaf blade, rounded bar guard
     hilt.roundRect(9.6, 12.4, 12.8, 2.1, 1);
     blade.moveTo(16, 14.4); blade.bezierCurveTo(20, 18.5, 20.6, 27, 18.7, 33); blade.lineTo(16, 41.8); blade.lineTo(13.3, 33); blade.bezierCurveTo(11.4, 27, 12, 18.5, 16, 14.4); blade.closePath();
@@ -134,13 +139,19 @@ const BREAKER_LOOK = {
 let breakerStyle = 'bold', nightGlow = 1;
 function drawBreakerStyle(g, color, uw, uh, style = 'classic') {
   const L = BREAKER_LOOK[style] || BREAKER_LOOK.classic, r = RAMP[color], e = EMBLEMS[color];
+  // bold: a dim pane of the colour behind the blade, so a breaker's colour reads as an area, not just a thin line
+  if (style === 'bold') { rr(g, 2.5, 2.5, uw - 5, uh - 5, 4.6); g.fillStyle = alpha(r[1], .55); g.fill(); g.strokeStyle = alpha(r[3], .75); g.lineWidth = 1.4; g.stroke(); }
   g.save(); emblemTransform(g, uw, uh, L.scale); g.lineJoin = 'round';
   if (L.ink) { g.strokeStyle = INK; g.lineWidth = L.ink; g.stroke(e.all); }
   g.strokeStyle = r[0]; g.lineWidth = L.edge; g.stroke(e.all);
-  const grad = g.createLinearGradient(11, 0, 21, 0); grad.addColorStop(0, finish === 'matte' ? r[4] : r[5]); grad.addColorStop(.5, finish === 'matte' ? r[3] : r[4]); grad.addColorStop(1, finish === 'shiny' ? r[2] : r[3]);
+  // bold: the colour itself (r[3]) carries the blade, lit from the left and shaded right, so the four hues stay
+  // saturated and apart instead of washing towards white
+  const grad = g.createLinearGradient(11, 0, 21, 0);
+  if (style === 'bold') { grad.addColorStop(0, r[4]); grad.addColorStop(.38, r[3]); grad.addColorStop(1, r[2]); }
+  else { grad.addColorStop(0, finish === 'matte' ? r[4] : r[5]); grad.addColorStop(.5, finish === 'matte' ? r[3] : r[4]); grad.addColorStop(1, finish === 'shiny' ? r[2] : r[3]); }
   g.fillStyle = grad; g.fill(e.all);
-  g.save(); g.clip(e.blade); g.strokeStyle = L.core ? r[5] : finish === 'shiny' ? '#ffffff' : r[5]; g.lineWidth = finish === 'matte' ? L.ridge * .6 : L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
-  g.strokeStyle = alpha(r[5], .9); g.lineWidth = .5; g.stroke(e.all);
+  g.save(); g.clip(e.blade); g.strokeStyle = L.core || style === 'bold' ? r[5] : finish === 'shiny' ? '#ffffff' : r[5]; g.lineWidth = finish === 'matte' || style === 'bold' ? L.ridge * .6 : L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
+  g.strokeStyle = alpha(style === 'bold' ? r[4] : r[5], style === 'bold' ? .6 : .9); g.lineWidth = .5; g.stroke(e.all);
   g.restore();
 }
 function drawBreaker(g, color, uw, uh) { drawBreakerStyle(g, color, uw, uh, 'classic'); }

@@ -66,8 +66,11 @@ const SOUNDS = {
   },
   clear(t, v, chain) {                                           // gem shatter + rising chime per combo stage
     const n = Math.max(1, Math.min(6, chain)), base = 69 + Math.min(12, (n - 1) * 2);
-    hiss(t, {f: 1300, q: 1, peak: .12 * v, d: .07}); hiss(t, {f: 5200, q: .7, peak: .13 * v, d: .2, type: 'highpass', wet: .4});
-    for (let i = 0; i < 4; i++) hiss(t + .015 + i * .022, {f: 3000 + Math.random() * 3500, q: 6, peak: .09 * v, d: .03});
+    // the break itself: a rounded crystal "tok" (a short low body under a glassy ping) and a soft, low-passed crumble,
+    // instead of the bright noise bursts that read as a wet spit
+    thud(t, jit(240, .04), .16 * v, .07); tone(t, jit(hz(base + 12), .01), {type: 'triangle', peak: .07 * v, d: .09, wet: .25});
+    hiss(t + .004, {f: 1800, q: .8, peak: .06 * v, d: .07, type: 'lowpass'});
+    for (let i = 0; i < 3; i++) tone(t + .02 + i * .028, jit(hz(base + 19 + i * 5), .01), {type: 'sine', peak: .03 * v, d: .07, pan: (i - 1) * .3, wet: .4});
     if (n >= 2) { sweep(t + .01, 1800, 6000, .16, .05 * v); metal(t + .05, 1480 + n * 60, .035 * v, .7, .2); }   // a blade leaves for their board
     for (let i = 0; i < n + 1; i++) bell(t + .02 + i * .07, hz(base + PENTA[Math.min(PENTA.length - 1, i * 2)]), .11 * v, 1.0 + n * .1, (i % 2 ? .25 : -.25));
     if (n >= 3) tone(t + .02, hz(45), {type: 'sine', peak: .25 * v, d: .5, wet: .3});
