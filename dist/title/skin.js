@@ -99,12 +99,14 @@ function drawBlock(g, color, kind, uw, uh) {
     g.restore(); return;
   }
   if (kind === 'decay') {      // waking: a grey shell cracking open on the colour beneath, one turn from free
+    // the colour has to read at a glance: the stone is washed with it, the split is wide, and the rim is solid colour
     const sr = STONE; body(g, uw, uh, sr);
-    const crack = new Path2D(); crack.moveTo(uw * .18, 1); crack.lineTo(uw * .62, 1); crack.lineTo(uw * .5, uh * .3); crack.lineTo(uw * .74, uh * .46); crack.lineTo(uw * .46, uh * .7); crack.lineTo(uw * .64, uh - 1);
-    crack.lineTo(uw * .3, uh - 1); crack.lineTo(uw * .4, uh * .74); crack.lineTo(uw * .2, uh * .5); crack.lineTo(uw * .36, uh * .3); crack.closePath();
+    g.save(); rr(g, 1.5, 1.5, uw - 3, uh - 3, 4.4); g.clip(); g.fillStyle = alpha(r[3], .42); g.fillRect(0, 0, uw, uh); g.restore();
+    const crack = new Path2D(); crack.moveTo(uw * .08, 1); crack.lineTo(uw * .78, 1); crack.lineTo(uw * .62, uh * .28); crack.lineTo(uw * .9, uh * .46); crack.lineTo(uw * .6, uh * .72); crack.lineTo(uw * .8, uh - 1);
+    crack.lineTo(uw * .16, uh - 1); crack.lineTo(uw * .3, uh * .74); crack.lineTo(uw * .08, uh * .5); crack.lineTo(uw * .26, uh * .28); crack.closePath();
     g.save(); g.clip(crack); body(g, uw, uh, r); g.save(); emblemTransform(g, uw, uh); engrave(g, EMBLEMS[color], r); g.restore(); g.restore();
     g.lineJoin = 'miter'; g.strokeStyle = r[5]; g.lineWidth = 1.1; g.stroke(crack); g.strokeStyle = STONE[0]; g.lineWidth = .5; g.stroke(crack);
-    rr(g, 1.6, 1.6, uw - 3.2, uh - 3.2, 4.4); g.strokeStyle = r[3]; g.lineWidth = 1.4; g.setLineDash([3, 2.5]); g.stroke(); g.setLineDash([]);
+    rr(g, 1.6, 1.6, uw - 3.2, uh - 3.2, 4.4); g.strokeStyle = r[4]; g.lineWidth = 2.2; g.stroke();
     return;
   }
   g.save(); emblemTransform(g, uw, uh); engrave(g, EMBLEMS[color], r); g.restore();
