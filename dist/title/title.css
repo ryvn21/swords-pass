@@ -218,3 +218,5 @@ body.tt-open{overflow:hidden}
 .tt-who:not(:empty)::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;background:#7ad36a;transform:rotate(45deg);box-shadow:0 0 0 2px #0d0807}
 .tt:not(.tt-entered) .tt-bl{visibility:hidden}
 @media (max-width:600px){.tt-who{display:none}}
+.pg-toast strong b{color:var(--gold);font-size:20px;margin-right:2px}
+.pg-toast strong{font-size:17px!important}

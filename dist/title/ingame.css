@@ -1220,3 +1220,11 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .cm-actions button:not(#_){font-size:13px!important;padding:3px 10px!important}
 .cm-empty{text-align:center;padding:40px 12px;color:#b9a684;font:400 14px var(--tt-ui)}
 @media(max-width:640px){.cm-controls input{width:100%}.cm-head{align-items:stretch}}
+/* unlock cards lead with what you did: "500 strikes survived" big, the number in gold; rank pips for swords of honour */
+.eg-unlock:not(#_){padding:8px 14px 8px 10px;gap:12px}
+.eg-unlock strong:not(#_){font:400 18px var(--tt-ui);color:#f6e7c4;line-height:1.15;margin:2px 0 3px}
+.eg-unlock strong b{font:400 22px var(--tt-ui);color:var(--gold,#f0cf7a);margin-right:2px}
+.eg-unlock span:not(#_){font:400 12px var(--tt-ui);color:#cdb894}
+.pg-pips{display:flex;gap:3px;margin-top:5px}
+.pg-pips u{display:block;width:10px;height:4px;background:#3a2a1a;box-shadow:0 0 0 1px #0d0807}
+.pg-pips u.on{background:var(--gold,#f0cf7a)}

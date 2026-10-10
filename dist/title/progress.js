@@ -158,30 +158,39 @@ let toastHost = null;
 const waiting = [];
 setInterval(() => { if (waiting.length && !globalThis.scrapsInPlay?.()) waiting.splice(0).forEach((args, i) => setTimeout(() => show(...args), i * 450)); }, 700);
 function toast(...args) { if (globalThis.scrapsInPlay?.()) waiting.push(args); else show(...args); }
-function show(canvas, small, title, line) {
+// The card leads with what you did ("500 strikes survived", "Win 3 games in a row"), the number picked out in gold,
+// then what it earned you; a sword of honour shows its five rank pips.
+function body(small, title, line, rank) {
+  const txt = document.createElement('div');
+  if (small) { const e = document.createElement('small'); e.textContent = small; txt.append(e); }
+  if (title) { const e = document.createElement('strong'); const m = /^([\d,.]+)\s+(.*)$/.exec(title);
+    if (m) { const b = document.createElement('b'); b.textContent = m[1]; e.append(b, ' ' + m[2]); } else e.textContent = title; txt.append(e); }
+  if (line) { const e = document.createElement('span'); e.textContent = line; txt.append(e); }
+  if (rank) { const p = document.createElement('i'); p.className = 'pg-pips'; p.setAttribute('aria-label', `Rank ${rank} of ${MAX_RANK}`); for (let r = 1; r <= MAX_RANK; r++) { const d = document.createElement('u'); if (r <= rank) d.className = 'on'; p.append(d); } txt.append(p); }
+  return txt;
+}
+function show(canvas, small, title, line, rank = 0) {
   // an end-of-game card on screen collects them instead (its .eg-unlocks shelf)
   const shelf = [...document.querySelectorAll('.eg-unlocks')].find(e => e.isConnected && e.parentElement?.offsetParent !== null);
   if (shelf) {
     const t = document.createElement('div'); t.className = 'eg-unlock'; canvas.classList.add('eg-unlock-icon');
-    const txt = document.createElement('div'); for (const [tag, v] of [['small', small], ['strong', title], ['span', line]]) if (v) { const e = document.createElement(tag); e.textContent = v; txt.append(e); }
-    t.append(canvas, txt); shelf.append(t); shelf.hidden = false;
+    t.append(canvas, body(small, title, line, rank)); shelf.append(t); shelf.hidden = false;
     try { globalThis.scrapsSfx?.('win', 1, read('preferences', {})); } catch {}
     return;
   }
   if (!toastHost) { toastHost = document.createElement('div'); toastHost.className = 'pg-toasts'; toastHost.setAttribute('role', 'status'); document.body.append(toastHost); }
   const t = document.createElement('div'); t.className = 'pg-toast'; canvas.classList.add('pg-toast-icon');
-  const txt = document.createElement('div'); for (const [tag, v] of [['small', small], ['strong', title], ['span', line]]) if (v) { const e = document.createElement(tag); e.textContent = v; txt.append(e); }
-  t.append(canvas, txt); toastHost.append(t);
+  t.append(canvas, body(small, title, line, rank)); toastHost.append(t);
   try { globalThis.scrapsSfx?.('win', 1, read('preferences', {})); } catch {}
   setTimeout(() => t.classList.add('out'), 4200); setTimeout(() => t.remove(), 4800);
 }
 function check(silent = false) {
   if (!dirty) { const st = read('tally', null); if (st) for (const [k, v] of Object.entries(st)) if (typeof v === 'number' && typeof tally[k] === 'number' && v > tally[k]) tally[k] = v; }
   gather(); const s = evaluate(); let changed = false;
-  for (const a of s.achievements) if (a.done && !prog.earned[a.id]) { prog.earned[a.id] = Date.now(); changed = true; if (!silent) toast(badgeCanvas(a, 2), 'Achievement', a.name, a.reward ? 'Unlocked: ' + REWARDS[a.reward] : a.for); }
+  for (const a of s.achievements) if (a.done && !prog.earned[a.id]) { prog.earned[a.id] = Date.now(); changed = true; if (!silent) toast(badgeCanvas(a, 2), 'Achievement · ' + a.name, a.for, a.reward ? 'Unlocked: ' + REWARDS[a.reward] : ''); }
   // ranks replaced the old 17 tiers: the first time through, take today's ranks quietly
   if (!prog.ranks) { prog.ranks = Object.fromEntries(s.swords.map(w => [w.id, w.rank])); changed = true; }
-  for (const w of s.swords) if ((prog.ranks[w.id] | 0) < w.rank) { if (!silent) toast(swordArt(w, 'pg-toast-icon'), 'Sword of honour', `${w.name} · ${RANKS[w.rank]}`, fmt(w.at[w.rank - 1]) + ' ' + w.counts.toLowerCase()); prog.ranks[w.id] = w.rank; changed = true; }
+  for (const w of s.swords) if ((prog.ranks[w.id] | 0) < w.rank) { if (!silent) toast(swordArt(w, 'pg-toast-icon'), 'Sword of honour · rank up', fmt(w.at[w.rank - 1]) + ' ' + w.counts.toLowerCase(), `${w.name} is now ${RANKS[w.rank]}`, w.rank); prog.ranks[w.id] = w.rank; changed = true; }
   if (changed) save('progress', prog);
   applyStyles(); return s;
 }
