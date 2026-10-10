@@ -78,10 +78,35 @@ function incomingShapes(canvas,p){
  const filled=p.board.reduce((n,r)=>n+r.filter(Boolean).length,0),key=due.map(b=>b.id).join(',')+':'+p.turn+':'+filled,hit=shadowCache.get(canvas);
  if(hit?.key===key)return hit.shapes;
  const shapes=[];
- try{const b=p.board.map(r=>r.map(c=>c&&{...c}));for(const batch of due){const res=applyAttackBatch(b,batch.attacks??[batch]);for(const a of res.hits){if(a.kind==='sprinkle')for(const c of a.placed||[])shapes.push({x:c.x,y:c.y,w:1,h:1,sprinkle:true});else if(a.placement)shapes.push({...a.placement,horizontal:a.kind==='horizontal'&&!a.converted});}}}catch{}
+ try{const b=p.board.map(r=>r.map(c=>c&&{...c}));for(const batch of due){const res=applyAttackBatch(b,batch.attacks??[batch]);for(const a of res.hits){if(a.kind==='sprinkle')for(const c of a.placed||[])shapes.push({x:c.x,y:c.y,w:1,h:1,sprinkle:true});else if(a.placement)shapes.push({...a.placement,horizontal:a.kind==='horizontal'&&!a.converted,area:(a.width||1)*(a.length||1)});}}}catch{}
  shadowCache.set(canvas,{key,shapes});return shapes;
 }
 const SHOW_INCOMING_SHADOWS=false;
+// YPP attack timing (rules.yppAttack): each strike moves at a steady speed in its own slot, one after another; then every
+// column's sprinkles drop together as one stack.
+function drawScheduled(ctx,p,v,hits){
+ const t=v.duration-p.timer;
+ for(const s of v.schedule){const a=hits[s.i],q=a?.placement;if(!q||t<s.start)continue;const k=Math.min(1,(t-s.start)/Math.max(1,s.end-s.start)),side=a.kind==='horizontal'&&!a.converted;
+  const w=q.w*X-2,h=q.h*Y-2,endX=q.x*X+1,endY=(H-q.y-q.h)*Y+1;
+  const x=side?endX+(1-k)*q.w*X*(q.hand===1?1:-1):endX,y=side?endY:endY-(1-k)*(H-q.y)*Y;
+  sword(ctx,x,y,w,h,side,q.hand);}
+ if(t<v.sprinkleStart)return;
+ const e=t-v.sprinkleStart,low=new Map();
+ for(const a of hits)if(a.kind==='sprinkle')for(const c of a.placed||[])low.set(c.x,Math.min(low.get(c.x)??H,c.y));
+ for(const a of hits)if(a.kind==='sprinkle')for(const c of a.placed||[]){const rows=H-low.get(c.x),up=Math.max(0,rows-e/v.rowMs);if(up>=rows)continue;tile(ctx,c.x*X,(H-1-c.y-up)*Y,p.board[c.y][c.x]);}
+}
+// The YPP warning: each incoming strike peeks in at the edge it will come from, blinking (300 ms on, 300 ms off) at 75%.
+// It shows a third of a cell for a small strike (area 6 or less), two-thirds up to 10, a full cell for anything bigger.
+const SHOW_INCOMING_PEEK=true;
+function drawIncomingPeek(ctx,canvas,p,time){
+ if(Math.floor(time/300)%2)return;
+ const shapes=incomingShapes(canvas,p).filter(q=>!q.sprinkle);if(!shapes.length)return;
+ ctx.save();ctx.globalAlpha=.75;ctx.beginPath();ctx.rect(0,0,W*X,H*Y);ctx.clip();
+ for(const q of shapes){const area=q.area??q.w*q.h,peek=area<=6?1/3:area<=10?2/3:1,w=q.w*X-2,h=q.h*Y-2;
+  if(q.horizontal){const x=q.hand===1?W*X-peek*X:peek*X-w;sword(ctx,x,(H-q.y-q.h)*Y+1,w,h,true,q.hand);}
+  else sword(ctx,q.x*X+1,peek*Y-h,w,h,false,1);}
+ ctx.restore();
+}
 function drawIncomingShadow(ctx,canvas,p,time,reduced){
  const shapes=incomingShapes(canvas,p);if(!shapes.length)return;
  const on=reduced?true:Math.floor(time/150)%2===0;ctx.save();
@@ -110,7 +135,9 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
  // Everything moves straight to its resting place (accelerating, no overshoot) and holds there.
  if(incoming){
   S?.ready&&S.attack?.(canvas,incoming,p.timer);
-  const hits=incoming.hits??[incoming.hit],progress=Math.min(1,1-p.timer/incoming.duration),swords=hits.some(a=>a.kind!=='sprinkle'&&a.placement);
+  const hits=incoming.hits??[incoming.hit];
+  if(incoming.schedule){drawScheduled(ctx,p,incoming,hits);}else{
+  const progress=Math.min(1,1-p.timer/incoming.duration),swords=hits.some(a=>a.kind!=='sprinkle'&&a.placement);
   const swordT=swords?Math.min(1,progress/.55):1,sprinkleT=swords?Math.max(0,(progress-.5)/.5):progress;
   const fall=t=>t*t,slide=t=>1-(1-t)**3;
   for(const a of hits){
@@ -120,11 +147,12 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
     const y=horizontal?endY:endY-(1-fall(swordT))*(H*Y+h);
     sword(ctx,x,y,w,h,horizontal,q.hand);
    }
-  }
+  }}
  }
  // Warning: where the next incoming attack will land, as blinking shadows. Off for now (too busy): the
  // warning is sound only. Worked out against the board as it is now, so it can shift with your next pair.
  if(SHOW_INCOMING_SHADOWS&&!incoming&&p.incoming?.length&&!p.dead)drawIncomingShadow(ctx,canvas,p,time,reduced);
+ if(SHOW_INCOMING_PEEK&&!incoming&&p.incoming?.length&&!p.dead)drawIncomingPeek(ctx,canvas,p,time);
  S?.ready&&S.incoming?.(canvas,p.incoming,p.turn);
  if(p.active){
   if(ghost)for(const c of cells(landing(p.board,p.active)))if(c.y<H)tile(ctx,c.x*X,(H-1-c.y)*Y,c.cell,X,.15);

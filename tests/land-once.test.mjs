@@ -5,7 +5,7 @@ import {HOUSE_RULES} from '../dist/handling-profile.js';
 
 // The landing window (Default timings): first touch "bounces" the pair and starts a window of 5 ÷ speed ms
 // (500 ms at the start) that moves never extend; at the end a resting pair locks, one slid off a ledge falls on.
-const rules = {...HOUSE_RULES, speedUp: false, lockMs: 500};   // a long window to test the rules in
+const rules = {...HOUSE_RULES, speedUp: false, lockMs: 500, stallFlips: 2, stallSlow: true, yppRotate: false};   // a long window to test the rules in
 function touch(setup) {
   const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   setup?.(p.board);
@@ -48,7 +48,7 @@ test('stall flips late in a row stretch it at half speed (the last quarter takes
 test('a stall slows the rest of the row (never below half speed) instead of stopping or lifting the pair', async () => {
   const {createMatch, step} = await import('../dist/engine.js');
   const {HOUSE_RULES} = await import('../dist/handling-profile.js');
-  const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0];
+  const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false, stallFlips: 2, stallSlow: true}}), p = m.players[0];
   for (let i = 0; i < 125; i++) step(m, 16);
   const pos = () => p.active.y - p.fall / HOUSE_RULES.gravityMs, y = p.active.y;
   step(m, 16, [{side: 0, action: 'cw'}]); step(m, 16, [{side: 0, action: 'cw'}]);
@@ -58,9 +58,9 @@ test('a stall slows the rest of the row (never below half speed) instead of stop
   assert.ok(m.elapsed - at > 3500 && m.elapsed - at < 4300, 'the rest of the row takes about a full row');
 });
 
-test('the Default timings allow 2 stalls per pair', async () => {
+test('the Default timings: no stall, YPP rotation and YPP attack timing', async () => {
   const {HOUSE_RULES} = await import('../dist/handling-profile.js');
-  assert.equal(HOUSE_RULES.stallFlips, 2); assert.equal(HOUSE_RULES.stallSlow, true); assert.equal(HOUSE_RULES.stallHold, undefined);
+  assert.equal(HOUSE_RULES.stallFlips, 0); assert.equal(HOUSE_RULES.yppRotate, true); assert.equal(HOUSE_RULES.yppAttack, true); assert.equal(HOUSE_RULES.freeSlide, undefined);
 });
 
 test('the NEXT box shows the following pair as soon as a pair appears, except the very first pair of the game', async () => {
@@ -80,7 +80,7 @@ test('flips at the top of the board keep turning the way you press (no surprise 
   for (const [dir, rs] of [['cw', [1, 2, 3, 0, 1]], ['ccw', [3, 2, 1, 0, 3]]]) {
     const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false}}), p = m.players[0]; step(m, 16);
     const seen = [];
-    for (let i = 0; i < 5; i++) { step(m, 16, [{side: 0, action: dir}]); seen.push(p.active.r); assert.ok(cells(p.active).some(c => c.y < 13) || p.active.entering); }
+    for (let i = 0; i < 5; i++) { step(m, 16, [{side: 0, action: dir}]); seen.push(p.active.r); }
     assert.deepEqual(seen, rs, dir);
   }
 });

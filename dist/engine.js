@@ -37,6 +37,29 @@ export function rotate(board,piece,direction,wellFlip=false,topTuck=false){
 }
 // rules.kickLimit (with landOnce): a flip that doesn't fit is nudged one column sideways if that fits; an upright pair can also be popped up one row, at most kickLimit times per pair. Past that, the flip
 // still happens without a kick: an upright pair swaps its colours in place, a flat one turns the other way if that fits.
+// rules.yppRotate: YPP's rotation, exactly. Radial (the pivot never moves). A press tries 90°, then 180°, then 270° in the
+// pressed direction; each orientation is tried in place, then one column right, then one left. Past halfway through a row
+// the spot one row lower must be free too. Turning to point down (partner below) may pop up one row if nothing else
+// fits, at most popsLeft times. Cells above the board are allowed while the top of that column is free.
+const fitsTop=(board,piece)=>cells(piece).every(({x,y})=>x>=0&&x<W&&y>=0&&y<=H+1&&(y>=H?!board[H-1][x]:!board[y][x]));
+export function rotateYPP(board,piece,direction,popsLeft,pastHalf){
+ const ok=q=>fitsTop(board,q)&&(!pastHalf||fitsTop(board,{...q,y:q.y-1}));
+ for(let step=1;step<4;step++){
+  const cand={...piece,r:(piece.r+direction*step+8)%4};
+  for(const dx of [0,1,-1]){const q={...cand,x:cand.x+dx};if(ok(q))return {piece:q,popped:false};}
+  if(cand.r===2&&popsLeft>0){const q={...cand,y:cand.y+1};if(ok(q))return {piece:q,popped:true};}
+ }
+ return null;
+}
+// rules.yppAttack: strikes land one after another at a steady speed (attackMs is a full 13-row fall, so a row takes
+// attackMs/13; sliding in from the side takes 22.5/33 of that a column), then every column's sprinkles drop as one stack.
+export function attackSchedule(hits,attackMs){
+ const rowMs=attackMs/H,colMs=rowMs*22.5/33,segments=[];let t=0;
+ hits.forEach((a,i)=>{if(a.kind==='sprinkle'||!a.placement)return;const q=a.placement,side=a.kind==='horizontal'&&!a.converted,d=Math.max(1,Math.round(side?q.w*colMs:(H-q.y)*rowMs));segments.push({i,start:t,end:t+d});t+=d;});
+ const low=new Map();for(const a of hits)if(a.kind==='sprinkle')for(const c of a.placed||[])low.set(c.x,Math.min(low.get(c.x)??H,c.y));
+ const drop=Math.max(0,...[...low.values()].map(y=>(H-y)*rowMs));
+ return {segments,sprinkleStart:t,rowMs,total:Math.max(1,Math.round(t+drop))};
+}
 export function rotateLimited(board,piece,direction,wellFlip,popsLeft,topTuck=false){
  const next={...piece,r:(piece.r+direction+4)%4},swap={...piece,y:piece.y+dirs[piece.r][1],r:(piece.r+2)%4};
  if(fits(board,next))return {piece:next,popped:false};
@@ -161,7 +184,8 @@ export function command(state,side,action){
  // landOnce: past the halfway point of a row, a sideways move also needs the row below clear (no squeezing under overhangs).
  // rules.freeSlide drops that: a move only needs the row the pair is in; onto a ledge it settles on that row and lands.
  if(next&&state.rules.landOnce&&!state.rules.freeSlide&&(action==='left'||action==='right')&&!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2&&!fits(p.board,{...next,y:next.y-1}))next=null;
- if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0),state.rules.topTuck===true);if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
+ if((action==='ccw'||action==='cw')&&state.rules.yppRotate){const half=!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2,r=rotateYPP(p.board,p.active,action==='cw'?1:-1,(state.rules.kickLimit??2)-(p.kicks??0),half);if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;if(cells(next).every(c=>c.y>=H))next={...next,entering:true};else delete next.entering;}}
+ else if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0),state.rules.topTuck===true);if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
  else if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true,state.rules.topTuck===true);
  else if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true,state.rules.topTuck===true);
  if(!next)return false;
@@ -216,7 +240,9 @@ function enterAttack(state,side,hooks){
  const p=state.players[side],attack=p.readyAttacks.shift();
  if(!attack){p.attackVisual=null;beginSettle(state,side,hooks);return;}
  const before=clone(p.board),result=applyAttackBatch(p.board,attack.attacks??[attack]);
- p.underAttack=true;p.phase='attack';p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,...result,batchId:attack.id,duration:p.timer};
+ p.underAttack=true;p.phase='attack';
+ if(state.rules.yppAttack){const s=attackSchedule(result.hits,state.rules.attackMs);p.timer=s.total;p.attackVisual={before,...result,batchId:attack.id,duration:p.timer,schedule:s.segments,sprinkleStart:s.sprinkleStart,rowMs:s.rowMs};}
+ else{p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,...result,batchId:attack.id,duration:p.timer};}
  
 }
 function beginResolution(state,side,hooks){

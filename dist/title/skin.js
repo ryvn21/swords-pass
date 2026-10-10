@@ -379,9 +379,11 @@ skin.incoming = (cv, list) => {
   if (!MINE.test(cv?.id || '')) return;
   const ids = new Set((list || []).map(b => b.id)), seen = warned.get(cv); warned.set(cv, ids);
   if (!seen) return;                                   // first frame on this board: nothing is new yet
-  let area = 0, fresh = false;
-  for (const b of list || []) { if (seen.has(b.id)) continue; fresh = true; for (const a of b.attacks ?? [b]) area += a.kind === 'sprinkle' ? (a.count | 0) * .5 : (a.width | 0) * (a.length | 0); }
-  if (fresh) globalThis.scrapsSfx?.('warn', area >= 24 ? 4 : area >= 12 ? 3 : area >= 4 ? 2 : 1, sfxPrefs());
+  // YPP: small (area 6 or less), big (under 10), huge; an attack of only sprinkles warns only with 4 or more
+  let area = 0, pebbles = 0, strikes = 0, fresh = false;
+  for (const b of list || []) { if (seen.has(b.id)) continue; fresh = true; for (const a of b.attacks ?? [b]) { if (a.kind === 'sprinkle') pebbles += a.count | 0; else { strikes++; area = Math.max(area, (a.width | 0) * (a.length | 0)); } } }
+  if (!fresh || (!strikes && pebbles < 4)) return;
+  globalThis.scrapsSfx?.('warn', !strikes ? 1 : area <= 6 ? 1 : area < 10 ? 2 : 4, sfxPrefs());
 };
 skin.attack = (cv, incoming, timer) => {
   if (!MINE.test(cv?.id || '') || !incoming) return;
@@ -389,6 +391,19 @@ skin.attack = (cv, incoming, timer) => {
   const dur = (incoming.duration || 320) / 1000, p0 = Math.max(0, Math.min(1, 1 - timer / (incoming.duration || 320))), hits = incoming.hits ?? [incoming.hit];
   const swords = hits.filter(a => a.kind !== 'sprinkle' && a.placement).length, placed = hits.filter(a => a.kind === 'sprinkle').flatMap(a => a.placed || []), prefs = sfxPrefs();
   const at = p => Math.max(0, (p - p0) * dur);
+  // YPP timing: each strike has its own slot; sounds land with it, sprinkle stacks patter after all the strikes
+  if (incoming.schedule) {
+    const ms = (incoming.duration || 1) * p0, sec = t => Math.max(0, (t - ms) / 1000), before = incoming.before;
+    for (const s of incoming.schedule) { const a = hits[s.i], q = a?.placement; if (!q) continue;
+      const side = a.kind === 'horizontal' && !a.converted;
+      if (side && q.hand) globalThis.scrapsSfx?.('slide', q.hand, prefs, sec(s.start));
+      globalThis.scrapsSfx?.('strike', 1, prefs, sec(s.end));
+      let crushed = 0; if (before) for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) if (before[y]?.[x]) crushed++;
+      if (crushed) globalThis.scrapsSfx?.('crush', crushed, prefs, sec(s.end + 10)); }
+    const low = new Map(); for (const c of placed) low.set(c.x, Math.min(low.get(c.x) ?? 13, c.y));
+    for (const y of low.values()) globalThis.scrapsSfx?.('patter', placed.length, prefs, sec(incoming.sprinkleStart + (13 - y) * incoming.rowMs));
+    return;
+  }
   if (swords) globalThis.scrapsSfx?.('strike', swords, prefs, at(.55));
   // side swords scrape in from their edge before they bite
   for (const a of hits) if (a.kind === 'horizontal' && a.placement?.hand && !a.converted) globalThis.scrapsSfx?.('slide', a.placement.hand, prefs, at(0));
