@@ -39,3 +39,14 @@ create table if not exists community_blades (
 );
 create index if not exists community_blades_at on community_blades (at desc);
 alter table community_blades enable row level security;
+
+-- Play vs AI counters, one row per bot (added October 2026). Safe to run again.
+create table if not exists bot_stats (
+  id             text primary key,
+  played         integer not null default 0,
+  player_wins    integer not null default 0,
+  best_chain     integer not null default 0,
+  fastest_win_ms integer not null default 0,
+  total_ms       bigint not null default 0
+);
+alter table bot_stats enable row level security;

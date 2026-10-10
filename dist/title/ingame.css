@@ -1237,3 +1237,14 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .pg-pips u.on{background:var(--gold,#f0cf7a)}
 .rogue-lives{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 10px;color:#e0484a;font-size:18px;letter-spacing:2px}
 .rogue-lives span{font:400 13px var(--tt-ui);color:#cdb894;letter-spacing:0}
+/* Play vs AI: the rival ladder */
+.pm-ladder{display:flex;flex-direction:column;gap:2px;width:min(300px,100%);margin:2px auto 8px;max-height:min(46vh,420px);overflow-y:auto;padding:2px}
+.pm-rung:not(#_){display:grid;grid-template-columns:26px 1fr auto;grid-template-rows:auto auto;column-gap:8px;align-items:center;text-align:left;padding:4px 8px;border-radius:5px;background:#120d0b99;border:1px solid #3a2e24;min-height:0}
+.pm-rung .pm-tier{grid-row:1/3;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#2a201a;border:1px solid #6a5238;font:700 13px var(--tt-ui);color:#e8d7b0}
+.pm-rung b{font:600 15px/1.15 var(--tt-ui);color:#e8dcc4}.pm-rung small{grid-column:2;font:400 12px/1.1 var(--tt-ui);color:var(--muted)}
+.pm-rung em{grid-row:1/3;grid-column:3;font:600 12px var(--tt-ui);font-style:normal;color:#cdb98f}
+.pm-rung.selected:not(#_){border-color:var(--gold);background:#2b1f12cc;box-shadow:0 0 0 1px #f0c86a55}.pm-rung.selected b{color:var(--gold)}
+.pm-rung:hover:not(#_){border-color:#8a6c44}.pm-rung::before,.pm-rung::after{display:none!important}
+.pm-rung.ultra .pm-tier{background:#3a0d14;border-color:#d43838;color:#ffb0a0}.pm-rung.ultra small{color:#ff9d8a}
+.pm-rival{max-width:300px;margin:0 auto 8px;text-align:center}.pm-rival .pm-note{margin:0 0 4px}
+.pm-global{font:400 13px var(--tt-ui);color:#cdb98f;margin:2px 0 0;min-height:1.2em}
