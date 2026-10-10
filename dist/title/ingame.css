@@ -1229,3 +1229,5 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .pg-pips{display:flex;gap:3px;margin-top:5px}
 .pg-pips u{display:block;width:10px;height:4px;background:#3a2a1a;box-shadow:0 0 0 1px #0d0807}
 .pg-pips u.on{background:var(--gold,#f0cf7a)}
+.rogue-lives{display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 10px;color:#e0484a;font-size:18px;letter-spacing:2px}
+.rogue-lives span{font:400 13px var(--tt-ui);color:#cdb894;letter-spacing:0}

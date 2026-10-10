@@ -1,6 +1,6 @@
 import * as climb from './climb-run.js';
 import {climbWave} from './climb-combat.js';
-export {createClimb,choosePath,continueClimb,skipBonus} from './climb-run.js';
+export {createClimb,choosePath,continueClimb,retryClimb,skipBonus} from './climb-run.js';
 /** Pure fixed-tick run state machine. This module has no DOM, storage, audio or wall clock. */
 import * as legacy from './legacy-rogue-run-v1.js';
 import {createRunBot,stepRunBot} from './rogue-bot.js';

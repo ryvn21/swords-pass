@@ -22,13 +22,16 @@ export function climbOffers(eligible,seed,index,depth){
 }
 export const CLIMB_VERSION=1,MAX_ROUND_TICKS=10800,MAX_ROUND_COMMANDS=60000;
 export const CLIMB_INPUTS=Object.freeze(['left','right','cw','ccw','fastOn','fastOff']);
-const CARRY_KEYS=['depth','lastBonusDepth','totalTicks','totalScore','totalBlocks','bestCombo','inventory','recent','results','eventId'];
-const initialCarry=()=>({depth:0,lastBonusDepth:0,totalTicks:0,totalScore:0,totalBlocks:0,bestCombo:0,inventory:{},recent:[],results:[],eventId:0});
+// lives: continues left in the run (3 to start). Saves from before continues existed have none recorded and get 3.
+export const START_LIVES=3;
+const CARRY_KEYS=['depth','lastBonusDepth','totalTicks','totalScore','totalBlocks','bestCombo','inventory','recent','results','eventId','lives'];
+const REQUIRED_KEYS=CARRY_KEYS.filter(k=>k!=='lives');
+const initialCarry=()=>({depth:0,lastBonusDepth:0,totalTicks:0,totalScore:0,totalBlocks:0,bestCombo:0,inventory:{},recent:[],results:[],eventId:0,lives:START_LIVES});
 const emit=(r,type,detail={})=>r.events.push({id:++r.eventId,tick:r.tick,type,...detail});
 function record(r,entry){if(r.commands.length>=MAX_ROUND_COMMANDS)throw Error('This encounter reached its input limit. Export the run before continuing.');r.commands.push({tick:r.tick,...entry});}
 export function validateCarry(c,content){
- if(!c||CARRY_KEYS.some(k=>!Object.hasOwn(c,k)))throw Error('Missing climb checkpoint fields.');
- const out={};for(const k of ['depth','lastBonusDepth','totalTicks','totalScore','totalBlocks','bestCombo','eventId'])out[k]=numberIn(c[k],0,k==='depth'||k==='lastBonusDepth'?999999999:k==='bestCombo'?1000:1e14,'Checkpoint '+k,true);
+ if(!c||REQUIRED_KEYS.some(k=>!Object.hasOwn(c,k)))throw Error('Missing climb checkpoint fields.');
+ const out={lives:c.lives==null?START_LIVES:numberIn(c.lives,0,START_LIVES,'Continues',true)};for(const k of ['depth','lastBonusDepth','totalTicks','totalScore','totalBlocks','bestCombo','eventId'])out[k]=numberIn(c[k],0,k==='depth'||k==='lastBonusDepth'?999999999:k==='bestCombo'?1000:1e14,'Checkpoint '+k,true);
  if(out.lastBonusDepth>out.depth||(out.lastBonusDepth&&!isCheckpoint(content,out.lastBonusDepth)))throw Error('Invalid checkpoint bonus history.');
  if(!c.inventory||typeof c.inventory!=='object'||Array.isArray(c.inventory)||Object.keys(c.inventory).length>32)throw Error('Invalid checkpoint inventory.');
  out.inventory={};for(const [id,rank] of Object.entries(c.inventory)){const u=content.upgrades.find(u=>u.id===id);if(!u)throw Error('Unknown saved upgrade.');Object.defineProperty(out.inventory,id,{value:numberIn(rank,1,u.maxStacks,'Upgrade rank',true),enumerable:true,writable:true,configurable:true});}
@@ -41,7 +44,8 @@ export function validateCarry(c,content){
 }
 function prepare(r){
  // Snapshots contain only completed carry. The live board is always reconstructed.
- r.anchor=Object.fromEntries(CARRY_KEYS.map(k=>[k,clone(r[k])]));r.tick=0;r.commands=[];r.game=null;r.room=null;r.reason=null;r.offers=[];r.lastResult=null;r.events=[];
+ r.anchor=Object.fromEntries(CARRY_KEYS.map(k=>[k,clone(r[k])]));if(r.anchor.lives===START_LIVES)delete r.anchor.lives;   // a full set of continues is the default: older saves stay byte-identical
+ r.lives??=START_LIVES;r.tick=0;r.commands=[];r.game=null;r.room=null;r.reason=null;r.offers=[];r.lastResult=null;r.events=[];
  const bonus=r.depth>0&&isCheckpoint(r.content,r.depth)&&r.lastBonusDepth<r.depth;
  r.paths=bonus?[bonusEncounter(r.content,r.seed,r.depth)]:encounterOffers(r.content,r.seed,r.depth+1,r.recent);
  r.encounter=clone(r.paths[0]);r.phase=r.paths.length===1?'ready':'route';
@@ -95,5 +99,13 @@ export function chooseClimbReward(r,id){
  emit(r,'reward-chosen',{upgradeId:id});prepare(r);
 }
 export function continueClimb(r){if(r.phase!=='result')throw Error('There is no bonus result to continue.');record(r,{type:'continue'});r.events=[];prepare(r);}
+// A continue: the encounter you just lost starts again from the moment before it (score, relics and time as they were),
+// for one of the run's lives. The restart is a fresh checkpoint, so saves stay simple.
+export function retryClimb(r){
+ if(r.phase!=='lost'||!(r.lives>0))throw Error('No continues left.');
+ const enc=r.encounter,lives=r.lives-1;Object.assign(r,clone(r.anchor));r.lives=lives;prepare(r);
+ if(r.phase==='route'&&r.paths.some(p=>p.id===enc.id))choosePath(r,enc.id);
+ emit(r,'run-continued',{lives});
+}
 export function skipBonus(r){if(r.phase!=='ready'||!r.encounter.bonus)throw Error('Only a bonus briefing can be skipped.');record(r,{type:'skip'});r.events=[];finish(r,false,'skipped');}
 export function abandonClimb(r){if(['lost','abandoned'].includes(r.phase))return false;record(r,{type:'abandon'});r.events=[];r.phase='abandoned';r.reason='abandoned';emit(r,'run-abandoned');return true;}
