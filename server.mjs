@@ -11,6 +11,7 @@ import {createRelay} from './server/relay.mjs';
 import {createPresence} from './server/presence.mjs';
 const presence = createPresence();
 import {createScores} from './server/scores.mjs';
+import {createCommunity} from './server/community.mjs';
 
 const root = resolve('dist');
 const mime = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json',
@@ -52,6 +53,27 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(200, head); res.end(JSON.stringify(presence.counts())); return;
   }
+  // community blades: GET lists them; POST shares one; POST /use counts a copy; POST /remove takes your own down
+  if (url.pathname === '/api/community' || url.pathname === '/api/community/use' || url.pathname === '/api/community/remove') {
+    const head = {'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'};
+    if (req.method === 'OPTIONS') { res.writeHead(204, head).end(); return; }
+    await community.ready;
+    if (req.method === 'GET') { res.writeHead(200, head); res.end(JSON.stringify(community.list({sort: url.searchParams.get('sort') || 'new'}))); return; }
+    if (req.method !== 'POST') { res.writeHead(405, head).end(); return; }
+    let body = ''; req.setEncoding('utf8');
+    req.on('data', d => { body += d; if (body.length > 2000) req.destroy(); });
+    req.on('end', () => {
+      let out = {ok: false, error: 'Something went wrong.'};
+      try {
+        const m = JSON.parse(body), address = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '?').split(',')[0].trim();
+        if (url.pathname.endsWith('/use')) out = {ok: community.use(String(m.id))};
+        else if (url.pathname.endsWith('/remove')) out = {ok: community.remove(String(m.id), String(m.pid || ''))};
+        else out = community.share(m, address);
+      } catch {}
+      res.writeHead(200, head); res.end(JSON.stringify(out));
+    });
+    return;
+  }
   if (url.pathname === '/build.json') { res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}); res.end(JSON.stringify({build: BUILD})); return; }
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
@@ -73,6 +95,7 @@ const server = http.createServer(async (req, res) => {
 // Online play. A few connections per address is plenty for real players and keeps one visitor from filling the server.
 // Results and ratings: saved to Supabase when SUPABASE_URL / SUPABASE_SERVICE_KEY are set (see server/supabase.sql).
 const scores = createScores({log: (...a) => console.error(...a)});
+const community = createCommunity({log: (...a) => console.error(...a)});
 const relay = createRelay({build: BUILD, scores, log: (...a) => console.error(...a)});
 const perAddress = new Map(), MAX_PER_ADDRESS = 12, MAX_TOTAL = 2000;
 const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);

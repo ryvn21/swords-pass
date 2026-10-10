@@ -25,3 +25,17 @@ create index if not exists results_at on results (at desc);
 
 alter table players enable row level security;
 alter table results enable row level security;
+
+-- Community blades shared from the Forge (added October 2026). Safe to run again.
+create table if not exists community_blades (
+  id        text primary key,
+  name      text not null,
+  icon_id   text not null default 'custom',
+  rows      jsonb not null,
+  author    text not null,
+  author_id text not null,
+  at        timestamptz not null default now(),
+  uses      integer not null default 0
+);
+create index if not exists community_blades_at on community_blades (at desc);
+alter table community_blades enable row level security;

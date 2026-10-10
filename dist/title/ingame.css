@@ -1198,3 +1198,25 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .pt-sprinkles button:not(#_){font-size:12px!important;padding:2px 7px!important}
 .pt-sprinkles button:not(#_)::before,.pt-sprinkles button:not(#_)::after{display:none!important}
 .strike-tools #pt-show:not(#_){flex-basis:100%;max-width:max-content;margin:0 auto 2px}
+/* Forge tabs and the Community blades shelf */
+.fg-tabs{display:flex;gap:6px;justify-content:center;margin:0 auto 16px;max-width:960px}
+.fg-tabs button:not(#_){font:400 15px var(--tt-ui)!important;padding:6px 18px!important;color:#b9a684!important;border-bottom:2px solid transparent!important}
+.fg-tabs button.on:not(#_){color:var(--gold,#d8b47a)!important;border-bottom-color:var(--gold,#d8b47a)!important}
+.fg-share{display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 0;font:400 13px var(--tt-ui);color:#b9a684}
+.cm-shelf{max-width:1000px;margin:0 auto}
+.cm-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;align-items:flex-end;margin-bottom:16px}
+.cm-head .eyebrow{margin:0 0 4px}.cm-head .fine-print{margin:0;max-width:440px}
+.cm-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cm-controls input{width:220px;max-width:100%}
+.cm-controls .segmented button.on:not(#_){color:var(--gold,#d8b47a)!important}
+.cm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.cm-card{display:grid;grid-template-columns:44px 1fr;gap:6px 12px;padding:12px;background:#0000003a;border:1px solid #6b4a2a88}
+.cm-art .sword-icon{width:36px;height:72px;display:block}
+.cm-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cm-body strong{font:400 16px var(--tt-ui);color:#f3e2bd;overflow-wrap:anywhere}
+.cm-body small{font:400 12px var(--tt-ui);color:#b9a684}
+.cm-body .pattern-thumb{width:72px;margin:4px 0}
+.cm-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.cm-actions button:not(#_){font-size:13px!important;padding:3px 10px!important}
+.cm-empty{text-align:center;padding:40px 12px;color:#b9a684;font:400 14px var(--tt-ui)}
+@media(max-width:640px){.cm-controls input{width:100%}.cm-head{align-items:stretch}}
