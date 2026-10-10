@@ -1010,9 +1010,9 @@ body[data-scene=adv] .adv-banner:not(.adv-bonus-banner) strong{font-size:32px}
 .goal-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--crimson-lit,#a32a2a),var(--gold));transition:width .3s steps(6)}
 .rogue-hud2:not(#_){grid-template-columns:1fr 1fr!important}
 .rogue-hint{max-width:520px;font:400 15px/1.45 var(--tt-ui);color:#e8d8b4;text-shadow:var(--px-o1)}
-.goal-pop{position:absolute;left:0;right:0;top:22%;z-index:5;text-align:center;pointer-events:none;opacity:0;font:700 20px/1.2 var(--tt-ui);color:#fff3c8;text-shadow:0 3px 0 #7a4a10,var(--px-outline),0 0 14px #ffd75e66;white-space:nowrap}
+.goal-pop{position:absolute;left:0;right:0;top:22%;z-index:5;text-align:center;pointer-events:none;opacity:0;font:700 20px/1.2 var(--tt-ui);color:#fff3c8;text-shadow:0 3px 0 #7a4a10,var(--px-outline),0 0 14px #ffd75e66;white-space:normal;padding:0 6px;overflow-wrap:break-word;text-wrap:balance}
 .goal-pop.show{animation:goal-pop 1.5s steps(10) both}
-.goal-pop.big{font-size:26px;color:#ffe9b0;animation-duration:2.2s}
+.goal-pop.big{font-size:22px;color:#ffe9b0;animation-duration:2.2s}
 @keyframes goal-pop{0%{opacity:0;transform:translateY(10px) scale(.9)}12%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0;transform:translateY(-12px)}}
 @media(prefers-reduced-motion:reduce){.goal-pop.show{animation:none;opacity:1}}
 .ol-end .eg-blade .sword-icon:not(#_){width:46px;height:92px}
