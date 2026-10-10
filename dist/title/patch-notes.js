@@ -8,6 +8,14 @@ const board = (h, label) => `<span class="pn-board" style="--h:${h}"><b>${label}
 
 const NOTES = [
   {date: '10 October 2026', title: 'The Forge, shared', items: [
+    {head: 'Adventure: three lives', text: 'A run now has three lives. Lose an encounter and you can retry it from where it started, and the end screen says what beat you in that encounter’s own terms.',
+      art: `<span class="pn-big">&#9829;&#9829;&#9829;</span>`},
+    {head: 'Clearer breakers', text: 'Breakers are a shade deeper and less washed out, and each colour’s pommel now shows its shape: red ◇, yellow ○, green △, blue □. Yellow carries the broadsword, blue the rapier.',
+      art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c, true)).join('')}</span>`},
+    {head: 'Softer breaks', text: 'Breaking pieces sounds rounder and heavier, without the sharp hiss.',
+      art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c)).join('')}</span>`},
+    {head: 'Fixes', text: '“Objective complete” no longer gets cut off on narrow boards.',
+      art: `<span class="pn-big">✓</span>`},
     {head: 'Community blades', text: 'Share a blade you forged and anyone can add it to their own rack or open it in the Forge to make it theirs. Browse the newest or the most copied, or search by name or maker.',
       art: `<span class="pn-row"><img src="${icon('duel')}" alt=""></span>`},
     {head: 'Forging made simple', text: 'Three steps: paint the pattern, name it and pick its look from the blade pictures, save. Small icons beside the grid show which rows colour your strikes and your sprinkles.',
