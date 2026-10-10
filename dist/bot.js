@@ -67,7 +67,8 @@ export function potential(board, s) {
   let best = 0;
   for (let x = 0; x < W; x++) {
     let y = 0; while (y < H && board[y][x]) y++; if (y >= H - 1) continue;
-    for (let c = 0; c < 4; c++) {
+    const near = new Set([board[y - 1]?.[x], board[y][x - 1], board[y][x + 1]].filter(c => c && !c.stage).map(c => c.color));   // only colours it would touch
+    for (const c of near) {
       const b = clone(board); b[y][x] = {color: c, breaker: true, stage: 0}; const atk = resolve(b);
       if (atk.length) best = Math.max(best, power(atk, s));
     }
@@ -123,7 +124,7 @@ export function decide(bot, {board, active, nextPair, incoming = [], rules = {},
   if (!opts.length) return null;
   opts.sort((a, b) => b.score - a.score);
   if (T.depth > 1 && nextPair) {
-    const top = opts.slice(0, T.beam), ctx2 = {...ctx, incoming: null};
+    const top = opts.slice(0, T.beam), ctx2 = {...ctx, o: {...o, lookCombo: false}, incoming: null};   // the second pair: shape and what it sends only (the first already weighed the combo waiting)
     for (const c of top) { if (c.score < -9e5) continue; let best = -1e6;
       for (const n of reach(c.board, {x: 3, y: H, r: 0, entering: true, pair: nextPair}, rules)) { const sim = settle(c.board, n.piece); best = Math.max(best, judge(sim.board, sim.attacks, ctx2)); }
       c.score = c.score * .45 + best * .55 + power(c.attacks, s) * o.attack * .25; }
