@@ -84,3 +84,18 @@ test('flips at the top of the board keep turning the way you press (no surprise 
     assert.deepEqual(seen, rs, dir);
   }
 });
+
+test('freeSlide: past half a row a pair can still slide onto a ledge level with its row, and lands there', async () => {
+  const {createMatch, step, command, block} = await import('../dist/engine.js');
+  const {HOUSE_RULES} = await import('../dist/handling-profile.js');
+  for (const free of [true, false]) {
+    const m = createMatch({mode: 'practice', seed: 3, rules: {...HOUSE_RULES, speedUp: false, freeSlide: free}}), p = m.players[0];
+    let g = 0; while (!(p.phase === 'fall' && p.active && !p.active.entering) && g++ < 2000) step(m, 16);
+    command(m, 0, 'cw');                                   // flat: (3,y) and (4,y)
+    const y = p.active.y; for (let x = 0; x < 6; x++) if (x !== 3 && x !== 4) for (let r = 0; r < y; r++) p.board[r][x] = block(0);
+    step(m, 3000);                                         // well past half the row (4 s rows)
+    const ok = command(m, 0, 'left');
+    assert.equal(ok, free, free ? 'allowed with freeSlide' : 'refused without it');
+    if (free) { step(m, 16); assert.equal(p.active.y, y); assert.ok(p.bouncing); }
+  }
+});

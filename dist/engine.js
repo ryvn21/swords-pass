@@ -158,8 +158,9 @@ export function command(state,side,action){
  let next;
  if(action==='left')next=move(p.board,p.active,-1,0);
  if(action==='right')next=move(p.board,p.active,1,0);
- // landOnce: past the halfway point of a row, a sideways move also needs the row below clear (no squeezing under overhangs)
- if(next&&state.rules.landOnce&&(action==='left'||action==='right')&&!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2&&!fits(p.board,{...next,y:next.y-1}))next=null;
+ // landOnce: past the halfway point of a row, a sideways move also needs the row below clear (no squeezing under overhangs).
+ // rules.freeSlide drops that: a move only needs the row the pair is in; onto a ledge it settles on that row and lands.
+ if(next&&state.rules.landOnce&&!state.rules.freeSlide&&(action==='left'||action==='right')&&!p.bouncing&&p.fall>(p.fast?state.rules.fastFallMs:gravOf(state,p))/2&&!fits(p.board,{...next,y:next.y-1}))next=null;
  if((action==='ccw'||action==='cw')&&state.rules.kickLimit!=null){const r=rotateLimited(p.board,p.active,action==='cw'?1:-1,state.rules.wellFlip===true,state.rules.kickLimit-(p.kicks??0),state.rules.topTuck===true);if(r){next=r.piece;if(r.popped)p.kicks=(p.kicks??0)+1;}}
  else if(action==='ccw')next=rotate(p.board,p.active,-1,state.rules.wellFlip===true,state.rules.topTuck===true);
  else if(action==='cw')next=rotate(p.board,p.active,1,state.rules.wellFlip===true,state.rules.topTuck===true);

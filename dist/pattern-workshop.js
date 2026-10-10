@@ -13,7 +13,9 @@ const ICONS=[{id:'custom',name:'Plain'},...PATTERNS.filter(p=>p.id!=='custom')];
 const STRIKE_GLYPH='<svg class="fg-glyph" viewBox="0 0 8 16" aria-hidden="true"><path d="M4 0 6 3V11H2V3Z" fill="#dfe6ea"/><path d="M1 11H7V12H1ZM3.5 12H4.5V15H3.5Z" fill="#d8b47a"/></svg>';
 const SPRINKLE_GLYPH='<svg class="fg-glyph" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="6" width="4" height="4" fill="#d8b47a"/><rect x="7" y="2" width="4" height="4" fill="#d8b47a"/><rect x="6" y="8" width="3" height="3" fill="#a88a5a"/></svg>';
 // Test strikes: what a rival receives from this pattern, dropped where you choose
-const STRIKES=[{label:'1×4',kind:'vertical',width:1,length:4},{label:'2×4',kind:'vertical',width:2,length:4},{label:'2×6',kind:'vertical',width:2,length:6},{label:'3×4',kind:'vertical',width:3,length:4},{label:'Wide 2×4',kind:'horizontal',width:2,length:4},{label:'Sprinkles',kind:'sprinkle',count:6}];
+const STRIKES=[{label:'1×4',kind:'vertical',width:1,length:4},{label:'2×4',kind:'vertical',width:2,length:4},{label:'2×6',kind:'vertical',width:2,length:6},{label:'2×8',kind:'vertical',width:2,length:8},{label:'Dual 2×13',kind:'vertical',width:2,length:13,dual:true,title:'Two full-height swords'},{label:'Side 6×2',kind:'horizontal',width:2,length:6,title:'A sword from the side, across the board'}];
+// Show it off: a short, typical exchange (swords with sprinkles attached), then the swords crack into blocks
+const SHOWCASE=[[1,0,1],[0,4,0],[2,1,1],[5,0,0],[0,4,1]];   // [strike, column, sprinkle rows]
 // 2×2 same-colour squares on a board: places the receiver can turn your attack into a gem
 function gemReady(b){let n=0;for(let y=0;y+1<H;y++)for(let x=0;x+1<W;x++){const c=b[y][x];if(!c)continue;const k=c.color;if(b[y][x+1]?.color===k&&b[y+1][x]?.color===k&&b[y+1][x+1]?.color===k)n++;}return n;}
 export function createPatternWorkshop({getLibrary,getPatterns,persist,equip,selected,notify,download}){
@@ -41,10 +43,10 @@ export function createPatternWorkshop({getLibrary,getPatterns,persist,equip,sele
  <div class="fg-icons" role="radiogroup" aria-label="Blade icon">${ICONS.map(p=>`<button role="radio" data-icon="${esc(p.id)}" class="${draft.iconId===p.id?'on':''}" aria-checked="${draft.iconId===p.id}" title="${esc(p.name)}">${swordIcon(p.id)}</button>`).join('')}</div></div>
  <div class="fg-step"><p class="fg-step-head"><b>3</b>Save it</p><div class="editor-actions"><button class="primary" id="save-pattern">${isCustom?'Save changes & equip':'Save & equip'}</button><button id="equip-pattern" ${!draft.id||changed?'disabled':''}>Equip</button></div></div>
  <div class="editor-tools fg-more"><button id="duplicate-pattern">Duplicate</button><button class="danger" id="delete-pattern" ${!draft.id?'disabled':''}>Delete</button><details class="rogue-more pattern-more"><summary>More</summary><div class="rogue-more-menu"><button id="export-pattern">Export patterns</button><button id="import-pattern">Import patterns</button></div></details></div><input id="pattern-file" type="file" accept=".json,application/json" hidden></section>
- <aside class="panel pattern-test"><p class="eyebrow">TEST IT</p><p class="fine-print">Pick a strike, then click a column to drop it. Strikes come in this pattern's colours.</p>
-  <div class="strike-picks">${STRIKES.map((t,i)=>`<button data-strike="${i}" class="${i===armed?'on':''}" aria-pressed="${i===armed}">${t.label}</button>`).join('')}</div>
+ <aside class="panel pattern-test"><p class="eyebrow">TEST IT</p><p class="fine-print">Pick a strike and click a column, or watch it in action.</p>
+  <div class="strike-picks">${STRIKES.map((t,i)=>`<button data-strike="${i}" class="${i===armed?'on':''}" aria-pressed="${i===armed}"${t.title?` title="${t.title}"`:''}>${t.label}</button>`).join('')}</div><div class="pt-sprinkles"><span>Sprinkle rows</span>${[1,2,3,4].map(n=>`<button data-sprinkle="${n}" title="Drop ${n} row${n>1?'s':''} of sprinkles" aria-label="Drop ${n} row${n>1?'s':''} of sprinkles">${n}</button>`).join('')}</div>
   <div class="pt-wrap"><div class="pt-frame"><canvas id="pt-board" role="img" aria-label="Test board"></canvas><div class="pt-cols">${Array.from({length:W},(_,x)=>`<button data-col="${x}" aria-label="Drop in column ${x+1}"></button>`).join('')}</div></div></div>
-  <div class="strike-tools"><button id="pt-volley">Random volley</button><button id="pt-crack" title="Turn the landed swords into the coloured blocks your rival will play with">Crack them</button><button id="pt-clear" class="fb-clear">Clear</button></div>
+  <div class="strike-tools"><button id="pt-show" class="primary">Show it off</button><button id="pt-volley">Random volley</button><button id="pt-crack" title="Turn the landed swords into the coloured blocks your rival will play with">Crack them</button><button id="pt-clear" class="fb-clear">Clear</button></div>
   <p class="pt-read" id="pt-read">${testNote||'Drop a few strikes, then see how many gems your rival could make from them.'}</p></aside></div>`;
  const $=s=>host.querySelector(s),$$=s=>[...host.querySelectorAll(s)];
  $('#new-pattern').onclick=newPattern;
@@ -67,13 +69,24 @@ export function createPatternWorkshop({getLibrary,getPatterns,persist,equip,sele
  $('#restore-patterns')?.addEventListener('click',()=>{if(persist({...getLibrary(),hidden:[]}))render();});
  $('#export-pattern').onclick=()=>download({name:draft.name,rows:draft.rows,iconId:draft.iconId},'swords-pass-pattern.json');
  $('#import-pattern').onclick=()=>$('#pattern-file').click();
- for(const b of $$('[data-strike]'))b.onclick=()=>{armed=Number(b.dataset.strike);render();};
- const strike=(t,x)=>{const a=t.kind==='sprinkle'?{kind:'sprinkle',count:t.count,hand:x<3?-1:1,id:++strikeNo}:{kind:t.kind,width:t.width,length:t.length,index:x-1,hand:1,id:++strikeNo,stage:1};if(a.kind==='horizontal')a.base=horizontalBase(testBoard,a.width);return applyAttack(testBoard,a,draft.rows);};
+ for(const b of $$('[data-strike]'))b.onclick=()=>{showing++;armed=Number(b.dataset.strike);render();};
+ const one=(t,x,board=testBoard)=>{const a={kind:t.kind,width:t.width,length:t.length,index:x-1,hand:x<3?-1:1,id:++strikeNo,stage:1};if(a.kind==='horizontal')a.base=horizontalBase(board,a.width);return applyAttack(board,a,draft.rows);};
+ // a dual drops a second identical sword on the other side of the board
+ const strike=(t,x,board=testBoard)=>{const hits=[one(t,x,board)];if(t.dual)hits.push(one(t,x<3?4:0,board));return hits;};
+ const sprinkle=(rows,board=testBoard)=>applyAttack(board,{kind:'sprinkle',count:rows*W,hand:strikeNo%2?1:-1,id:++strikeNo},draft.rows);
+ // Show it off: animate each strike landing (swords, then their sprinkles), then crack them
+ let showing=0;
+ const showcase=()=>{const run=++showing;testBoard=grid();testNote='';render();const steps=SHOWCASE.map(([i,x,r])=>[STRIKES[i],Math.max(0,Math.min(W-1,x+(Math.random()<.5?0:1))),Math.max(0,r+(Math.random()<.2?1:0))]);
+  const dur=550,wait=350,frame=(k,start)=>now=>{if(run!==showing||!host?.isConnected)return;const cv=host.querySelector('#pt-board');if(!cv)return;const v=steps[k]?.vis;if(!v){return;}const t=Math.min(dur,now-start);drawBoard(cv,{board:testBoard,active:null,phase:'attack',attackVisual:v,timer:dur-t,motion:[],stats:{pieces:0},incoming:[]},{time:now});if(t<dur)requestAnimationFrame(frame(k,start));else setTimeout(()=>next(k+1),wait);};
+  const next=k=>{if(run!==showing||!host?.isConnected)return;if(k>=steps.length){setTimeout(()=>{if(run!==showing)return;for(let i=0;i<3;i++)decay(testBoard);read();showing++;render();},500);return;}const [t,x,r]=steps[k],before=testBoard.map(row=>row.map(c=>c&&{...c})),hits=strike(t,x);if(r)hits.push(sprinkle(r));steps[k].vis={before,hits,duration:dur};requestAnimationFrame(now=>frame(k,now)(now));};
+  next(0);};
  const read=()=>{const cells=testBoard.flat().filter(Boolean),locked=cells.some(c=>c.stage),n=gemReady(testBoard);testNote=!cells.length?'':locked?`${cells.length} blocks landed. Press Crack them to see the colours your rival gets.`:`${n} gem-ready square${n===1?'':'s'} for your rival in ${cells.length} blocks${n?'':' · nothing to build on'}. Fewer is a stronger blade.`;};
- for(const b of $$('[data-col]'))b.onclick=()=>{strike(STRIKES[armed],Number(b.dataset.col));read();render();};
- $('#pt-volley').onclick=()=>{for(let i=0;i<4;i++)strike(STRIKES[Math.floor(Math.random()*STRIKES.length)],Math.floor(Math.random()*W));read();render();};
- $('#pt-crack').onclick=()=>{for(let i=0;i<3;i++)decay(testBoard);read();render();};
- $('#pt-clear').onclick=()=>{testBoard=grid();testNote='';render();};
+ for(const b of $$('[data-col]'))b.onclick=()=>{showing++;strike(STRIKES[armed],Number(b.dataset.col));read();render();};
+ for(const b of $$('[data-sprinkle]'))b.onclick=()=>{showing++;sprinkle(Number(b.dataset.sprinkle));read();render();};
+ $('#pt-show').onclick=showcase;
+ $('#pt-volley').onclick=()=>{showing++;for(let i=0;i<4;i++){strike(STRIKES[Math.floor(Math.random()*4)],Math.floor(Math.random()*W));if(Math.random()<.5)sprinkle(1);}read();render();};
+ $('#pt-crack').onclick=()=>{showing++;for(let i=0;i<3;i++)decay(testBoard);read();render();};
+ $('#pt-clear').onclick=()=>{showing++;testBoard=grid();testNote='';render();};
  drawBoard($('#pt-board'),{board:testBoard,active:null,phase:'entry',timer:0,motion:[],stats:{pieces:0}},{});
  $('#pattern-file').onchange=async e=>{try{const f=e.target.files[0];if(!f||f.size>10000)throw Error('Choose a small pattern JSON file.');const p=JSON.parse(await f.text());if(!validatePattern(p.rows))throw Error('A pattern needs 3–6 rows of six colours (0–3).');if(!canLeave())return;choose({id:null,name:String(p.name??'Imported pattern').slice(0,32),rows:p.rows,iconId:PATTERNS.some(s=>s.id===p.iconId)?p.iconId:'custom'});render();notify('Imported. Save to add it to your library.');}catch(error){notify(error.message);}};
  }

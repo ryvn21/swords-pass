@@ -1193,3 +1193,8 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .fg-icons button:hover{border-color:#d8b47a66}
 .fg-icons button.on{border:2px solid var(--gold,#d8b47a);background:#d8b47a1f}
 .fg-more{border-top:1px solid #6b4a2a66;margin-top:12px;padding-top:10px}
+.pt-sprinkles{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:-4px 0 10px;font:400 12px var(--tt-ui);color:#b9a684}
+.pt-sprinkles span{margin-right:2px}
+.pt-sprinkles button:not(#_){font-size:12px!important;padding:2px 7px!important}
+.pt-sprinkles button:not(#_)::before,.pt-sprinkles button:not(#_)::after{display:none!important}
+.strike-tools #pt-show:not(#_){flex-basis:100%;max-width:max-content;margin:0 auto 2px}
