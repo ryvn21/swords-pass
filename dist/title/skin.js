@@ -29,11 +29,11 @@ function emblem(colour) {
   const color = colour === 1 ? 3 : colour === 3 ? 1 : colour;   // yellow takes the broadsword and circle, blue the rapier and square
   const blade = new Path2D(), hilt = new Path2D(), ridge = new Path2D();
   // pommel in the colour's own shape (the palette's ◇ □ △ ○), so colours read by shape as well as hue
-  if (color === 0) { hilt.moveTo(16, 3.4); hilt.lineTo(19, 6.4); hilt.lineTo(16, 9.4); hilt.lineTo(13, 6.4); hilt.closePath(); }
-  else if (color === 1) hilt.rect(13.6, 4, 4.8, 4.8);
-  else if (color === 2) { hilt.moveTo(16, 3.2); hilt.lineTo(19.2, 8.8); hilt.lineTo(12.8, 8.8); hilt.closePath(); }
-  else hilt.arc(16, 6.3, 2.6, 0, Math.PI * 2);
-  hilt.rect(15, 8.4, 2, 4.4);                                                   // grip
+  if (color === 0) { hilt.moveTo(16, 2.4); hilt.lineTo(19.8, 6.4); hilt.lineTo(16, 10.4); hilt.lineTo(12.2, 6.4); hilt.closePath(); }
+  else if (color === 1) hilt.rect(13, 3.4, 6, 6);
+  else if (color === 2) { hilt.moveTo(16, 2.4); hilt.lineTo(20.2, 9.8); hilt.lineTo(11.8, 9.8); hilt.closePath(); }
+  else hilt.arc(16, 6.4, 3.3, 0, Math.PI * 2);
+  hilt.rect(15, 9.4, 2, 3.4);                                                   // grip
   if (color === 0) {          // leaf blade, rounded bar guard
     hilt.roundRect(9.6, 12.4, 12.8, 2.1, 1);
     blade.moveTo(16, 14.4); blade.bezierCurveTo(20, 18.5, 20.6, 27, 18.7, 33); blade.lineTo(16, 41.8); blade.lineTo(13.3, 33); blade.bezierCurveTo(11.4, 27, 12, 18.5, 16, 14.4); blade.closePath();
@@ -64,7 +64,7 @@ function engrave(g, e, r, {floor = r[1], wall = r[0], lip = r[5], lipA = .85, ri
   g.save(); g.clip(e.all); g.translate(.7, .8); g.fillStyle = floor; g.fill(e.all); g.restore();
   g.save(); g.clip(e.blade); g.strokeStyle = alpha(ridge, .55); g.lineWidth = .7; g.stroke(e.ridge); g.restore();
 }
-function emblemTransform(g, uw, uh, s = .9) { const k = Math.min(uw / 32, uh / 48) * s; g.translate(uw / 2, uh / 2); g.scale(k, k); g.translate(-16, -24); }
+function emblemTransform(g, uw, uh, s = .9, sy = s, cy = 24) { const k = Math.min(uw / 32, uh / 48); g.translate(uw / 2, uh / 2); g.scale(k * s, k * sy); g.translate(-16, -cy); }
 
 // ---------- tiles ----------
 // body: outline, vertical light, bevelled rim, recessed plate
@@ -134,25 +134,23 @@ export const BREAKER_STYLES = ['classic', 'steady', 'bold', 'ember'];
 const BREAKER_LOOK = {
   classic: {scale: 1.12, ink: 0, edge: 2.2, ridge: 1.1, glow: {a: .2, amp: .16, r: .9, speed: 2.6}},
   steady: {scale: 1.22, ink: 2.6, edge: 1.6, ridge: 1.2, glow: {a: .1, amp: 0, r: .62, speed: 0}},
-  bold: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 1.5, glow: {a: .07, amp: .05, r: .66, speed: 1.1}},
+  bold: {scale: 1.3, scaleY: 1.06, cy: 22.4, ink: 3.4, edge: 1.8, ridge: 1.5, glow: {a: .07, amp: .05, r: .66, speed: 1.1}},
   ember: {scale: 1.34, ink: 3.4, edge: 1.8, ridge: 2.2, core: true, glow: null},
 };
 let breakerStyle = 'bold', nightGlow = 1;
 function drawBreakerStyle(g, color, uw, uh, style = 'classic') {
   const L = BREAKER_LOOK[style] || BREAKER_LOOK.classic, r = RAMP[color], e = EMBLEMS[color];
-  // bold: a dim pane of the colour behind the blade, so a breaker's colour reads as an area, not just a thin line
-  if (style === 'bold') { rr(g, 2.5, 2.5, uw - 5, uh - 5, 4.6); g.fillStyle = alpha(r[1], .55); g.fill(); g.strokeStyle = alpha(r[3], .75); g.lineWidth = 1.4; g.stroke(); }
-  g.save(); emblemTransform(g, uw, uh, L.scale); g.lineJoin = 'round';
+  g.save(); emblemTransform(g, uw, uh, L.scale, L.scaleY, L.cy); g.lineJoin = 'round';   // bold: a little squat so the whole hilt and pommel fit
   if (L.ink) { g.strokeStyle = INK; g.lineWidth = L.ink; g.stroke(e.all); }
   g.strokeStyle = r[0]; g.lineWidth = L.edge; g.stroke(e.all);
   // bold: the colour itself (r[3]) carries the blade, lit from the left and shaded right, so the four hues stay
   // saturated and apart instead of washing towards white
   const grad = g.createLinearGradient(11, 0, 21, 0);
-  if (style === 'bold') { grad.addColorStop(0, r[4]); grad.addColorStop(.38, r[3]); grad.addColorStop(1, r[2]); }
+  if (style === 'bold') { grad.addColorStop(0, r[4]); grad.addColorStop(.45, r[3]); grad.addColorStop(1, r[2]); }
   else { grad.addColorStop(0, finish === 'matte' ? r[4] : r[5]); grad.addColorStop(.5, finish === 'matte' ? r[3] : r[4]); grad.addColorStop(1, finish === 'shiny' ? r[2] : r[3]); }
   g.fillStyle = grad; g.fill(e.all);
-  g.save(); g.clip(e.blade); g.strokeStyle = L.core || style === 'bold' ? r[5] : finish === 'shiny' ? '#ffffff' : r[5]; g.lineWidth = finish === 'matte' || style === 'bold' ? L.ridge * .6 : L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
-  g.strokeStyle = alpha(style === 'bold' ? r[4] : r[5], style === 'bold' ? .6 : .9); g.lineWidth = .5; g.stroke(e.all);
+  g.save(); g.clip(e.blade); g.strokeStyle = L.core || style === 'bold' ? r[5] : finish === 'shiny' ? '#ffffff' : r[5]; g.lineWidth = finish === 'matte' ? L.ridge * .6 : style === 'bold' ? L.ridge * .8 : L.ridge; g.stroke(e.ridge); if (L.core) { g.strokeStyle = '#ffffff'; g.lineWidth = L.ridge * .45; g.stroke(e.ridge); } g.restore();
+  g.strokeStyle = alpha(style === 'bold' ? r[4] : r[5], .9); g.lineWidth = .5; g.stroke(e.all);
   g.restore();
 }
 function drawBreaker(g, color, uw, uh) { drawBreakerStyle(g, color, uw, uh, 'classic'); }
