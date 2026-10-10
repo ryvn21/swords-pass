@@ -36,6 +36,7 @@ export function handlingRules(input={}){
  if(input?.freeSlide===true)out.freeSlide=true;
  if(input?.yppRotate===true)out.yppRotate=true;  // YPP rotation: radial, 90/180/270°, popups only when turning to point down
  if(input?.yppAttack===true)out.yppAttack=true;
+ if(input?.yppCascade===true)out.yppCascade=true;   // YPP cascade timing: joins fade in 250 ms, destroys 75 x depth + 500 ms
  if(input?.slideDrop===true)out.slideDrop=true;
  if(Number.isFinite(input?.startVelocity))out.startVelocity=Math.max(.005,Math.min(.25,input.startVelocity));
  for(const k of ['lockCapMs','lockFloorMs'])if(Number.isFinite(input?.[k]))out[k]=Math.max(0,Math.min(1000,Math.round(input[k])));  // slid off a ledge while landing: falls at once  // YPP attack timing: strikes one by one at a steady speed, then sprinkle stacks  // sideways moves judged on the pair's own row only      // flips at the very top turn around the lower cell   // stalls slow the rest of the row instead (never below half speed)
@@ -55,9 +56,9 @@ export function handlingRules(input={}){
 //   Space         0.8 px/ms, off again when each new pair spawns; no early press → 50 ms a row, 0 ms window
 //   attacks       YPP timing (yppAttack): strikes land one at a time, 1.2 px/ms (33 ms a row, 22.5 ms a column from the
 //                 side; attackMs = a full 13-row fall, 433 ms), then each column's sprinkles drop as one stack; loose blocks 33 ms a row
-//   breaks        75 ms between depth levels, then 250 ms before the board moves on (the burst keeps flying)
+//   breaks        YPP cascade (yppCascade): new blocks fade in 250 ms; a destroy waits 75 ms, 75 ms per depth level, 500 ms explosions
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,startVelocity:.03,lockCapMs:167,lockFloorMs:40,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,yppCascade:true,startVelocity:.03,lockCapMs:167,lockFloorMs:40,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});

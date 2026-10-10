@@ -249,12 +249,21 @@ function enterAttack(state,side,hooks){
  else{p.timer=Math.max(1,state.rules.attackMs);p.attackVisual={before,...result,batchId:attack.id,duration:p.timer};}
  
 }
+// YPP cascade timing (rules.yppCascade): blocks that join fade in for 250 ms before anything breaks; a destroy works out
+// from the breaker 75 ms per depth level and each piece's explosion runs 500 ms: a simple link takes 75 + 500 = 575 ms.
+const JOIN_MS=250,EXPLODE_MS=500;
 function beginResolution(state,side,hooks){
- const p=state.players[side];p.motion=[];fuse(p.board);const groups=clearGroups(p.board);
+ const p=state.players[side];p.motion=[];
+ const ypp=state.rules.yppCascade,was=ypp?p.board.map(r=>r.map(c=>c?.gem||0)):null;
+ fuse(p.board);
+ if(ypp){const joined=new Set();for(let y=0;y<H;y++)for(let x=0;x<W;x++){const g=p.board[y][x]?.gem||0;if(g&&g!==was[y][x])joined.add(g);}
+  if(joined.size){p.phase='join';p.joining=[...joined];p.timer=JOIN_MS;p.joinDuration=JOIN_MS;return;}}
+ p.joining=null;
+ const groups=clearGroups(p.board);
  if(groups.length){
   p.chain++;p.phase='clear';p.wave=clearWave(groups,state.rules.waveMs);
-  p.clearCellMs=state.rules.clearMs;
-  p.clearDuration=Math.max(...p.wave.map(c=>c.delay))+state.rules.clearMs;
+  p.clearCellMs=state.rules.clearMs;p.clearLife=ypp?EXPLODE_MS:state.rules.clearMs;
+  p.clearDuration=Math.max(...p.wave.map(c=>c.delay))+p.clearLife;
   p.timer=p.clearDuration;p.clearing=groups.map(g=>g.map(({x,y})=>({x,y})));
   // Snapshot the result before progressively removing cells from the live board.
   p.pendingClear=shatter(clone(p.board),groups,p.chain);
@@ -294,11 +303,12 @@ export function step(state,dt=1000/60,actions=[],hooks={}){
    p.timer-=dt;
    if(p.phase==='clear'){
     const age=p.clearDuration-p.timer;
-    for(const c of p.wave)if(age>=c.delay+state.rules.clearMs)p.board[c.y][c.x]=null;
+    for(const c of p.wave)if(age>=c.delay+(p.clearLife??state.rules.clearMs))p.board[c.y][c.x]=null;
    }
    if(p.timer<=0){
     if(p.phase==='clear'){emitAttack(state,side,p.pendingClear);p.pendingClear=null;p.clearing=[];p.wave=[];beginSettle(state,side,hooks);}
     else if(p.phase==='settle')settlePlayer(state,side,hooks);
+    else if(p.phase==='join'){p.joining=null;beginResolution(state,side,hooks);}
     else if(p.phase==='attack'){for(const hit of p.attackVisual.hits)state.events.push({type:'hit',side,...hit});p.attackVisual=null;if(p.board[H-1][3]?.stage===3)p.dead=true;else beginSettle(state,side,hooks);}
     else spawn(state,p);
    }

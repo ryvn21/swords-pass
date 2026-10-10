@@ -54,16 +54,19 @@ function drawPosition(p,x,y){const a=p.motion?.find(c=>c.x===x&&c.y===y);return 
 function waveAge(p,x,y){if(p.phase!=='clear')return null;const c=p.wave?.find(c=>c.x===x&&c.y===y);return c?p.clearDuration-p.timer-c.delay:null;}
 function drawPile(ctx,board,p,reduced){
  const rects=gemRects(board),strikes=new Map();
+ // YPP cascade: a block that just joined fades in over its pieces
+ const joining=p?.phase==='join'&&p.joining?new Set(p.joining):null,joinK=joining?Math.max(0,Math.min(1,1-p.timer/(p.joinDuration||250))):1;
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
   const c=board[y][x];if(!c)continue;
   if(c.stage===3){const a=strikes.get(c.strike)||{x,y,maxX:x,maxY:y,axis:c.axis,hand:c.hand};a.x=Math.min(a.x,x);a.y=Math.min(a.y,y);a.maxX=Math.max(a.maxX,x);a.maxY=Math.max(a.maxY,y);strikes.set(c.strike,a);continue;}
+  if(c.gem&&joining?.has(c.gem)){tile(ctx,x*X,(H-1-y)*Y,{...c,gem:0},X,1);continue;}
   if(c.gem)continue;
   const age=waveAge(p,x,y),fade=globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180),alpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,fade));
   const yy=drawPosition(p,x,y);tile(ctx,x*X,(H-1-yy)*Y,c,X,alpha);
  }
  for(const g of rects){
   const yy=drawPosition(p,g.x,g.y),x=g.x*X+1,y=(H-yy-g.h)*Y+1,w=g.w*X-2,h=g.h*Y-2;
-  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=age===null||age<0?1:Math.max(0,1-age/Math.max(1,globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180)));const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
+  const age=waveAge(p,g.x,g.y);ctx.save();ctx.globalAlpha=(age===null||age<0?1:Math.max(0,1-age/Math.max(1,globalThis.scrapsSkin?.ready&&!reduced?80:(p.clearCellMs??180))))*(joining?.has(g.id??board[g.y][g.x]?.gem)?joinK:1);const S=globalThis.scrapsSkin;if(S?.ready&&S.gem(ctx,x,y,w,h,g)){ctx.restore();continue;}
   ctx.fillStyle=COLORS[g.color];rect(ctx,x,y,w,h,4);ctx.fill();ctx.strokeStyle='#fff6';ctx.lineWidth=1.5;ctx.stroke();
   ctx.fillStyle='#ffffff18';ctx.beginPath();ctx.moveTo(x+4,y+4);ctx.lineTo(x+w-4,y+4);ctx.lineTo(x+w-12,y+12);ctx.lineTo(x+12,y+12);ctx.lineTo(x+12,y+h-12);ctx.lineTo(x+4,y+h-4);ctx.closePath();ctx.fill();
   ctx.strokeStyle='#0003';ctx.strokeRect(x+9,y+10,w-18,h-20);
