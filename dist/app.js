@@ -33,7 +33,7 @@ let patternLibrary=readLibrary(storedLibrary,read('custom-pattern',null)),patter
 if(storedLibrary?.version!==1)save('pattern-library',patternLibrary);
 if((prefs.handlingVersion??0)<4){for(const [k,v] of Object.entries({gravityMs:720,fastFallMs:95,lockMs:220}))if(prefs.rules[k]===v)prefs.rules[k]=DEFAULT_RULES[k];prefs.handlingVersion=4;save('preferences',prefs);}
 if((prefs.handlingVersion??0)<6){for(const [k,v] of Object.entries({gravityMs:1000,fastFallMs:125,entryMs:100}))if(prefs.rules[k]===v)prefs.rules[k]=DEFAULT_RULES[k];prefs.handlingVersion=6;save('preferences',prefs);}
-prefs=migrateToHouse(prefs);prefs.rules=handlingRules(prefs.useDefaultTimings!==false?HOUSE_RULES:{...prefs.rules,stallHold:undefined,stallSlow:undefined,topTuck:undefined,freeSlide:undefined,stallFlips:0,yppRotate:true,yppAttack:true});save('preferences',prefs);
+prefs=migrateToHouse(prefs);prefs.rules=handlingRules(prefs.useDefaultTimings!==false?HOUSE_RULES:{...prefs.rules,stallHold:undefined,stallSlow:undefined,topTuck:undefined,freeSlide:undefined,stallFlips:0,yppRotate:true,yppAttack:true,slideDrop:true});save('preferences',prefs);
 let handlingEditor=null;
 let records=read('records',{wins:0,losses:0,bestChain:0,opponents:{}}),replays=read('replays',[]).filter(r=>[1,2,3,4,5,6,7,10,VERSION].includes(r.version)&&r.initial&&Array.isArray(r.actions));
 let challengeUI=null,zenMode=false;

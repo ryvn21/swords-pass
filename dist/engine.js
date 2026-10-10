@@ -191,6 +191,8 @@ export function command(state,side,action){
  if(!next)return false;
  if((p.lockResets??0)>=6&&Math.min(...cells(next).map(c=>c.y))>Math.min(...cells(p.active).map(c=>c.y)))return false;
  p.active=next;entered(p);
+ // rules.slideDrop: slid off a ledge during the landing window, the pair is no longer resting, so it falls straight away
+ if(state.rules.slideDrop&&p.bouncing&&(action==='left'||action==='right')&&move(p.board,p.active,0,-1)){p.bouncing=false;p.lock=0;p.fall=0;}
  // Stall: two flips in the same direction reset the fall and lock timers, up to rules.stallFlips times per pair.
  // rules.stallHold: the pair holds still for the time it had already spent in its row (same delay as a reset, but it
  // never jumps back up the board while you watch). rules.stallSlow (current): the pair keeps falling, the rest of its row
