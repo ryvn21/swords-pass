@@ -1161,3 +1161,35 @@ button.ol-blade-name:hover strong,button.ol-blade-name[aria-expanded="true"] str
 .timing-more summary::-webkit-details-marker{display:none}
 .timing-more summary::before{content:"\25b8";display:inline-block;margin-right:8px;transition:transform .2s}
 .timing-more[open] summary::before{transform:rotate(90deg)}
+/* ---------- Forge: new-pattern flow (steps, icon picker, row rail) ---------- */
+.forge-editor .fg-head{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.forge-editor .fg-icon .sword-icon{width:40px;height:80px;display:block}
+.forge-editor .fg-head .eyebrow{margin:0 0 2px}
+.forge-editor .fg-title{margin:0;font:400 22px var(--tt-display,inherit);color:#f3e2bd;line-height:1.1;overflow-wrap:anywhere}
+.forge-editor #pattern-status{margin:4px 0 0;font:400 12px var(--tt-ui);color:#b9a684}
+.fg-step{border-top:1px solid #6b4a2a66;padding:14px 0 6px;margin-top:10px}
+.fg-step-head{display:flex;align-items:center;gap:10px;margin:0 0 8px;font:400 15px var(--tt-ui);color:#f3e2bd;letter-spacing:.02em}
+.fg-step-head b{display:inline-grid;place-items:center;width:22px;height:22px;background:#8a2a22;color:#fff3d6;border:2px solid #d8b47a;font:400 12px var(--tt-ui);flex:none}
+.fg-hint{margin:-2px 0 10px}
+.forge-editor .pattern-palette{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.fg-fill{margin-left:auto;padding:4px 12px;font:400 13px var(--tt-ui)}
+.fg-grid{display:grid;grid-template-columns:26px minmax(0,300px);gap:8px;justify-content:center}
+.fg-grid .pattern-editor:not(#_){margin:0;max-width:300px}
+.fg-rail{display:grid;padding:12px 0;gap:3px}
+.fg-rail>span{display:flex;align-items:center;justify-content:center;border-right:2px solid #d8b47a88;margin:2px 0}
+.fg-rail .fg-spr{border-right-color:#a88a5a}
+.fg-glyph{width:18px;height:auto;image-rendering:pixelated;display:block}
+.fg-strike .fg-glyph{width:12px}
+.fg-legend{display:flex;justify-content:center;gap:16px;margin:6px 0 0;font:400 11px var(--tt-ui);color:#b9a684}
+.fg-legend span{display:inline-flex;align-items:center;gap:5px}
+.fg-legend .fg-glyph{width:10px}
+.fg-tools{justify-content:center}
+.fg-rows{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font:400 13px var(--tt-ui);color:#f3e2bd}
+.fg-rows button{width:28px;height:28px;padding:0;display:grid;place-items:center}
+.forge-editor .fg-name{width:100%;margin-bottom:10px}
+.fg-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:4px;max-height:156px;overflow-y:auto;padding:4px;background:#0000003a;border:1px solid #6b4a2a66}
+.fg-icons button{padding:2px;height:72px;display:grid;place-items:center;background:transparent;border:1px solid transparent}
+.fg-icons button .sword-icon{width:28px;height:56px}
+.fg-icons button:hover{border-color:#d8b47a66}
+.fg-icons button.on{border:2px solid var(--gold,#d8b47a);background:#d8b47a1f}
+.fg-more{border-top:1px solid #6b4a2a66;margin-top:12px;padding-top:10px}
