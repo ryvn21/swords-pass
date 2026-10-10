@@ -146,6 +146,44 @@ export function drawBlade(def, w = 52, h = 150) {
   });
 }
 
+// ---------- incoming strikes ----------
+// A strike is a great sword filling its rectangle, hilt up, tip down: a broad steel blade with a fuller, a gold
+// crossguard the full width with down-curled quillons and a ruby, a wrapped grip and a round pommel. Drawn at art
+// resolution (a board cell is 16x24 art pixels) and snapped to pixels with an ink outline, like the blade icons.
+export function drawStrikeSword(aw, ah) {
+  aw = Math.max(10, Math.round(aw)); ah = Math.max(30, Math.round(ah));
+  return pixelize(aw - 2, ah - 2, (g, w, h) => {
+    const cx = w / 2, hilt = Math.max(15, Math.min(26, Math.round(h * .2))), pr = Math.max(2.5, Math.min(4.5, w * .16));
+    const pomY = pr + .5, guardY = hilt - 3, gh = Math.max(3, Math.min(5, Math.round(h * .03))), top = guardY + gh, bot = h;
+    const bw = Math.max(6, Math.min(w - 3, Math.round(w * .66))), hw = bw / 2, tip = Math.min(bw * 1.15, (bot - top) * .3);
+    // blade
+    const blade = new Path2D(); blade.moveTo(cx - hw, top); blade.lineTo(cx + hw, top); blade.lineTo(cx + hw, bot - tip); blade.lineTo(cx, bot); blade.lineTo(cx - hw, bot - tip); blade.closePath();
+    const bg = g.createLinearGradient(cx - hw, 0, cx + hw, 0); bg.addColorStop(0, STEEL[3]); bg.addColorStop(.18, STEEL[2]); bg.addColorStop(.5, STEEL[2]); bg.addColorStop(.52, STEEL[1]); bg.addColorStop(1, STEEL[0]);
+    g.fillStyle = bg; g.fill(blade);
+    g.save(); g.clip(blade);
+    const fw = Math.max(1, Math.round(bw * .14)); g.fillStyle = STEEL[0]; g.fillRect(Math.round(cx - fw / 2), top + 3, fw, (bot - top) * .62);     // fuller
+    g.fillStyle = STEEL[3]; g.fillRect(Math.round(cx - fw / 2) - 1, top + 3, 1, (bot - top) * .62);
+    g.fillStyle = '#ffffff'; g.fillRect(cx - hw, top, 1, bot - top - tip);                                                                  // edge glint
+    g.restore();
+    // crossguard: full width, quillons curling down, ruby in the middle
+    const [m0, m1, m2] = GOLD3, gw = w - 1;
+    const guard = new Path2D(); guard.roundRect(cx - gw / 2, guardY, gw, gh, 1.5);
+    guard.rect(cx - gw / 2, guardY, 2.2, gh + 2.5); guard.rect(cx + gw / 2 - 2.2, guardY, 2.2, gh + 2.5);
+    const gg = g.createLinearGradient(0, guardY, 0, guardY + gh + 2); gg.addColorStop(0, m2); gg.addColorStop(.45, m1); gg.addColorStop(1, m0); g.fillStyle = gg; g.fill(guard);
+    const rr = Math.max(1.5, Math.min(3, gh * .55)); g.fillStyle = '#7a1420'; g.beginPath(); g.arc(cx, guardY + gh / 2, rr + .6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#d43a44'; g.beginPath(); g.arc(cx, guardY + gh / 2, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd0c8'; g.fillRect(cx - rr * .5, guardY + gh / 2 - rr * .6, 1, 1);
+    // grip, wrapped
+    const gwid = Math.max(3, Math.min(6, Math.round(w * .22))), gy0 = pomY + pr * .6, gy1 = guardY;
+    g.fillStyle = '#3a2414'; g.fillRect(cx - gwid / 2, gy0, gwid, gy1 - gy0);
+    g.fillStyle = '#7a5030'; for (let y = gy0 + 1; y < gy1 - .5; y += 2.5) g.fillRect(cx - gwid / 2, y, gwid, 1.2);
+    // pommel
+    const pg = g.createLinearGradient(0, pomY - pr, 0, pomY + pr); pg.addColorStop(0, m2); pg.addColorStop(1, m0); g.fillStyle = pg;
+    g.beginPath(); g.arc(cx, pomY, pr, 0, Math.PI * 2); g.fill(); g.fillStyle = m2; g.fillRect(cx - pr * .5, pomY - pr * .6, 1, 1);
+  });
+}
+const strikeCache = new Map();
+export function strikeSprite(aw, ah) { const k = Math.round(aw) + 'x' + Math.round(ah); let c = strikeCache.get(k); if (!c) { c = drawStrikeSword(aw, ah); strikeCache.set(k, c); if (strikeCache.size > 60) strikeCache.delete(strikeCache.keys().next().value); } return c; }
+
 // ---------- the existing sword families, in the same pixel style ----------
 const STEEL = ['#4a5260', '#9aa3b0', '#e4e8ee', '#ffffff'], LEGACY_STEEL = ['#4e4562', '#9486ad', '#d6cbe8', '#f6efff'];
 const GOLD3 = ['#6a4210', '#c8963f', '#ffe9a0'], IRON3 = ['#3a3a44', '#7a7a88', '#c4c4d0'];

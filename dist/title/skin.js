@@ -8,6 +8,7 @@
 //   red = leaf blade, yellow = rapier, green = scimitar, blue = broadsword.
 // Grey (stone) pieces carry the engraving of the colour they will become.
 import './sfx.js';
+import {strikeSprite} from './forge-art.js';
 
 const RAMP = [
   ['#2a060b', '#5e111b', '#9a1e28', '#d43838', '#f2705c', '#ffc2ad'],   // red: garnet
@@ -275,8 +276,8 @@ const skin = {
     ctx.restore(); return true;
   },
   sword(ctx, wide, len) {
-    const [k] = scaleOf(ctx), pw = Math.max(6, Math.round(wide * k)), ph = Math.max(12, Math.round(len * k)), uw = Math.max(6, wide), uh = Math.max(12, len);
-    const s = sprite('sw' + Math.round(uw) + 'x' + Math.round(uh), pw, ph, uw, uh, g => drawSword(g, uw, uh), SWORD_PAL);
+    // the pixel great sword (forge-art.js), at half the board's units so its pixels match the blade icons
+    const s = strikeSprite(wide / 2, len / 2);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(s, -wide / 2, -len / 2, wide, len); return true;
   },
   board(ctx, w, h) {
@@ -458,6 +459,7 @@ function drawBursts(ctx, cv) {
   }
   ctx.restore();
 }
+skin.crush = (ctx, cx, cy, color) => burst(ctx, cx, cy, color ?? 0);
 skin.after = (ctx, cv, p, w, h) => {
   if (!reduced) drawBursts(ctx, cv);
   if (!MINE.test(cv?.id || '') || !p) return;

@@ -95,6 +95,16 @@ function drawScheduled(ctx,p,v,hits){
  for(const a of hits)if(a.kind==='sprinkle')for(const c of a.placed||[])low.set(c.x,Math.min(low.get(c.x)??H,c.y));
  for(const a of hits)if(a.kind==='sprinkle')for(const c of a.placed||[]){const rows=H-low.get(c.x),up=Math.max(0,rows-e/v.rowMs);if(up>=rows)continue;tile(ctx,c.x*X,(H-1-c.y-up)*Y,p.board[c.y][c.x]);}
 }
+const crushFx=new WeakMap();   // attack -> cells already burst, so each crushed piece bursts once
+function crushedPile(ctx,p,v,reduced){
+ const t=v.duration-p.timer,hits=v.hits??[],b=v.before.map(r=>r.slice()),S=globalThis.scrapsSkin;let done=crushFx.get(v);if(!done)crushFx.set(v,done=new Set());
+ for(const s of v.schedule){const a=hits[s.i],q=a?.placement;if(!q||t<s.start)continue;const k=Math.min(1,(t-s.start)/Math.max(1,s.end-s.start)),side=a.kind==='horizontal'&&!a.converted;
+  for(let y=q.y;y<q.y+q.h;y++)for(let x=q.x;x<q.x+q.w;x++){const c=b[y]?.[x];if(!c)continue;
+   // how far the leading edge has travelled into the strike's own rectangle, in cells
+   const reach=side?(k*q.w):(k*(H-q.y)-(H-q.y-q.h)),depth=side?(q.hand===1?q.x+q.w-1-x:x-q.x):(q.y+q.h-1-y);
+   if(reach>depth+.5){b[y][x]=null;const key=x+','+y;if(!done.has(key)){done.add(key);if(!reduced&&S?.ready)S.crush?.(ctx,(x+.5)*X,(H-1-y+.5)*Y,c.color);}}}}
+ return b;
+}
 // The YPP warning: each incoming strike peeks in at the edge it will come from, blinking (300 ms on, 300 ms off) at 75%.
 // It shows a third of a cell for a small strike (area 6 or less), two-thirds up to 10, a full cell for anything bigger.
 const SHOW_INCOMING_PEEK=true;
@@ -130,7 +140,9 @@ export function drawBoard(canvas,p,{time=0,renderAheadMs=0,gravityMs=DEFAULT_RUL
  if(!skinBoard){ctx.strokeStyle='#b8996911';ctx.lineWidth=1;}if(!skinBoard)for(let x=1;x<W;x++){ctx.beginPath();ctx.moveTo(x*X,0);ctx.lineTo(x*X,H*Y);ctx.stroke();}
  ctx.fillStyle='#d8b47a';ctx.beginPath();ctx.moveTo(3.5*X-5,0);ctx.lineTo(3.5*X+5,0);ctx.lineTo(3.5*X,6);ctx.closePath();ctx.fill();
  const incoming=p.phase==='attack'?p.attackVisual:null;
- drawPile(ctx,incoming?.before??p.board,incoming?{}:p,reduced);
+ // YPP timing: pieces under a strike are crushed as the blade reaches them (they vanish with a burst of chunks)
+ const pile=incoming?.schedule?crushedPile(ctx,p,incoming,reduced):incoming?.before??p.board;
+ drawPile(ctx,pile,incoming?{}:p,reduced);
  // An incoming attack lands in two beats: the swords first, then the sprinkles drop on top of them.
  // Everything moves straight to its resting place (accelerating, no overshoot) and holds there.
  if(incoming){

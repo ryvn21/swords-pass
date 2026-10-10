@@ -7,6 +7,16 @@ const tile = (c, breaker = false) => `<i class="pn-tile" style="background-image
 const board = (h, label) => `<span class="pn-board" style="--h:${h}"><b>${label}</b></span>`;
 
 const NOTES = [
+  {date: '10 October 2026', title: 'The Forge, shared', items: [
+    {head: 'Community blades', text: 'Share a blade you forged and anyone can add it to their own rack or open it in the Forge to make it theirs. Browse the newest or the most copied, or search by name or maker.',
+      art: `<span class="pn-row"><img src="${icon('duel')}" alt=""></span>`},
+    {head: 'Forging made simple', text: 'Three steps: paint the pattern, name it and pick its look from the blade pictures, save. Small icons beside the grid show which rows colour your strikes and your sprinkles.',
+      art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c)).join('')}</span>`},
+    {head: 'Show it off', text: 'The test board drops 1×4 to 2×8 strikes, twin full-height swords, side swords and rows of sprinkles, or plays a short exchange to show what your blade sends.',
+      art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c, true)).join('')}</span>`},
+    {head: 'Classic feel', text: 'Flips, popups and late moves now follow the classic rules, and incoming strikes peek in, crash down one by one and crush what they hit.',
+      art: `<span class="pn-big">↻</span>`},
+  ]},
   {date: '9 October 2026', title: 'Boards first', items: [
     {head: 'Bigger, centred boards', text: 'Online, Play vs AI and Adventure size the boards to your window and keep them level. Around a quarter taller on a laptop.',
       art: `<span class="pn-row">${board(46, 'before')}<em>→</em>${board(64, 'now')}${board(64, 'rival')}</span>`},
@@ -30,7 +40,7 @@ const NOTES = [
       art: `<span class="pn-big">4 s → <b>0.16 s</b></span>`},
     {head: 'Livelier breaks', text: 'Broken pieces pop, split into four chunks that fly up and fall away, and throw off sparks.',
       art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c)).join('')}</span>`},
-    {head: 'See and hear attacks coming', text: 'Each incoming strike peeks in at the edge it will come from, blinking, with a drum warning sized to the attack. Strikes land one after another at a steady speed, then the sprinkles drop. Side swords scrape in and crushed pieces crunch.',
+    {head: 'See and hear attacks coming', text: 'Each incoming strike peeks in at the edge it will come from, blinking, with a drum warning sized to the attack. Strikes land one after another at a steady speed, crushing the pieces in their way, then the sprinkles drop. New pixel great swords. Side swords scrape in and crushed pieces crunch.',
       art: `<span class="pn-row"><img src="${icon('duel')}" alt=""></span>`},
     {head: 'Bolder breakers, gentler glow', text: 'Breakers are bigger with a dark outline, so they read at a glance; the glow breathes slowly and faintly instead of pulsing.',
       art: `<span class="pn-row">${[0, 1, 2, 3].map(c => tile(c, true)).join('')}</span>`},
