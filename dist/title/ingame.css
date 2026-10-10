@@ -319,6 +319,12 @@ body[data-scene=zen]::before{background:radial-gradient(ellipse 58% 70% at 50% 5
 .zen-music.playing .zen-disc{animation:zen-spin 3s linear infinite}
 @keyframes zen-spin{to{transform:rotate(360deg)}}
 .zen-controls{display:flex;gap:4px;margin:10px 0 6px}
+.zen-stations{display:grid;grid-template-columns:1fr;gap:5px;margin:12px 0 4px}
+.zen-stations button:not(#_){display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:5px 9px;text-align:left;border-radius:6px;background:#1d1626cc;border:1px solid #5a4a6e;color:var(--parchment);line-height:1.15;min-width:0}
+.zen-stations button b{font:600 14px var(--tt-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.zen-stations button small{font:400 12px var(--tt-ui);color:#cdb98f}
+.zen-stations button.on:not(#_){border-color:#e6d4ff;background:#3a2a52;box-shadow:0 0 0 1px #e6d4ff55,0 0 12px #b48cff33}
+.zen-stations button:disabled:not(#_){opacity:.45;cursor:default}.zen-stations button:disabled small::before{content:'\1F512\00a0'}
+.zen-level-up em{display:block;font:italic 600 13px var(--tt-ui);color:#e6d4ff;margin-top:2px}
 .zen-controls button:not(#_){font-size:22px;padding:2px .55em}
 .zen-vol{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font:400 14px var(--tt-ui);color:#d8c49c}
 .zen-reset{text-align:center}.zen-reset .eyebrow{justify-content:center;color:#e6d4ff}

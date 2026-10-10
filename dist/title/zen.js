@@ -28,7 +28,9 @@ function bank(stats, ms, id) {
 }
 function levelUp(L) {
   const box = document.getElementById('zen-level-up'); if (!box) return;
-  box.innerHTML = `<small>ZEN LEVEL ${L.level}</small><strong>${L.title}</strong>`; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
+  music.setLevel(L.level);
+  const opened = music.stations().filter(st => st.level === L.level).map(st => st.name);
+  box.innerHTML = `<small>ZEN LEVEL ${L.level}</small><strong>${L.title}</strong>${opened.length ? `<em>New station: ${opened.join(', ')}</em>` : ''}`; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
   globalThis.scrapsUiSound?.('select');
 }
 
@@ -48,6 +50,7 @@ function panel() {
 function player() {
   return `<div class="zen-music"><p class="eyebrow">NOW PLAYING</p>
     <div class="zen-track"><span class="zen-disc" aria-hidden="true"></span><div><strong id="zm-title">…</strong><small id="zm-artist"></small></div></div>
+    <div class="zen-stations" id="zm-stations" role="radiogroup" aria-label="Station"></div>
     <div class="zen-controls"><button type="button" id="zm-prev" aria-label="Previous track">&#9198;</button><button type="button" id="zm-play" aria-label="Play or pause">&#9208;</button><button type="button" id="zm-next" aria-label="Next track">&#9197;</button><button type="button" id="zm-night" aria-label="Night mode" title="Night mode: dim the screen">&#9790;</button></div><small class="zen-night" id="zm-night-label"></small>
     <label class="zen-vol"><span>Music</span><input type="range" id="zm-vol" min="0" max="100"></label>
   </div>`;
@@ -56,6 +59,11 @@ function syncPlayer(st = music.state()) {
   const t = document.getElementById('zm-title'); if (!t) return;
   t.textContent = st.title; document.getElementById('zm-artist').textContent = st.artist;
   const p = document.getElementById('zm-play'); p.innerHTML = st.playing ? '&#9208;' : '&#9654;';
+  const box = document.getElementById('zm-stations');
+  if (box) { const list = music.stations(), key = list.map(x => x.id + x.locked + x.current).join();
+    if (box.dataset.key !== key) { box.dataset.key = key;
+      box.innerHTML = list.map(x => `<button type="button" role="radio" aria-checked="${x.current}" data-station="${x.id}" class="${x.current ? 'on' : ''}" ${x.locked ? 'disabled' : ''} title="${x.locked ? 'Unlocks at Zen level ' + x.level : x.blurb}"><b>${x.name}</b><small>${x.locked ? 'Zen level ' + x.level : x.blurb}</small></button>`).join('');
+      for (const b of box.querySelectorAll('[data-station]')) b.onclick = () => music.setStation(b.dataset.station); } }
   document.querySelector('.zen-music')?.classList.toggle('playing', st.playing);
 }
 
@@ -74,6 +82,7 @@ function decorate(app) {
   const nl = () => { const el = document.getElementById('zm-night-label'); if (el) el.textContent = globalThis.scrapsNight?.nightLabel() || ''; };
   document.getElementById('zm-night').onclick = () => { globalThis.scrapsNight?.cycleNight(); nl(); }; nl();
   document.getElementById('zm-prev').onclick = () => music.next(-1);
+  music.setLevel(levelOf(life.blocks).level);
   unsub?.(); unsub = music.on(syncPlayer); syncPlayer();
   if (!music.state().playing && !decorate.paused) music.start();
   paint(true);
@@ -97,4 +106,6 @@ function leave() {
   sitting = blank(); last = null; unsub?.(); unsub = null; music.stop();
 }
 addEventListener('pagehide', () => { if (inZen && last && !banked.has(last.id)) bank(last.stats, last.ms, last.id); });
-globalThis.scrapsZen = {decorate, update, bank, leave, totals: () => ({...life}), level: () => levelOf(life.blocks)};
+// a combo in Zen: the music answers it
+function combo(chain) { if (inZen) music.react(chain); }
+globalThis.scrapsZen = {decorate, update, bank, leave, combo, totals: () => ({...life}), level: () => levelOf(life.blocks)};
