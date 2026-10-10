@@ -150,12 +150,14 @@ export function drawBlade(def, w = 52, h = 150) {
 // A strike is a great sword filling its rectangle, hilt up, tip down: a broad steel blade with a fuller, a gold
 // crossguard the full width with down-curled quillons and a ruby, a wrapped grip and a round pommel. Drawn at art
 // resolution (a board cell is 16x24 art pixels) and snapped to pixels with an ink outline, like the blade icons.
-export function drawStrikeSword(aw, ah) {
+// peek: the incoming warning shows only the end of the blade, so it gets a short point and nearly the full width,
+// and a wide sword reads as wide from the sliver that shows.
+export function drawStrikeSword(aw, ah, {tipMax = Infinity, bwFrac = .66} = {}) {
   aw = Math.max(10, Math.round(aw)); ah = Math.max(30, Math.round(ah));
   return pixelize(aw - 2, ah - 2, (g, w, h) => {
     const cx = w / 2, hilt = Math.max(15, Math.min(26, Math.round(h * .2))), pr = Math.max(2.5, Math.min(4.5, w * .16));
     const pomY = pr + .5, guardY = hilt - 3, gh = Math.max(3, Math.min(5, Math.round(h * .03))), top = guardY + gh, bot = h;
-    const bw = Math.max(6, Math.min(w - 3, Math.round(w * .66))), hw = bw / 2, tip = Math.min(bw * 1.15, (bot - top) * .3);
+    const bw = Math.max(6, Math.min(w - 3, Math.round(w * bwFrac))), hw = bw / 2, tip = Math.min(bw * 1.15, (bot - top) * .3, tipMax);
     // blade
     const blade = new Path2D(); blade.moveTo(cx - hw, top); blade.lineTo(cx + hw, top); blade.lineTo(cx + hw, bot - tip); blade.lineTo(cx, bot); blade.lineTo(cx - hw, bot - tip); blade.closePath();
     const bg = g.createLinearGradient(cx - hw, 0, cx + hw, 0); bg.addColorStop(0, STEEL[3]); bg.addColorStop(.18, STEEL[2]); bg.addColorStop(.5, STEEL[2]); bg.addColorStop(.52, STEEL[1]); bg.addColorStop(1, STEEL[0]);
@@ -182,7 +184,7 @@ export function drawStrikeSword(aw, ah) {
   });
 }
 const strikeCache = new Map();
-export function strikeSprite(aw, ah) { const k = Math.round(aw) + 'x' + Math.round(ah); let c = strikeCache.get(k); if (!c) { c = drawStrikeSword(aw, ah); strikeCache.set(k, c); if (strikeCache.size > 60) strikeCache.delete(strikeCache.keys().next().value); } return c; }
+export function strikeSprite(aw, ah, opt) { const k = Math.round(aw) + 'x' + Math.round(ah) + (opt ? ':' + opt.tipMax + ':' + opt.bwFrac : ''); let c = strikeCache.get(k); if (!c) { c = drawStrikeSword(aw, ah, opt); strikeCache.set(k, c); if (strikeCache.size > 60) strikeCache.delete(strikeCache.keys().next().value); } return c; }
 
 // ---------- the existing sword families, in the same pixel style ----------
 const STEEL = ['#4a5260', '#9aa3b0', '#e4e8ee', '#ffffff'], LEGACY_STEEL = ['#4e4562', '#9486ad', '#d6cbe8', '#f6efff'];

@@ -41,9 +41,9 @@ export function prepareCanvas(canvas,width,height){
  if(canvas.width!==cw||canvas.height!==ch){canvas.width=cw;canvas.height=ch;}
  const ctx=canvas.getContext('2d');ctx.setTransform(cw/width,0,0,ch/height,0,0);return ctx;
 }
-function sword(ctx,x,y,w,h,horizontal=false,hand=1){
+function sword(ctx,x,y,w,h,horizontal=false,hand=1,opt){
  ctx.save();ctx.translate(x+w/2,y+h/2);if(horizontal)ctx.rotate(hand===1?Math.PI/2:-Math.PI/2);
- const wide=horizontal?h:w,len=horizontal?w:h;const S=globalThis.scrapsSkin;if(S?.ready&&S.sword(ctx,wide,len)){ctx.restore();return;}
+ const wide=horizontal?h:w,len=horizontal?w:h;const S=globalThis.scrapsSkin;if(S?.ready&&S.sword(ctx,wide,len,opt)){ctx.restore();return;}
  const fill=ctx.createLinearGradient(-wide/2,0,wide/2,0);fill.addColorStop(0,'#898d94');fill.addColorStop(.45,'#e1e2d8');fill.addColorStop(.6,'#bfc5c6');fill.addColorStop(1,'#747c88');
  ctx.fillStyle=fill;ctx.strokeStyle='#d6d4cc';ctx.lineWidth=1.3;
  ctx.beginPath();ctx.moveTo(-wide*.42,-len*.40);ctx.lineTo(wide*.42,-len*.40);ctx.lineTo(wide*.42,len*.34);ctx.lineTo(wide*.14,len*.48);ctx.lineTo(0,len*.5);ctx.lineTo(-wide*.42,len*.34);ctx.closePath();ctx.fill();ctx.stroke();
@@ -113,8 +113,10 @@ function drawIncomingPeek(ctx,canvas,p,time){
  const shapes=incomingShapes(canvas,p).filter(q=>!q.sprinkle);if(!shapes.length)return;
  ctx.save();ctx.globalAlpha=.75;ctx.beginPath();ctx.rect(0,0,W*X,H*Y);ctx.clip();
  for(const q of shapes){const area=q.area??q.w*q.h,peek=area<=6?1/3:area<=10?2/3:1,w=q.w*X-2,h=q.h*Y-2;
-  if(q.horizontal){const x=q.hand===1?W*X-peek*X:peek*X-w;sword(ctx,x,(H-q.y-q.h)*Y+1,w,h,true,q.hand);}
-  else sword(ctx,q.x*X+1,peek*Y-h,w,h,false,1);}
+  // the end of the blade, its point kept within half of what shows, nearly full width: a wide sword looks wide
+  const across=q.horizontal?q.h:q.w,opt=across>1?{tipMax:Math.round(peek*(q.horizontal?X:Y)*.5),bwFrac:.86}:undefined;
+  if(q.horizontal){const x=q.hand===1?W*X-peek*X:peek*X-w;sword(ctx,x,(H-q.y-q.h)*Y+1,w,h,true,q.hand,opt);}
+  else sword(ctx,q.x*X+1,peek*Y-h,w,h,false,1,opt);}
  ctx.restore();
 }
 function drawIncomingShadow(ctx,canvas,p,time,reduced){

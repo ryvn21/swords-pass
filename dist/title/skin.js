@@ -287,9 +287,9 @@ const skin = {
     }
     ctx.restore(); return true;
   },
-  sword(ctx, wide, len) {
+  sword(ctx, wide, len, opt) {
     // the pixel great sword (forge-art.js), at half the board's units so its pixels match the blade icons
-    const s = strikeSprite(wide / 2, len / 2);
+    const s = strikeSprite(wide / 2, len / 2, opt && {tipMax: Math.round(opt.tipMax / 2), bwFrac: opt.bwFrac});
     ctx.imageSmoothingEnabled = false; ctx.drawImage(s, -wide / 2, -len / 2, wide, len); return true;
   },
   board(ctx, w, h) {
