@@ -144,7 +144,8 @@ export function createMatch(options={}){if(options.engineVersion===9)return lega
 // so the gaps run 10, 13, 16, 19, 22 … blocks. A row takes 40 ÷ speed ms; the landing lock shrinks in step (lockMs × start ÷ speed).
 function speedStart(rules){return rules?.speedUp?{velocity:40/rules.gravityMs,blocksSeen:0,lastCount:0,dropFreq:10}:{};}
 const gravOf=(state,p)=>state.rules.speedUp&&p.velocity?40/p.velocity:state.rules.gravityMs;
-const lockOf=(state,p)=>state.rules.speedUp&&p.velocity?state.rules.lockMs*(40/state.rules.gravityMs)/p.velocity:state.rules.lockMs;
+// rules.lockCapMs / lockFloorMs keep the shrinking landing window between limits (capped YPP: 150 ms at most, 40 ms at least)
+const lockOf=(state,p)=>{const r=state.rules,w=r.speedUp&&p.velocity?r.lockMs*(40/r.gravityMs)/p.velocity:r.lockMs;return Math.max(r.lockFloorMs??0,Math.min(r.lockCapMs??Infinity,w));};
 function landedBlocks(state,p,n){if(!state.rules.speedUp||!p.velocity)return;for(let i=0;i<n;i++){p.blocksSeen++;if(p.blocksSeen>=p.lastCount+p.dropFreq){p.velocity=Math.min(.25,p.velocity+1/300);p.dropFreq=Math.trunc(p.dropFreq+3.33);p.lastCount=p.blocksSeen;}}}
 // rules.landOnce, the landing window: when the pair first rests on something it "bounces" and stops falling; a window
 // of lockMs × start speed ÷ speed (5 ÷ speed ms on the Default timings) starts once and is never extended. Moves and

@@ -36,7 +36,8 @@ export function handlingRules(input={}){
  if(input?.freeSlide===true)out.freeSlide=true;
  if(input?.yppRotate===true)out.yppRotate=true;  // YPP rotation: radial, 90/180/270°, popups only when turning to point down
  if(input?.yppAttack===true)out.yppAttack=true;
- if(input?.slideDrop===true)out.slideDrop=true;  // slid off a ledge while landing: falls at once  // YPP attack timing: strikes one by one at a steady speed, then sprinkle stacks  // sideways moves judged on the pair's own row only      // flips at the very top turn around the lower cell   // stalls slow the rest of the row instead (never below half speed)
+ if(input?.slideDrop===true)out.slideDrop=true;
+ for(const k of ['lockCapMs','lockFloorMs'])if(Number.isFinite(input?.[k]))out[k]=Math.max(0,Math.min(1000,Math.round(input[k])));  // slid off a ledge while landing: falls at once  // YPP attack timing: strikes one by one at a steady speed, then sprinkle stacks  // sideways moves judged on the pair's own row only      // flips at the very top turn around the lower cell   // stalls slow the rest of the row instead (never below half speed)
  if(Number.isInteger(input?.kickLimit))out.kickLimit=Math.max(0,Math.min(9,input.kickLimit));
  return out;
 }
@@ -44,7 +45,7 @@ export function handlingRules(input={}){
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 // Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
 //   natural fall  starts at 0.01 px/ms (4000 ms a row) and speeds up as you land blocks (engine: rules.speedUp)
-//   landing window 500 ms at the start (YPP: 5 ÷ speed), shrinking with the speed (20 ms at the cap); slid off a ledge it waits for the window to end, then falls (as YPP); starts on the first touch, never extended
+//   landing window YPP's 5 ÷ speed, capped: 150 ms at most (the start), 40 ms at least (the speed cap); slid off a ledge it waits for the window to end, then falls (as YPP); starts on the first touch, never extended
 //                 (landOnce: slid off a ledge it falls when the window ends; resting on the same row again locks at once)
 //   flips         YPP rotation (yppRotate): radial, tries 90/180/270° each in place, right, left; past half a row the row
 //                 below must be free; turning to point down may pop up a row, at most 2 times a pair (kickLimit). No stall.
@@ -54,7 +55,7 @@ export function handlingRules(input={}){
 //                 side; attackMs = a full 13-row fall, 433 ms), then each column's sprinkles drop as one stack; loose blocks 33 ms a row
 //   breaks        75 ms between depth levels, then 250 ms before the board moves on (the burst keeps flying)
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,lockCapMs:150,lockFloorMs:40,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});

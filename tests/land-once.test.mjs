@@ -5,7 +5,7 @@ import {HOUSE_RULES} from '../dist/handling-profile.js';
 
 // The landing window (Default timings): first touch "bounces" the pair and starts a window of 5 ÷ speed ms
 // (500 ms at the start) that moves never extend; at the end a resting pair locks, one slid off a ledge falls on.
-const rules = {...HOUSE_RULES, speedUp: false, lockMs: 500, stallFlips: 2, stallSlow: true, yppRotate: false};   // a long window to test the rules in
+const rules = {...HOUSE_RULES, speedUp: false, lockMs: 500, lockCapMs: undefined, stallFlips: 2, stallSlow: true, yppRotate: false};   // a long window to test the rules in
 function touch(setup) {
   const m = createMatch({mode: 'practice', seed: 11, rules}), p = m.players[0];
   setup?.(p.board);
