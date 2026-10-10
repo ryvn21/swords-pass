@@ -37,6 +37,7 @@ export function handlingRules(input={}){
  if(input?.yppRotate===true)out.yppRotate=true;  // YPP rotation: radial, 90/180/270°, popups only when turning to point down
  if(input?.yppAttack===true)out.yppAttack=true;
  if(input?.slideDrop===true)out.slideDrop=true;
+ if(Number.isFinite(input?.startVelocity))out.startVelocity=Math.max(.005,Math.min(.25,input.startVelocity));
  for(const k of ['lockCapMs','lockFloorMs'])if(Number.isFinite(input?.[k]))out[k]=Math.max(0,Math.min(1000,Math.round(input[k])));  // slid off a ledge while landing: falls at once  // YPP attack timing: strikes one by one at a steady speed, then sprinkle stacks  // sideways moves judged on the pair's own row only      // flips at the very top turn around the lower cell   // stalls slow the rest of the row instead (never below half speed)
  if(Number.isInteger(input?.kickLimit))out.kickLimit=Math.max(0,Math.min(9,input.kickLimit));
  return out;
@@ -45,7 +46,8 @@ export function handlingRules(input={}){
 // standard timing for online matches. (Engine DEFAULT_RULES stay as they are for saves and replays.)
 // Rows are 40 px; a speed in px/ms gives 40 ÷ speed ms a row.
 //   natural fall  starts at 0.01 px/ms (4000 ms a row) and speeds up as you land blocks (engine: rules.speedUp)
-//   landing window YPP's 5 ÷ speed, capped: 150 ms at most (the start), 40 ms at least (the speed cap); slid off a ledge it waits for the window to end, then falls (as YPP); starts on the first touch, never extended
+//   duels (speed-ups) start at YPP's 1v1 0.03 px/ms (1333 ms a row); landing window YPP's 5 ÷ speed: 167 ms at the
+//                 start, never under 40 ms; calm modes fall at gravityMs with a steady 167 ms window; slid off a ledge it waits for the window to end, then falls (as YPP); starts on the first touch, never extended
 //                 (landOnce: slid off a ledge it falls when the window ends; resting on the same row again locks at once)
 //   flips         YPP rotation (yppRotate): radial, tries 90/180/270° each in place, right, left; past half a row the row
 //                 below must be free; turning to point down may pop up a row, at most 2 times a pair (kickLimit). No stall.
@@ -55,7 +57,7 @@ export function handlingRules(input={}){
 //                 side; attackMs = a full 13-row fall, 433 ms), then each column's sprinkles drop as one stack; loose blocks 33 ms a row
 //   breaks        75 ms between depth levels, then 250 ms before the board moves on (the burst keeps flying)
 //   held left/right 300 ms, then 7 a second                                    → 300 / 142 ms
-export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,lockCapMs:150,lockFloorMs:40,wellFlip:true});
+export const HOUSE_RULES=handlingRules({speedUp:true,landOnce:true,kickLimit:2,gravityMs:4000,lockMs:500,fastFallMs:50,entryMs:0,spawnGraceMs:0,repeatDelayMs:300,repeatMs:142,clearMs:250,waveMs:75,settleMs:33,attackMs:433,dropBufferMs:0,stallFlips:0,yppRotate:true,yppAttack:true,startVelocity:.03,lockCapMs:167,lockFloorMs:40,wellFlip:true});
 export const DEFAULT_TIMINGS=HOUSE_RULES;
 // the previous house setup (2400 ms fall), kept as a starting point for anyone who had it
 export const PREVIOUS_HOUSE_RULES=handlingRules({gravityMs:2400,fastFallMs:46,lockMs:180,entryMs:0,spawnGraceMs:0,repeatDelayMs:170,repeatMs:90,clearMs:250,attackMs:400,dropBufferMs:160,stallFlips:3,wellFlip:true});
@@ -75,7 +77,7 @@ export const keysOf=(keys,action)=>{const k=keys?.[action];return Array.isArray(
 export function normalizeKeys(keys={}){const out={};for(const a of Object.keys(KEY_ACTIONS)){const k=keysOf(keys,a);out[a]=k.length?[...new Set(k)].slice(0,4):[...DEFAULT_KEYS[a]];}return out;}
 export const actionFor=(keys,code)=>Object.keys(KEY_ACTIONS).find(a=>keysOf(keys,a).includes(code));
 export const handlingKey=rules=>Object.entries(handlingRules(rules)).filter(([k])=>k!=='stallFlips'&&k!=='wellFlip'&&k!=='dropBufferMs').map(([k,v])=>k+'='+v).join(',');
-export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s to start (in duels it speeds up as you land blocks, up to 6.25) · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}
+export function fallSummary(rules){const r=handlingRules(rules);return `${(1000/r.gravityMs).toFixed(2)} rows/s in calm modes · duels start at ${(r.startVelocity?r.startVelocity*25:1000/r.gravityMs).toFixed(2)} rows/s and speed up as you land blocks, up to 6.25 · Space ${(1000/r.fastFallMs).toFixed(2)} rows/s`;}
 
 // Held left/right: one step the moment you press it (or the moment a new pair appears while you're holding it),
 // then another after repeatDelayMs, then one every repeatMs. Steps only go to a pair that is falling.

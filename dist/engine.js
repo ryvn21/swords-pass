@@ -142,7 +142,8 @@ export function createMatch(options={}){if(options.engineVersion===9)return lega
 // Speed-ups (rules.speedUp): the fall starts at 40 ÷ gravityMs px/ms and, each time the blocks you've landed reach
 // lastCount + dropFreq, rises by 1/300 px/ms (capped at 0.25); dropFreq starts at 10 and becomes trunc(dropFreq + 3.33),
 // so the gaps run 10, 13, 16, 19, 22 … blocks. A row takes 40 ÷ speed ms; the landing lock shrinks in step (lockMs × start ÷ speed).
-function speedStart(rules){return rules?.speedUp?{velocity:40/rules.gravityMs,blocksSeen:0,lastCount:0,dropFreq:10}:{};}
+// rules.startVelocity: where the speed-ups start (YPP 1v1: 0.03 px/ms, 1333 ms a row); without it, the natural fall
+function speedStart(rules){return rules?.speedUp?{velocity:rules.startVelocity??40/rules.gravityMs,blocksSeen:0,lastCount:0,dropFreq:10}:{};}
 const gravOf=(state,p)=>state.rules.speedUp&&p.velocity?40/p.velocity:state.rules.gravityMs;
 // rules.lockCapMs / lockFloorMs keep the shrinking landing window between limits (capped YPP: 150 ms at most, 40 ms at least)
 const lockOf=(state,p)=>{const r=state.rules,w=r.speedUp&&p.velocity?r.lockMs*(40/r.gravityMs)/p.velocity:r.lockMs;return Math.max(r.lockFloorMs??0,Math.min(r.lockCapMs??Infinity,w));};
